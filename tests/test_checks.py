@@ -687,3 +687,30 @@ def test_two_lines_of_one_role_named_at_their_ends_and_one_label_per_rule(vocab_
     mpl, problems = run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [col("accuracy"), col("answers")])))
     assert problems == []
     assert len(mpl.findobj(lambda a: tags(a).get("kind") == "rule_label")) == 1
+
+
+def test_label_does_not_jump_across_zero_when_its_side_is_taken(vocab):
+    # fig05b: two labelled dots joined by a connector, the right side holds one label; the left one must not land
+    # on the panel's left edge across the zero line
+    col = sp.DotColumn("score", "score", (-0.25, 1.1), (0, 0.5, 1), [
+        sp.Series("second", {"m1": sp.Est(0.26, 0.25, 0.28, cell="acc.m1", key="a", label=True)}),
+        sp.Series("first", {"m1": sp.Est(0.58, 0.52, 0.63, cell="acc.m1", key="b", label=True)})],
+        connect=("second", "first"), width=2.6)  # fmt: skip
+    problems = run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [col])))[1]
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]
+
+
+def test_lines_ending_together_get_leaders_and_wide_missing_words_say_so(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text().replace('"chance", "layer 11",', '"chance", "layer 11", "early", "late",')
+                 .replace('missing = ["no run", "no interval", "below gate"]', 'missing = ["no run", "no interval", "below gate", "no comparable run at all"]'))
+    v = sp.load(p)
+    xs = list(range(0, 25))
+    lines = [sp.Line("c1", "probe", xs, [1000 / (1 + x) + 100 for x in xs[:-1]] + [100], cell="line.c1", word="early"),
+             sp.Line("c1", "probe", xs, [3000 / (1 + x) + 100 for x in xs[:-1]] + [100], cell="line.c1", word="late")]
+    mpl, problems = run(sp.Figure("sweep", v).add(sp.Sweep(["c1"], "layer", "rank", lines, kind="checkpoints", xticks=[0, 10, 20])))
+    assert problems == [], [str(p) for p in problems]
+    assert mpl.findobj(lambda a: tags(a).get("kind") == "leader")
+    col = sp.DotColumn("accuracy", "accuracy", (-20, 100), (0, 50, 100),
+                       [sp.Series("second", {"m1": sp.Missing("no comparable run at all")})], width=0.9)  # fmt: skip
+    assert "SP610" in codes(run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [col])))[1])

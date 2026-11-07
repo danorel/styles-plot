@@ -9,6 +9,7 @@ SP606 two texts overlapping
 SP607 a matplotlib title or suptitle (titles are the target's business, drawn as the figure's title section)
 SP608 a marker other than the theme's, or hatching
 SP609 colour words that do not fit one line above their panel
+SP610 missing-cell words wider than the free span of their line
 """
 
 from __future__ import annotations
@@ -63,6 +64,11 @@ def check(cx: CheckCtx) -> list[Problem]:
     for need, have in sorted(full):
         out.append(cx.problem("SP609", f"colour words need {need:g} in on one line above a panel {have:g} in wide: "
                                        "widen the panel, use shorter words, or name the conditions as lanes"))  # fmt: skip
+    for t in cx.texts:
+        if tags(t).get("no_room"):
+            need, have = tags(t)["no_room"]
+            out.append(cx.problem("SP610", f"missing words {t.get_text()!r} need {need:g} in; the widest free span of "
+                                           f"their line is {have:g} in: widen the panel or shorten the words"))  # fmt: skip
     marker = cx.vocab.marks.marker
     for a in cx.marks:
         if isinstance(a, Line2D) and a.get_marker() not in (None, "None", "none", "", " ", marker):

@@ -576,9 +576,13 @@ def _missing(cv: Canvas, ctx: Ctx, c: _Col, y: float, words: str, vlines, spans=
     candidates = [0.04, c.w - 0.04 - w]
     edges = [(0.0, 0.0), *blocked, (c.w, c.w)]
     candidates += [e0[1] + clear for e0, e1 in zip(edges, edges[1:]) if e1[0] - e0[1] - 2 * clear >= w]
-    best = next((x0 for x0 in candidates if not any(a - clear < x0 + w and x0 - clear < b for a, b in blocked)),
-                candidates[0])  # fmt: skip
-    cv.text(c.x + best, y, words, kind="missing", size=ctx.sizes.tag, color=ctx.chrome("muted"))
+    best = next((x0 for x0 in candidates if not any(a - clear < x0 + w and x0 - clear < b for a, b in blocked)), None)
+    meta = {}
+    if best is None:  # no free span is wide enough: say so (SP610) rather than cross a line quietly
+        widest = max((e1[0] - e0[1] - 2 * clear for e0, e1 in zip(edges, edges[1:])), default=0.0)
+        meta = {"no_room": (round(w, 2), round(max(widest, 0.0), 2))}
+        best = candidates[0]
+    cv.text(c.x + best, y, words, kind="missing", size=ctx.sizes.tag, color=ctx.chrome("muted"), **meta)
 
 
 def rule_label(ctx: Ctx, rl) -> str:
@@ -621,49 +625,42 @@ def _dot(ax, ctx: Ctx, s, val: Est, y: float) -> list[float]:
 
 
 def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines) -> None:
-    """The printed values of one line, placed together, nearest first: right of their own dot in the first gap that
-    touches no mark, connector, whisker, tick, vertical line or other label; else left of their own dot under the same
-    rule (never past the panel's left edge)."""
+    """The printed values of one line. Every mark, whisker, connector, tick, vertical line and placed label is an
+    obstacle; each value goes into the free gap nearest its own dot (the right side on a tie), from the rightmost dot
+    leftwards, so the outer values take the outer sides. With no gap wide enough it sits right of its dot and the
+    layout check reports it."""
     per = c.per_inch()
     lo, hi = c.spec.xlim
     clear = 3 * PT * per
-    room = ctx.theme.pad * 0.7 * per
+    right_end = hi + ctx.theme.pad * 0.7 * per
     blocked = list(spans) + [(xv, xv) for xv in vlines]
 
-    def hits(a: float, b: float) -> list[tuple[float, float]]:
-        return [(s0, e) for s0, e in blocked if s0 < b + clear and a - clear < e]
+    def gaps() -> list[tuple[float, float]]:
+        out, cur = [], lo
+        for s0, e in sorted((s0 - clear, e + clear) for s0, e in blocked):
+            if s0 > cur:
+                out.append((cur, s0))
+            cur = max(cur, e)
+        if cur < right_end:
+            out.append((cur, right_end))
+        return out
 
-    def rightward(x: float, wd: float) -> float | None:
-        for _ in range(64):  # every step moves strictly right, so the search ends
-            if x + wd > hi + room:
-                return None
-            h = hits(x, x + wd)
-            if not h:
-                return x
-            x = max(max(e for _s, e in h) + clear, x + clear)
-        return None
-
-    def leftward(x: float, wd: float) -> float | None:  # x is the right end
-        for _ in range(64):
-            if x - wd < lo:
-                return None
-            h = hits(x - wd, x)
-            if not h:
-                return x
-            x = min(min(s0 for s0, _e in h) - clear, x - clear)
-        return None
-
-    for val, role in sorted(labels, key=lambda lr: lr[0].value):
+    for val, role in sorted(labels, key=lambda lr: -lr[0].value):
         text = ctx.value(c.spec.unit, val.value, val.key)
         col = ctx.chrome("muted") if role == "control" else ctx.role_hex(role)
         wd = ctx.measure(text, ctx.sizes.value)[0] * per
         meta = {"kind": "value", "key": val.key, "cell": val.cell, "unit": c.spec.unit, "role": role}
-        x = rightward(val.value, wd)
-        if x is not None:
-            blocked.append((x, x + wd))
-            cv.text(c.x + c.dx(x), y, text, size=ctx.sizes.value, color=col, **meta)
-            continue
-        right = leftward(val.value, wd)  # left of its own dot, past the other marks only as far as it must
-        right = right if right is not None else lo + wd
-        blocked.append((right - wd, right))
-        cv.text(c.x + c.dx(right), y, text, size=ctx.sizes.value, color=col, ha="right", **meta)
+        best = None  # (distance, left side?, start x)
+        for g0, g1 in gaps():
+            if g1 - g0 < wd:
+                continue
+            if g0 >= val.value:  # right of the dot: as near as the gap allows
+                cand = (g0 - val.value, 0, g0)
+            elif g1 <= val.value:  # left of the dot
+                cand = (val.value - g1, 1, g1 - wd)
+            else:
+                continue
+            best = cand if best is None or cand[:2] < best[:2] else best
+        x0 = best[2] if best is not None else min(val.value + (ctx.marks.dot_size / 2 + 5) * PT * per, right_end - wd)
+        blocked.append((x0, x0 + wd))
+        cv.text(c.x + c.dx(x0), y, text, size=ctx.sizes.value, color=col, **meta)

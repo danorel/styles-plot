@@ -196,7 +196,7 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
                     yy = top + (1 - _frac(float(ln.y[-1]), ylim, yu.scale)) * panel_h
                     margin.append((yy, ln.word, ctx.role_hex(ln.role), "bold", sz.role_word,
                                    {"kind": "role_word", "role": ln.role}))  # fmt: skip
-            _margin_words(cv, ctx, px0 + pw + 0.08, top, panel_h, margin)
+            _margin_words(cv, ctx, px0 + pw + 0.08, top, panel_h, margin, px0 + pw)
             for ln in lines[row]:
                 _line(ax, ctx, ln)
             def to_in(xs, ys, top=top):
@@ -217,9 +217,10 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
     return Plan(height, enc, draw)
 
 
-def _margin_words(cv: Canvas, ctx: Ctx, x: float, top: float, height: float, items) -> None:
+def _margin_words(cv: Canvas, ctx: Ctx, x: float, top: float, height: float, items, edge: float) -> None:
     """Words in a panel's right margin at their y (a line's last value, a rule), pushed apart vertically so none
-    overlap, kept within the panel's height where they fit."""
+    overlap, kept within the panel's height where they fit. A word moved off its line's end gets a thin grey leader
+    from the line's end to the word, so two lines ending at one value keep their names apart."""
     if not items:
         return
     items = sorted(items, key=lambda it: it[0])
@@ -232,7 +233,14 @@ def _margin_words(cv: Canvas, ctx: Ctx, x: float, top: float, height: float, ite
         ys = [y - over for y in ys]
         for i in range(len(ys) - 2, -1, -1):
             ys[i] = min(ys[i], ys[i + 1] - (hs[i] + hs[i + 1]) / 2)
-    for y, (_y0, text, colour, weight, size, meta) in zip(ys, items):
+    for y, (y0, text, colour, weight, size, meta) in zip(ys, items):
+        if meta.get("kind") == "role_word" and abs(y - y0) > line_h(size) / 4:
+            from matplotlib.lines import Line2D
+
+            leader = Line2D([cv.fx(edge + 0.01), cv.fx(x - 0.03)], [cv.fy(y0), cv.fy(y)], transform=cv.sub.transSubfigure,
+                            color=ctx.chrome("connector"), lw=0.9, zorder=1)  # fmt: skip
+            cv.sub.add_artist(leader)
+            tag(leader, kind="leader")
         cv.text(x, y, text, size=size, color=colour, weight=weight, **meta)
 
 

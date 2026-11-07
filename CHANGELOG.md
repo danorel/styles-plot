@@ -3,6 +3,17 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.8
+
+Fixes from the bridge-jspace port on 0.1.7.
+
+- Dot-table value labels go into the free gap nearest their own dot (the right side on a tie), placing from the
+  rightmost dot leftwards; every mark, whisker, connector, tick, vertical line and placed label is an obstacle on
+  both sides. 0.1.6–0.1.7 could drop a label on the panel's left edge across the zero line when its right side was
+  taken by a neighbour's label. With no gap wide enough, the label sits right of its dot and the check reports it.
+- Sweep margin words moved off their line's end (two lines ending at one value) get a thin grey leader to that end.
+- Missing-cell words wider than their line's free span fail with SP610, naming the width needed and the width free.
+
 ## 0.1.7
 
 From the bridge-jspace breadth port.
