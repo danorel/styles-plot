@@ -1,0 +1,56 @@
+{
+ "styles_plot": "0.1.0",
+ "vocab": {
+  "project": "styles-plot examples",
+  "sha256": "a01604129a654638be75853e0ade26f3736d792d11761a7c506e44e2609732e9"
+ },
+ "registry": {
+  "path": "status.csv",
+  "sha256": "06a520e37f47e11e565675a0c7a3b59cfb4d3cbe11abf372149b43905fd1dd71"
+ },
+ "figure": "strip",
+ "target": "readme",
+ "mode": "strict",
+ "publishable": true,
+ "png": {
+  "sha256": "a84c0c99836c4d2e44d296d30027cc3434357268c0cbfae43d199de5584d977e",
+  "dpi": 160
+ },
+ "roles": [
+  "probe"
+ ],
+ "controls": [],
+ "cells": {
+  "strip.c1": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "strip.c2": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  }
+ },
+ "marks": [
+  {
+   "kind": "point",
+   "role": "probe",
+   "cell": "strip.c1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "point",
+   "role": "probe",
+   "cell": "strip.c2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  }
+ ],
+ "key": [
+  "line: median"
+ ],
+ "numbers": {},
+ "problems": []
+}

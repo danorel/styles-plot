@@ -139,10 +139,17 @@ def _sidecar(mpl, i: RenderInfo, png: Path, mode: str, problems: list[Problem]) 
             controls.add(t["control"])
     key = sorted({a.get_text() for a in mpl.findobj(lambda a: tags(a).get("kind") == "key")})
     reg = i.registry.path if i.registry is not None else None
+    shown = None
+    if reg is not None:  # relative to the vocabulary file: a sidecar never records a machine's paths
+        base = i.vocab.source.parent if i.vocab.source else None
+        try:
+            shown = str(Path(os.path.relpath(reg, base))) if base else Path(reg).name
+        except ValueError:  # pragma: no cover - another drive on Windows
+            shown = Path(reg).name
     return {
         "styles_plot": __version__,
         "vocab": {"project": i.vocab.project, "sha256": _sha(i.vocab.source)},
-        "registry": {"path": str(reg) if reg else None, "sha256": _sha(reg)},
+        "registry": {"path": shown, "sha256": _sha(reg)},
         "figure": i.figure,
         "target": i.target,
         "mode": mode,

@@ -1,6 +1,32 @@
-# styles-plot: design (v0.1, stage 1)
+# styles-plot: design (v0.1)
 
-Status: **draft for review. No library code is written yet.** This document is the stage-1 deliverable: an audit of
+## Decisions taken after stage 1 (7 Nov)
+
+This section overrides the rest of the document where they differ; v0.1 implements it.
+
+- **Registry**: two columns, `timing` (fixed_in_advance | post_hoc; hollow) and `claim` (claimed | descriptive |
+  not_claimed, with `claim_reason`; the grey tag). Only this schema loads; there is no older format.
+- **Versioning** is the package version alone; neither the vocabulary nor the sidecar carries a schema number.
+- **Status** comes from the registry by cell id only; a data mark without a cell id fails in strict mode; only the
+  notebook target may draw without a registry.
+- **Colour vision**: the nine default hexes stay; the floors apply per figure; the six failing pairs are listed in
+  GRAMMAR.md. A schematic-only figure may set `direct_labels=True`.
+- **Customisable style**: every hex (and extra slots), chrome, colour-vision floors, font, targets, marks and the
+  library's wording are parameters with defaults, set in `plotstyle.toml` or in Python. The rules of meaning are not.
+- **Cues**: "→ more <q>" under x axes, "↑ more <q>" beside a sweep's value axis; the arrow never means "better";
+  "lower is better" and "(log scale)" go in the axis title.
+- **Intervals**: kinds named in the vocabulary and in the key ("whiskers: …", "shading: …"); interval bands on lines
+  in the role colour at one alpha from the theme.
+- **Bars** only in 100% stacks and histograms; no violins in v0.1. Embedding axes "UMAP 1/2", no ticks, no cue.
+- **Composite figures** are one matplotlib figure (subfigures); every check runs on the whole figure.
+- **Targets**: post 8.0 in at 200 dpi; slide 12.3 × 5.3 in at 200 dpi; readme 11 in wide at 160 dpi with a title above
+  and a caption under; notebook. `save_bundle` writes one figure for several targets, all or nothing.
+- **Public API** is `styles_plot.__all__`; every other module is internal (underscore names).
+- **Packaging**: tomli on Python < 3.11; CI on 3.10–3.13 × numpy 1.26/2.x × matplotlib 3.8/latest.
+
+---
+
+Status of the rest of this document: the stage-1 draft, kept for the audit and the mappings. This document is the stage-1 deliverable: an audit of
 the two first consumers, the API sketch, a draft vocabulary file for each consumer, one current figure from each
 mapped onto the API, and what is extracted from the seed code and what stays in the projects. Section 11 lists what
 the grammar cannot yet express and Section 12 the decisions that need an answer before v0.1.

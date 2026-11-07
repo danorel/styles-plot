@@ -1,0 +1,82 @@
+{
+ "styles_plot": "0.1.0",
+ "vocab": {
+  "project": "styles-plot examples",
+  "sha256": "a01604129a654638be75853e0ade26f3736d792d11761a7c506e44e2609732e9"
+ },
+ "registry": {
+  "path": "status.csv",
+  "sha256": "06a520e37f47e11e565675a0c7a3b59cfb4d3cbe11abf372149b43905fd1dd71"
+ },
+ "figure": "sweep",
+ "target": "readme",
+ "mode": "strict",
+ "publishable": true,
+ "png": {
+  "sha256": "a1f5871e73000a780c2c7461015ad36f0e010708ba87a0168a765559d5588c57",
+  "dpi": 160
+ },
+ "roles": [
+  "second"
+ ],
+ "controls": [],
+ "cells": {
+  "line.c1": {
+   "timing": "fixed_in_advance",
+   "claim": "descriptive"
+  },
+  "line.c2": {
+   "timing": "fixed_in_advance",
+   "claim": "descriptive"
+  },
+  "pick.c1": {
+   "timing": "post_hoc",
+   "claim": "claimed"
+  },
+  "pick.c2": {
+   "timing": "post_hoc",
+   "claim": "claimed"
+  }
+ },
+ "marks": [
+  {
+   "kind": "line",
+   "role": "second",
+   "cell": "line.c1",
+   "timing": "fixed_in_advance",
+   "claim": "descriptive"
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "pick.c1",
+   "timing": "post_hoc",
+   "claim": "claimed",
+   "hollow": true
+  },
+  {
+   "kind": "line",
+   "role": "second",
+   "cell": "line.c2",
+   "timing": "fixed_in_advance",
+   "claim": "descriptive"
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "pick.c2",
+   "timing": "post_hoc",
+   "claim": "claimed",
+   "hollow": true
+  }
+ ],
+ "key": [
+  "shading: interquartile range",
+  "○ post hoc"
+ ],
+ "numbers": {
+  "rank.l11.c1": "391",
+  "rank.l11.c2": "392"
+ },
+ "problems": []
+}

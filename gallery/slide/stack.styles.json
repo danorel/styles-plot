@@ -1,0 +1,149 @@
+{
+ "styles_plot": "0.1.0",
+ "vocab": {
+  "project": "styles-plot examples",
+  "sha256": "a01604129a654638be75853e0ade26f3736d792d11761a7c506e44e2609732e9"
+ },
+ "registry": {
+  "path": "status.csv",
+  "sha256": "06a520e37f47e11e565675a0c7a3b59cfb4d3cbe11abf372149b43905fd1dd71"
+ },
+ "figure": "stack",
+ "target": "slide",
+ "mode": "strict",
+ "publishable": true,
+ "png": {
+  "sha256": "91518cd1e1fb338c8d197f596a197278102d39b2979b052dd69acaf44d372a6c",
+  "dpi": 200
+ },
+ "roles": [
+  "first",
+  "second"
+ ],
+ "controls": [],
+ "cells": {
+  "correct.m1": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "correct.m2": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "correct.m3": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "none.m1": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "none.m2": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "none.m3": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "wrong.m1": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "wrong.m2": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "wrong.m3": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  }
+ },
+ "marks": [
+  {
+   "kind": "segment",
+   "role": "first",
+   "cell": "correct.m1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "segment",
+   "role": "second",
+   "cell": "wrong.m1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "segment",
+   "role": "other",
+   "cell": "none.m1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "segment",
+   "role": "first",
+   "cell": "correct.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "segment",
+   "role": "second",
+   "cell": "wrong.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "segment",
+   "role": "other",
+   "cell": "none.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "segment",
+   "role": "first",
+   "cell": "correct.m3",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "segment",
+   "role": "second",
+   "cell": "wrong.m3",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "segment",
+   "role": "other",
+   "cell": "none.m3",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  }
+ ],
+ "key": [],
+ "numbers": {
+  "correct.m1": "0.62",
+  "wrong.m1": "0.30",
+  "none.m1": "0.08",
+  "correct.m2": "0.48",
+  "wrong.m2": "0.41",
+  "none.m2": "0.11",
+  "correct.m3": "0.71",
+  "wrong.m3": "0.18",
+  "none.m3": "0.11"
+ },
+ "problems": []
+}
