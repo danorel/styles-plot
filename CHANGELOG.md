@@ -14,6 +14,10 @@ Grammar decisions of 7 Nov.
 - Stacks carry no whiskers: `Stack(columns=[TextColumn(...)])` prints a segment's interval beside the bars.
 - Sweep points measured on their own: `Point(value=..., lo=..., hi=...)` with a vertical whisker; the line itself
   carries no status.
+- Figure sets in folders: `[output] sidecar_dir = "_meta"` puts sidecars under the set's root keeping each PNG's path
+  (`save(..., root=<set>)`: main/fig01.png -> _meta/main/fig01.styles.json); `styles-plot check` and `sheet` take PNGs
+  in subfolders, skip folders starting with "_" (_meta, _sheets), find sidecars beside a PNG or under _meta, and an
+  `--order` file may list paths under the set ("main/fig01_main_split").
 
 ## 0.1.5
 

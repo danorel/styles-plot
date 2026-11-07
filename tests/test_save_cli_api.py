@@ -135,3 +135,33 @@ def test_cli_sheet_key_palette(tmp_path, saved, vocab_dir, capsys):
     bad = tmp_path / "bad.toml"
     bad.write_text("[nope]\n")
     assert main(["palette", "--vocab", str(bad)]) == 2
+
+
+def test_figure_set_with_meta_and_sheets_folders(tmp_path, vocab_dir, capsys):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text() + '\n[output]\nsidecar_dir = "_meta"\n')
+    v = sp.load(p)
+    root = tmp_path / "writeup"
+    sp.save(example("stack").stack(v), root / "main" / "stack.png", "post", root=root)
+    sp.save(example("dot_table").methods(v), root / "appendix" / "methods.png", "post", root=root)
+    assert (root / "_meta" / "main" / "stack.styles.json").exists()
+    assert not (root / "main" / "stack.styles.json").exists()
+    (root / "order.txt").write_text("appendix/methods\nmain/stack.png\n")
+    assert main(["sheet", str(root), "-o", str(root / "_sheets"), "--order", str(root / "order.txt")]) == 0
+    assert (root / "_sheets" / "contact_sheet_gray.png").exists()
+    assert main(["check", str(root), "--vocab", str(p)]) == 0
+    assert "2 figure(s), 0 problem(s)" in capsys.readouterr().out  # the sheets in _sheets are not figures
+    side = root / "_meta" / "main" / "stack.styles.json"
+    meta = json.loads(side.read_text())
+    meta["png"]["sha256"] = "0" * 64
+    side.write_text(json.dumps(meta))
+    assert main(["check", str(root), "--vocab", str(p)]) == 1  # the sidecar in _meta is found
+    assert "SP902" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("bad", ["meta", "/abs/_meta", "_a/../../x"])
+def test_bad_sidecar_dir(vocab_dir, bad):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text() + f'\n[output]\nsidecar_dir = "{bad}"\n')
+    with pytest.raises(sp.VocabError, match="sidecar_dir"):
+        sp.load(p)

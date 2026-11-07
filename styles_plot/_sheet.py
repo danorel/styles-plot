@@ -12,7 +12,10 @@ SHEET_NAMES = ("contact_sheet.png", "contact_sheet_gray.png")
 
 
 def figures_in(directory: Path) -> list[Path]:
-    return sorted(p for p in directory.rglob("*.png") if p.name not in SHEET_NAMES)
+    """Every figure PNG under a folder, in subfolders too, but not in folders starting with "_" (_meta, _sheets) and
+    not contact sheets."""
+    return sorted(p for p in directory.rglob("*.png") if p.name not in SHEET_NAMES
+                  and not any(part.startswith("_") for part in p.relative_to(directory).parts[:-1]))  # fmt: skip
 
 
 def contact_sheets(pngs: list[Path], out_dir: Path, width: int = 720, root: Path | None = None) -> tuple[Path, Path]:

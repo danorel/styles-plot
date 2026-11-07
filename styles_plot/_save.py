@@ -47,9 +47,15 @@ class SaveReport:
     problems: list[Problem] = field(default_factory=list)
 
 
-def sidecar_path(png: str | Path) -> Path:
+def sidecar_path(png: str | Path, root: str | Path | None = None, sidecar_dir: str = "") -> Path:
+    """Beside the PNG, or with a sidecar_dir under the figure set's root, keeping the PNG's path relative to it:
+    <root>/main/fig01.png -> <root>/_meta/main/fig01.styles.json."""
     png = Path(png)
-    return png.with_name(png.stem + SIDECAR_SUFFIX)
+    if not sidecar_dir:
+        return png.with_name(png.stem + SIDECAR_SUFFIX)
+    root = Path(root) if root is not None else png.parent
+    rel = png.relative_to(root)
+    return root / sidecar_dir / rel.with_name(rel.stem + SIDECAR_SUFFIX)
 
 
 def check_figure(fig: Figure, target: str) -> list[Problem]:
@@ -57,12 +63,14 @@ def check_figure(fig: Figure, target: str) -> list[Problem]:
     return _checks.run(fig.render(target))
 
 
-def save(fig: Figure, path: str | Path, target: str, *, mode: str = "strict") -> SaveReport:
+def save(fig: Figure, path: str | Path, target: str, *, mode: str = "strict",
+         root: str | Path | None = None) -> SaveReport:  # fmt: skip
     """Render, check and write one figure for one target. Strict mode raises StyleError on any problem and writes
-    nothing; compat mode (and the notebook target) warns and writes, recording the problems in the sidecar."""
+    nothing; compat mode (and the notebook target) warns and writes, recording the problems in the sidecar. `root` is
+    the figure set's folder: with [output].sidecar_dir the sidecar goes under it (default: the PNG's folder)."""
     _mode(mode)
     mpl, problems = _prepare(fig, target)
-    return _write(mpl, problems, Path(path), mode)
+    return _write(mpl, problems, Path(path), mode, root)
 
 
 def save_bundle(fig: Figure, out_dir: str | Path, targets: Iterable[str] = ("post", "slide", "readme"), *,
@@ -75,7 +83,8 @@ def save_bundle(fig: Figure, out_dir: str | Path, targets: Iterable[str] = ("pos
         blocking = [p for t, (mpl, ps) in prepared.items() if info(mpl).theme.publishable for p in _tagged(ps, t)]
         if blocking:
             raise StyleError(blocking)
-    return {t: _write(mpl, ps, Path(out_dir) / t / f"{fig.id}.png", mode) for t, (mpl, ps) in prepared.items()}
+    return {t: _write(mpl, ps, Path(out_dir) / t / f"{fig.id}.png", mode, Path(out_dir) / t)
+            for t, (mpl, ps) in prepared.items()}  # fmt: skip
 
 
 def _mode(mode: str) -> None:
@@ -92,7 +101,7 @@ def _prepare(fig: Figure, target: str):
     return mpl, _checks.run(mpl)
 
 
-def _write(mpl, problems: list[Problem], path: Path, mode: str) -> SaveReport:
+def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path | None = None) -> SaveReport:
     i = info(mpl)
     strict = mode == "strict" and i.theme.publishable
     if problems and strict:
@@ -113,7 +122,8 @@ def _write(mpl, problems: list[Problem], path: Path, mode: str) -> SaveReport:
     problems = problems + png_problems
     for p in problems:
         warnings.warn(str(p), StyleWarning, stacklevel=3)
-    side = sidecar_path(path)
+    side = sidecar_path(path, root, i.vocab.sidecar_dir)
+    side.parent.mkdir(parents=True, exist_ok=True)
     side.write_text(json.dumps(_sidecar(mpl, i, path, mode, problems), indent=1, ensure_ascii=False) + "\n")
     return SaveReport(path, side, i.target, problems)
 

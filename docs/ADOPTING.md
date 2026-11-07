@@ -87,6 +87,11 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
 
 ## 5. Check and review
 
+A figure set can keep its folder clean for GitHub: `[output] sidecar_dir = "_meta"` in plotstyle.toml and
+`sp.save(fig, "figures/writeup/main/fig01.png", "post", root="figures/writeup")` put the sidecar at
+`figures/writeup/_meta/main/fig01.styles.json`; contact sheets go to `_sheets/` with `sheet -o`.
+
+
 ```
 styles-plot check figures/post --vocab plotstyle.toml    # size, palette, staleness, one key one string
 styles-plot sheet figures/post                            # contact_sheet.png and contact_sheet_gray.png

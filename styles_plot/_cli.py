@@ -36,10 +36,11 @@ def _check(args) -> int:
     registry = load_registry(vocab.registry_path) if vocab and vocab.registry_path and vocab.registry_path.exists() else None
     lines, numbers = [], defaultdict(dict)
     pngs = figures_in(root)
+    sidecar_dirs = dict.fromkeys([vocab.sidecar_dir if vocab else "", "", "_meta"])  # beside the PNG, or under _meta
     for png in pngs:
         rel = png.relative_to(root)
-        side = sidecar_path(png)
-        meta = json.loads(side.read_text()) if side.exists() else None
+        side = next((s for s in (sidecar_path(png, root, d) for d in sidecar_dirs) if s.exists()), None)
+        meta = json.loads(side.read_text()) if side else None
         target = meta["target"] if meta else args.target
         if target not in targets:
             lines.append(f"{rel}: SP901 unknown target {target!r}")
@@ -75,12 +76,22 @@ def _sheet(args) -> int:
     pngs = figures_in(root)
     if args.order:  # one file name (or stem) per line: that order first, the rest after in name order
         wanted = [ln.strip() for ln in Path(args.order).read_text().splitlines() if ln.strip()]
-        rank = {Path(n).stem: i for i, n in enumerate(wanted)}
-        missing = [n for n in wanted if not any(p.stem == Path(n).stem for p in pngs)]
+        def name(p: Path) -> str:  # main/fig01_main_split: the path under DIR, without .png
+            return p.relative_to(root).with_suffix("").as_posix()
+
+        def wanted_name(n: str) -> str:
+            return n[:-4] if n.endswith(".png") else n
+
+        rank = {wanted_name(n): i for i, n in enumerate(wanted)}
+
+        def rank_of(p: Path) -> int:  # by the path under DIR, or by the bare name when that is unique
+            return rank.get(name(p), rank.get(p.stem, len(rank)))
+
+        missing = [n for n in wanted if not any(wanted_name(n) in (name(p), p.stem) for p in pngs)]
         if missing:
             print(f"styles-plot sheet: not found under {root}: {', '.join(missing)}", file=sys.stderr)
             return 2
-        pngs = sorted(pngs, key=lambda p: (rank.get(p.stem, len(rank)), p.name))
+        pngs = sorted(pngs, key=lambda p: (rank_of(p), name(p)))
     if not pngs:
         print(f"styles-plot sheet: no PNGs under {root}", file=sys.stderr)
         return 2

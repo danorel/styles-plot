@@ -18,6 +18,7 @@ written). The vocabulary owns every word that names a project concept, and every
     [targets.<name>]   any Theme field; a new name defines a new target
     [marks]            any MarkStyle field
     [phrases]          any Phrases field: the key's wording, status tags, cues
+    [output]           sidecar_dir: sidecars in <root>/<sidecar_dir>/ instead of beside each PNG
 
 `load` validates the file and fails naming the table and key at fault.
 """
@@ -51,7 +52,7 @@ DEFAULT_FORMATS = {
 DEFAULT_INTERVALS = {"ci95": "95% interval"}
 DEFAULT_MISSING = ("no run", "no interval")
 _TOP_LEVEL = {"project", "roles", "controls", "key", "intervals", "formats", "units", "terms", "entities", "registry",
-              "palette", "style", "targets", "marks", "phrases"}  # fmt: skip
+              "palette", "style", "targets", "marks", "phrases", "output"}  # fmt: skip
 
 
 class VocabError(ValueError):
@@ -129,6 +130,7 @@ class Vocab:
     targets: dict[str, Theme] = field(default_factory=lambda: targets_from(None))
     marks: MarkStyle = field(default_factory=MarkStyle)
     words: Phrases = field(default_factory=Phrases)
+    sidecar_dir: str = ""  # [output] sidecar_dir: sidecars under <figure set root>/<this>/, keeping the PNG's path
     source: Path | None = None
 
     # ---- lookups -------------------------------------------------------------------------------------------------
@@ -298,8 +300,16 @@ def from_dict(doc: dict, root: Path | None = None, source: Path | None = None) -
         targets=targets,
         marks=marks,
         words=words,
+        sidecar_dir=_sidecar_dir((doc.get("output") or {}).get("sidecar_dir", ""), where),
         source=source,
     )
+
+
+def _sidecar_dir(value: str, where: str) -> str:
+    if value and (Path(value).is_absolute() or ".." in Path(value).parts or not value.startswith("_")):
+        raise VocabError(f"{where} [output].sidecar_dir: a folder name under the figure set's root starting with '_' "
+                         f"(e.g. '_meta'), got {value!r}")  # fmt: skip
+    return value
 
 
 def _need(table: dict, key: str, where: str):
