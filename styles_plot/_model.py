@@ -303,4 +303,23 @@ class Schematic:
     elements: Sequence[Box | Arrow | Words | Mark]
 
 
-Block = Union[DotTable, Sweep, Distribution, Stack, Scatter, Schematic]
+# ---- example card ------------------------------------------------------------------------------------------------------
+@dataclass(frozen=True)
+class CardRow:
+    label: str  # the reader's word (its role's word, or a vocabulary term)
+    role: str  # the reader's role: its label and its answers are in that colour
+    answers: Mapping[str, str]  # column -> the answer, verbatim
+
+
+@dataclass(frozen=True)
+class Card:
+    """A real item as an image: the prompt verbatim, one row per reader with its answer under each condition, and a
+    small grey note (the selection rule, the item's id). Use in a Figure with direct_labels=True."""
+
+    prompt: Sequence[tuple]  # (text, role or None) or (text, role or None, bold): the prompt, verbatim
+    columns: Sequence[str]  # condition names (vocabulary terms), e.g. "before", "the whole change"
+    rows: Sequence[CardRow]
+    note: str = ""  # verbatim; may hold an item id
+
+
+Block = Union[DotTable, Sweep, Distribution, Stack, Scatter, Schematic, Card]

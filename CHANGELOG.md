@@ -3,6 +3,20 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.12
+
+From the bridge-jspace README brief.
+
+- `sp.Card` / `sp.CardRow`: an example item as an image (the prompt verbatim with some words bold or coloured, each
+  reader's answer per condition in its colour, a small grey note that may carry the item's id). Cards go in a figure
+  with `direct_labels=True`, alone or with schematics.
+- `Figure(read="read: …{x}…", numbers={"x": (value, unit, key)})`: one sentence under any figure that walks through
+  one value, its numbers printed in their units and logged by key (the key figure's read-aloud, for every figure).
+- Small multiples: the panels of one `ColumnGroup` on one unit share a single axis title and cue, centred under the
+  group (tick labels stay per panel).
+- `[marks] max_segments` (default 4) sets how many segments a 100% stack may have; segments of one role are allowed
+  when their names differ (two segments may not share a name).
+
 ## 0.1.11
 
 From the esk-audit review (a Linux rebuild drew identical pixels into different PNG bytes).

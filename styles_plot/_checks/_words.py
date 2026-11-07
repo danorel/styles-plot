@@ -51,7 +51,7 @@ def check(cx: CheckCtx) -> list[Problem]:
         seen.add(s)
         if "←" in s:
             out.append(cx.problem("SP405", f"a left arrow in {s[:40]!r}"))
-        if _UTC.search(s) or any("_" in m and re.search(r"\d", m) for m in _SNAKE_ID.findall(s)):
+        if not t.get("ids_ok") and (_UTC.search(s) or any("_" in m and re.search(r"\d", m) for m in _SNAKE_ID.findall(s))):
             out.append(cx.problem("SP403", f"looks like a run id or a timestamp: {s[:40]!r}"))
         if not t.get("verbatim"):
             for hit in v.banned_hits(s):
@@ -90,10 +90,10 @@ def _cues(cx: CheckCtx) -> list[Problem]:
             if not patterns[axis].fullmatch(s):
                 template = w.cue_y if axis == "y" else w.cue
                 out.append(cx.problem("SP404", f"cue {s!r} does not read {template!r} ({' or '.join(w.cue_words)})"))
-            if "panel" in t:
-                cues[t["panel"]] = s
+            for pid in t.get("panels") or ([t["panel"]] if "panel" in t else []):
+                cues[pid] = s
         elif t.get("kind") == "axis_title" and "panel" in t:
-            titles.add(t["panel"])
+            titles.update(t.get("panels") or [t["panel"]])
     for ax in cx.fig.axes:
         p = tags(ax)
         if p.get("kind") != "panel":

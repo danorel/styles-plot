@@ -96,10 +96,12 @@ canonical = [
     "UMAP", "PCA", "first layer", "last layer",
     "input", "model", "output", "The capital of France is",
     "chance", "layer 11",
+    "before", "the whole change", "without the probe", "without a random direction",
 ]
 templates = [
     "{num} items",
     "bar fixed in advance: {num}",
+    "read: on {entity}, alpha drops {num} points; the gap to beta is {num}",
     "read: on {entity}, the knock-out drops alpha {num} points and beta {num}; the gap is {num}, the largest same-size control's {num}",
 ]
 missing = ["no run", "no interval", "below gate"]

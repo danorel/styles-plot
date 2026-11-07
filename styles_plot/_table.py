@@ -32,6 +32,8 @@ class _Col:
     header_role: str | None = None  # the header is this role's word: drawn in its colour, no colour word above
     title: list[str] = field(default_factory=list)
     cue: list[str] = field(default_factory=list)
+    title_span: tuple[float, float] | None = None  # a title shared by a group's panels: centred over this span
+    title_panels: list = field(default_factory=list)  # the panels a shared title names
     strip: list = field(default_factory=list)  # [(x_left, level, word, colour, weight, size, tags)]
     texts: dict = field(default_factory=dict)  # text column: row -> [(text, colour, weight, tags)]
 
@@ -328,6 +330,17 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
             c.title = ctx.wrap(u.title, c.w + ctx.theme.pad * 0.8, sz.axis) if show else []
             if c.is_panel and u.cue:
                 c.cue = ctx.wrap(v.cue(u.name), c.w + ctx.theme.pad * 0.8, sz.cue)
+    for g in lay.groups:  # small multiples: a group's panels on one unit share one axis title and one cue
+        members = [c for c in lay.cols if c.group is g and c.is_panel]
+        if len(members) > 1 and len({c.spec.unit for c in members}) == 1 and all(c.group is g for c in members):
+            u = v.unit(members[0].spec.unit)
+            x0, x1 = members[0].x, members[-1].x + members[-1].w
+            first = members[0]
+            first.title_span, first.title_panels = (x0, x1), [c.pid for c in members]
+            first.title = ctx.wrap(u.title, x1 - x0, sz.axis)
+            first.cue = ctx.wrap(v.cue(u.name), x1 - x0, sz.cue) if u.cue else []
+            for c in members[1:]:
+                c.title, c.cue = [], []
     header_h = max((len(c.header) for c in lay.cols), default=0) * line_h(sz.header) + 0.08
     seen_rules: set = set()  # an identical rule (same place and words) is labelled over its first column only
     levels = max((_strip(c, lay, ctx, seen_rules) for c in lay.cols if c.is_panel), default=0)
@@ -469,13 +482,15 @@ def _bottom(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
                 cv.text(c.x + c.dx(tv), lay.body_end + 0.06 + line_h(sz.tick) / 2, ctx.tick(tv), kind="tick_label",
                         size=sz.tick, color=muted, ha="center", panel=c.pid)  # fmt: skip
         y = lay.body_end + lay.tick_h
+        cx = (c.title_span[0] + c.title_span[1]) / 2 if c.title_span else c.x + c.w / 2
+        panels = {"panels": c.title_panels} if c.title_panels else {}
         for i, s in enumerate(c.title):
-            cv.text(c.x + c.w / 2, y + (i + 0.5) * line_h(sz.axis), s, kind="axis_title", size=sz.axis, color=muted,
-                    ha="center", panel=c.pid, unit=c.spec.unit, full=ctx.vocab.unit(c.spec.unit).title)  # fmt: skip
+            cv.text(cx, y + (i + 0.5) * line_h(sz.axis), s, kind="axis_title", size=sz.axis, color=muted, ha="center",
+                    panel=c.pid, unit=c.spec.unit, full=ctx.vocab.unit(c.spec.unit).title, **panels)  # fmt: skip
         full = ctx.vocab.cue(c.spec.unit)
         for i, s in enumerate(c.cue):
-            cv.text(c.x + c.w / 2, y + lay.title_h + (i + 0.5) * line_h(sz.cue), s, kind="cue", size=sz.cue,
-                    color=muted, ha="center", panel=c.pid, axis="x", full=full)  # fmt: skip
+            cv.text(cx, y + lay.title_h + (i + 0.5) * line_h(sz.cue), s, kind="cue", size=sz.cue, color=muted,
+                    ha="center", panel=c.pid, axis="x", full=full, **panels)  # fmt: skip
 
 
 def _segments(a: float, b: float, cuts: list[tuple[float, float]]) -> list[tuple[float, float]]:

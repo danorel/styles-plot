@@ -16,6 +16,8 @@ from importlib.metadata import PackageNotFoundError, version
 from styles_plot._model import (
     Arrow,
     Box,
+    Card,
+    CardRow,
     Cloud,
     ColumnGroup,
     Count,
@@ -103,6 +105,8 @@ __all__ = [
     "Arrow",
     "Words",
     "Mark",
+    "Card",
+    "CardRow",
     # values
     "Est",
     "Missing",

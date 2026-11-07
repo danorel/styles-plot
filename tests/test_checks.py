@@ -774,3 +774,46 @@ def test_margin_words_too_far_and_log_dot_table(vocab_dir):
 def test_a_table_of_numbers_only(vocab):
     tc = sp.TextColumn("answers", "prompts", {"m1": sp.Count(3, 4, cell="acc.m1", key="n.m1")})
     assert "SP612" in codes(run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [tc])))[1])
+
+
+# ---- 0.1.12: cards, read lines, shared titles, five segments ---------------------------------------------------------
+def test_card_alone_and_with_a_schematic(vocab):
+    mpl, problems = run(example("card").card(vocab))
+    assert problems == [], [str(p) for p in problems]
+    words = [t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "card_text") if t.get_fontweight() == "bold"
+             or t.get_fontweight() == 700]
+    assert "flute" in words
+    fig = example("card").card(vocab)
+    fig.add(sp.Schematic(1.2, [sp.Box(0.3, 0.2, 1.0, 0.6, "model", role="first"),
+                               sp.Words(1.6, 0.5, [("probe", "probe", True)])]))  # fmt: skip
+    assert run(fig)[1] == []
+    bare = example("card").card(vocab)
+    bare.direct_labels = False
+    assert "SP104" in codes(run(bare)[1])  # words name roles that no mark draws: cards need direct labels
+    with pytest.raises(sp.BuildError, match="not the card's columns"):
+        run(sp.Figure("c", vocab, direct_labels=True).add(sp.Card([("x", None)], ["before"],
+                                                                  [sp.CardRow("alpha", "first", {"after": "x"})])))  # fmt: skip
+
+
+def test_read_line_shared_titles_and_five_segments(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text() + "\n[marks]\nmax_segments = 5\n")
+    v = sp.load(p)
+    a = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")})])
+    b = dataclasses.replace(a, header="answers")
+    fig = sp.Figure("methods", v, read="read: on {entity}, alpha drops {x} points; the gap to beta is {g}",
+                    numbers={"x": (12.34, "drop", "r.x"), "g": (3.0, "gap", "r.g")})  # fmt: skip
+    fig.read = fig.read.replace("{entity}", "Model 1")
+    fig.add(sp.DotTable(["m1"], [sp.ColumnGroup("Test A · synthetic", [a, b])]))
+    mpl, problems = run(fig)
+    assert problems == [], [str(p) for p in problems]
+    assert ("r.x", "12.3") in mpl._sp_info.numbers
+    titles = [t for t in mpl.findobj(lambda a: tags(a).get("kind") == "axis_title")]
+    assert len(titles) == 1 and tags(titles[0])["panels"] == [0, 1]  # one shared title for the group's panels
+    rows = ["m1"]
+    segs = [sp.Segment(n, r, {"m1": sp.Est(0.2, cell=f"{c}.m1")}) for n, r, c in
+            (("correct", "first", "correct"), ("wrong", "first", "wrong"), ("no answer", "other", "none"),
+             ("answers", "second", "correct"), ("set one", "second", "wrong"))]  # fmt: skip
+    assert "SP401" not in codes(run(sp.Figure("stack", v).add(sp.Stack(rows, segs)))[1])
+    with pytest.raises(sp.BuildError, match="share a name"):
+        run(sp.Figure("stack", v).add(sp.Stack(rows, [segs[0], dataclasses.replace(segs[1], name="correct"), *segs[2:]])))

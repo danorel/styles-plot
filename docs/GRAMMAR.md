@@ -85,6 +85,8 @@ source`), and every data mark carries its cell id.
   axis, never a second dot of that colour in the same column.
 - A panel header names a quantity, never a claim. All text is horizontal.
 - Several blocks in one figure are one matplotlib figure (subfigures) with one key under the last.
+- Small multiples on one unit (the panels of one column group) share one axis title and one cue.
+- A headline figure may carry one "read:" sentence under it that walks through one value, its numbers from the data.
 
 ## E. Keys: every encoding named in the figure
 

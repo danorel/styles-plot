@@ -4,7 +4,7 @@
 
 ```
 # uv / pyproject.toml
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.11
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.12
 # pip / requirements.txt
 styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.2
 ```
@@ -108,4 +108,5 @@ styles-plot palette --vocab plotstyle.toml                # which of your roles 
 | `Distribution` | histograms or strips | entities, stacked; conditions as columns | `count_unit` names a histogram's counts |
 | `Stack` | 100% splits | entities | at most 4 segments, each named in words |
 | `Scatter` | embeddings, or two quantities | panels side by side | clouds named next to them; controls grey |
-| `Schematic` | boxes, arrows, coloured words | — | `direct_labels=True` for a schematic-only figure |
+| `Schematic` | boxes, arrows, coloured words | — | `direct_labels=True` for a figure of schematics and cards |
+| `Card` | a real item: prompt, answers per condition, a note | readers | `direct_labels=True`; words verbatim |

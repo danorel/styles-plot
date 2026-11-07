@@ -61,8 +61,8 @@ def _who(v, slot: str) -> str:
 
 def _direct_labels(cx: CheckCtx) -> list[Problem]:
     out: list[Problem] = []
-    if any(b != "Schematic" for b in cx.info.blocks):
-        out.append(cx.problem("SP704", "direct_labels is for figures made only of schematics"))
+    if any(b not in ("Schematic", "Card", "ReadAloud") for b in cx.info.blocks):
+        out.append(cx.problem("SP704", "direct_labels is for figures made only of schematics and cards"))
     px = cx.fig.dpi
     words = [(tags(t).get("role"), t.get_window_extent(cx.renderer)) for t in cx.texts if tags(t).get("role")]
     for a in cx.marks:

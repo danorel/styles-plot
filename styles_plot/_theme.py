@@ -80,6 +80,7 @@ class MarkStyle:
     shading_alpha: float = 0.18  # an interval band on a line: the line's colour at this alpha
     point_size: float = 30.0  # scatter marker area (pt^2)
     bar_height: float = 0.62  # a stack's bar, as a share of the row height
+    max_segments: int = 4  # the most segments a 100% stack may have
 
 
 @dataclass(frozen=True)

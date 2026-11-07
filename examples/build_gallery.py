@@ -15,7 +15,7 @@ from pathlib import Path
 import styles_plot as sp
 
 HERE = Path(__file__).resolve().parent
-EXAMPLES = ("dot_table", "sweep", "distribution", "stack", "scatter", "schematic")
+EXAMPLES = ("dot_table", "sweep", "distribution", "stack", "scatter", "schematic", "card")
 TARGETS = ("post", "slide", "readme")
 KEY_TARGETS = ("post", "readme")  # the key figure belongs to a reading page; on a slide it does not fit 6.5 in
 

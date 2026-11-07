@@ -12,7 +12,6 @@ from styles_plot._table import text_parts
 from styles_plot._tags import tag
 from styles_plot._text import line_h
 
-MAX_SEGMENTS = 4
 RIGHT = 0.3  # room for the last tick label
 
 
@@ -20,8 +19,13 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
     ctx.check_rows(s.kind, s.rows)
     unit = ctx.unit(s.unit)
     sz, th = ctx.sizes, ctx.theme
-    if not 1 <= len(s.segments) <= MAX_SEGMENTS:
-        raise BuildError(f"{ctx.figure_id}: a stack has 1 to {MAX_SEGMENTS} segments, got {len(s.segments)}")
+    cap = ctx.marks.max_segments
+    if not 1 <= len(s.segments) <= cap:
+        raise BuildError(f"{ctx.figure_id}: a stack has 1 to {cap} segments ([marks].max_segments), got "
+                         f"{len(s.segments)}")  # fmt: skip
+    names = [seg.name for seg in s.segments]
+    if len(set(names)) != len(names):
+        raise BuildError(f"{ctx.figure_id}: two segments share a name; segments of one role are told apart by words")
     for seg in s.segments:
         ctx.role_hex(seg.role)
     for r in s.rows:

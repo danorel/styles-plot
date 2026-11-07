@@ -283,11 +283,12 @@ def _lines_section(ctx: Ctx, text: str, width: float, size: float, kind: str, we
 
 
 def _planner(block) -> Callable:
-    from styles_plot import _dist, _keyfig, _scatter, _schematic, _stack, _sweep, _table
+    from styles_plot import _card, _dist, _keyfig, _scatter, _schematic, _stack, _sweep, _table
+    from styles_plot._model import Card
 
     planners = {DotTable: _table.plan, Sweep: _sweep.plan, Distribution: _dist.plan, Stack: _stack.plan,
-                Scatter: _scatter.plan, Schematic: _schematic.plan, _keyfig.KeyLegend: _keyfig.plan_legend,
-                _keyfig.ReadAloud: _keyfig.plan_read_aloud}  # fmt: skip
+                Scatter: _scatter.plan, Schematic: _schematic.plan, Card: _card.plan,
+                _keyfig.KeyLegend: _keyfig.plan_legend, _keyfig.ReadAloud: _keyfig.plan_read_aloud}  # fmt: skip
     for kind, plan in planners.items():
         if isinstance(block, kind):
             return plan
@@ -323,7 +324,7 @@ def _all_post_hoc(fig, registry) -> bool:
 def _label_width(ctx: Ctx, block) -> float:
     """The row-label column every block shares: the widest entity name or row sub-line."""
     rows = getattr(block, "rows", None)
-    if not rows:
+    if not rows or not hasattr(block, "kind"):  # entity rows only (a card's rows are readers, not entities)
         return 0.0
     kind = block.kind
     widths = [ctx.measure(ctx.entity_name(kind, r), ctx.sizes.label, "bold")[0] for r in rows]
@@ -336,11 +337,13 @@ def _label_width(ctx: Ctx, block) -> float:
 class Figure:
     """Blocks stacked top to bottom with one key under the last. `title` (one claim) and `caption` (the detailed
     explanation) are drawn only by targets whose theme asks for them; `subtitle` is one grey vocabulary term above the
-    blocks ("synthetic data"). `direct_labels` exempts a schematic-only figure from the colour-vision floors; every
-    coloured element then needs its word right next to it."""
+    blocks ("synthetic data"); `read` is one sentence under the blocks that walks through one value, its numbers given
+    as `numbers={name: (value, unit, data key)}` and printed in the unit's format. `direct_labels` exempts a figure of
+    schematics and cards from the colour-vision floors; every coloured element then needs its word right next to it."""
 
     def __init__(self, id: str, vocab: Vocab, *, title: str = "", caption: str = "", subtitle: str = "",
-                 direct_labels: bool = False, registry: R.Registry | None = None):  # fmt: skip
+                 direct_labels: bool = False, registry: R.Registry | None = None, read: str = "",
+                 numbers: dict | None = None):  # fmt: skip
         if not id or "/" in id:
             raise BuildError(f"bad figure id {id!r}")
         self.id = id
@@ -349,6 +352,8 @@ class Figure:
         self.caption = caption
         self.subtitle = subtitle
         self.direct_labels = direct_labels
+        self.read = read  # one sentence under the blocks that walks through one value (a vocabulary template)
+        self.read_numbers = dict(numbers or {})  # name -> (value, unit, data key), filled into "{name}" in `read`
         self.blocks: list = []
         self._registry = registry
         self._key_figure = False  # set by key_figure(): its legend is the key, so no key line is drawn
@@ -381,7 +386,12 @@ class Figure:
         muted = ctx.chrome("muted")
 
         label_w = max(_label_width(ctx, b) for b in self.blocks)
-        plans = [_planner(b)(b, ctx, W, label_w) for b in self.blocks]
+        blocks = list(self.blocks)
+        if self.read:
+            from styles_plot._keyfig import ReadAloud
+
+            blocks.append(ReadAloud(self.read, tuple((k, *v) for k, v in self.read_numbers.items())))
+        plans = [_planner(b)(b, ctx, W, label_w) for b in blocks]
         enc = frozenset().union(*(p.encodings for p in plans)) | ({("all_post_hoc",)} if ctx.all_post_hoc else set())
         k_lines = _key_lines(ctx, key_items(ctx, set(enc)), inner)
         controls = tuple(sorted(e[1] for e in enc if e[0] == "control"))
