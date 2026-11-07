@@ -3,9 +3,9 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
-## Unreleased
+## 0.1.2
 
-Needed to port the bridge-jspace pilot; not tagged until approved.
+What the bridge-jspace pilot port needs; no change to existing figures.
 
 - Dot table lanes (`sp.Lane`): sub-rows of every entity row, labelled in grey under the row's name or named by colour
   words only; cells keyed (row, lane).

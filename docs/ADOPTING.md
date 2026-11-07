@@ -4,9 +4,9 @@
 
 ```
 # uv / pyproject.toml
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.1
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.2
 # pip / requirements.txt
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.1
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.2
 ```
 
 Add the `[check]` extra (`styles-plot[check] @ git+…`) only if you change palette hexes: the colour-vision distances of
