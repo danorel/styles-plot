@@ -1,0 +1,458 @@
+{
+ "method": "CIEDE2000; Machado 2009 severity 100 via colorspacious; rounded to 0.01",
+ "slots": {
+  "ink": "#2B2B2B",
+  "violet": "#6B5BD2",
+  "teal": "#1A9E8A",
+  "amber": "#E08A1E",
+  "blue": "#3A7DC9",
+  "brick": "#B8433A",
+  "slate": "#4A5F6A",
+  "brown": "#8C6D46",
+  "pink": "#B8689A",
+  "control": "#A8A8A8",
+  "other": "#D9D9D9"
+ },
+ "pairs": [
+  {
+   "a": "ink",
+   "b": "violet",
+   "normal": 35.35,
+   "deutan": 33.81,
+   "protan": 35.24,
+   "tritan": 28.0
+  },
+  {
+   "a": "ink",
+   "b": "teal",
+   "normal": 42.33,
+   "deutan": 33.07,
+   "protan": 38.48,
+   "tritan": 43.19
+  },
+  {
+   "a": "ink",
+   "b": "amber",
+   "normal": 50.51,
+   "deutan": 53.02,
+   "protan": 45.52,
+   "tritan": 49.11
+  },
+  {
+   "a": "ink",
+   "b": "blue",
+   "normal": 35.91,
+   "deutan": 34.94,
+   "protan": 37.99,
+   "tritan": 37.16
+  },
+  {
+   "a": "ink",
+   "b": "brick",
+   "normal": 33.3,
+   "deutan": 31.79,
+   "protan": 21.28,
+   "tritan": 34.56
+  },
+  {
+   "a": "ink",
+   "b": "slate",
+   "normal": 18.73,
+   "deutan": 17.74,
+   "protan": 18.36,
+   "tritan": 20.99
+  },
+  {
+   "a": "ink",
+   "b": "brown",
+   "normal": 30.04,
+   "deutan": 30.7,
+   "protan": 28.11,
+   "tritan": 30.28
+  },
+  {
+   "a": "ink",
+   "b": "pink",
+   "normal": 38.91,
+   "deutan": 33.8,
+   "protan": 30.97,
+   "tritan": 38.95
+  },
+  {
+   "a": "ink",
+   "b": "control",
+   "normal": 47.3,
+   "deutan": 47.3,
+   "protan": 47.3,
+   "tritan": 47.3
+  },
+  {
+   "a": "ink",
+   "b": "other",
+   "normal": 68.24,
+   "deutan": 68.24,
+   "protan": 68.24,
+   "tritan": 68.24
+  },
+  {
+   "a": "violet",
+   "b": "teal",
+   "normal": 41.97,
+   "deutan": 26.21,
+   "protan": 35.24,
+   "tritan": 21.62
+  },
+  {
+   "a": "violet",
+   "b": "amber",
+   "normal": 57.44,
+   "deutan": 63.87,
+   "protan": 60.73,
+   "tritan": 47.14
+  },
+  {
+   "a": "violet",
+   "b": "blue",
+   "normal": 16.87,
+   "deutan": 5.1,
+   "protan": 8.22,
+   "tritan": 13.47
+  },
+  {
+   "a": "violet",
+   "b": "brick",
+   "normal": 38.09,
+   "deutan": 51.56,
+   "protan": 44.85,
+   "tritan": 47.37
+  },
+  {
+   "a": "violet",
+   "b": "slate",
+   "normal": 13.36,
+   "deutan": 19.66,
+   "protan": 21.17,
+   "tritan": 12.54
+  },
+  {
+   "a": "violet",
+   "b": "brown",
+   "normal": 45.37,
+   "deutan": 48.04,
+   "protan": 46.6,
+   "tritan": 36.49
+  },
+  {
+   "a": "violet",
+   "b": "pink",
+   "normal": 22.83,
+   "deutan": 21.71,
+   "protan": 13.88,
+   "tritan": 40.92
+  },
+  {
+   "a": "violet",
+   "b": "control",
+   "normal": 34.35,
+   "deutan": 33.82,
+   "protan": 32.12,
+   "tritan": 24.69
+  },
+  {
+   "a": "violet",
+   "b": "other",
+   "normal": 42.75,
+   "deutan": 42.53,
+   "protan": 40.54,
+   "tritan": 35.07
+  },
+  {
+   "a": "teal",
+   "b": "amber",
+   "normal": 44.96,
+   "deutan": 30.82,
+   "protan": 22.62,
+   "tritan": 57.18
+  },
+  {
+   "a": "teal",
+   "b": "blue",
+   "normal": 32.58,
+   "deutan": 22.42,
+   "protan": 29.51,
+   "tritan": 9.47
+  },
+  {
+   "a": "teal",
+   "b": "brick",
+   "normal": 58.02,
+   "deutan": 23.86,
+   "protan": 24.68,
+   "tritan": 63.26
+  },
+  {
+   "a": "teal",
+   "b": "slate",
+   "normal": 28.37,
+   "deutan": 18.78,
+   "protan": 24.66,
+   "tritan": 23.97
+  },
+  {
+   "a": "teal",
+   "b": "brown",
+   "normal": 34.12,
+   "deutan": 20.99,
+   "protan": 18.28,
+   "tritan": 45.06
+  },
+  {
+   "a": "teal",
+   "b": "pink",
+   "normal": 47.77,
+   "deutan": 5.92,
+   "protan": 22.19,
+   "tritan": 54.47
+  },
+  {
+   "a": "teal",
+   "b": "control",
+   "normal": 25.28,
+   "deutan": 10.64,
+   "protan": 8.28,
+   "tritan": 24.8
+  },
+  {
+   "a": "teal",
+   "b": "other",
+   "normal": 31.81,
+   "deutan": 22.95,
+   "protan": 19.58,
+   "tritan": 31.08
+  },
+  {
+   "a": "amber",
+   "b": "blue",
+   "normal": 51.23,
+   "deutan": 58.97,
+   "protan": 54.46,
+   "tritan": 63.27
+  },
+  {
+   "a": "amber",
+   "b": "brick",
+   "normal": 30.46,
+   "deutan": 19.62,
+   "protan": 26.56,
+   "tritan": 19.25
+  },
+  {
+   "a": "amber",
+   "b": "slate",
+   "normal": 44.57,
+   "deutan": 46.43,
+   "protan": 40.24,
+   "tritan": 47.51
+  },
+  {
+   "a": "amber",
+   "b": "brown",
+   "normal": 20.77,
+   "deutan": 20.73,
+   "protan": 18.68,
+   "tritan": 19.62
+  },
+  {
+   "a": "amber",
+   "b": "pink",
+   "normal": 44.5,
+   "deutan": 37.85,
+   "protan": 44.29,
+   "tritan": 12.7
+  },
+  {
+   "a": "amber",
+   "b": "control",
+   "normal": 27.36,
+   "deutan": 26.45,
+   "protan": 27.27,
+   "tritan": 25.5
+  },
+  {
+   "a": "amber",
+   "b": "other",
+   "normal": 31.37,
+   "deutan": 29.67,
+   "protan": 32.81,
+   "tritan": 29.89
+  },
+  {
+   "a": "blue",
+   "b": "brick",
+   "normal": 43.35,
+   "deutan": 48.2,
+   "protan": 42.64,
+   "tritan": 67.29
+  },
+  {
+   "a": "blue",
+   "b": "slate",
+   "normal": 18.25,
+   "deutan": 19.33,
+   "protan": 21.61,
+   "tritan": 17.59
+  },
+  {
+   "a": "blue",
+   "b": "brown",
+   "normal": 40.3,
+   "deutan": 44.75,
+   "protan": 42.83,
+   "tritan": 51.53
+  },
+  {
+   "a": "blue",
+   "b": "pink",
+   "normal": 33.73,
+   "deutan": 17.52,
+   "protan": 9.71,
+   "tritan": 56.44
+  },
+  {
+   "a": "blue",
+   "b": "control",
+   "normal": 27.29,
+   "deutan": 29.05,
+   "protan": 25.23,
+   "tritan": 25.28
+  },
+  {
+   "a": "blue",
+   "b": "other",
+   "normal": 35.61,
+   "deutan": 37.57,
+   "protan": 33.06,
+   "tritan": 33.35
+  },
+  {
+   "a": "brick",
+   "b": "slate",
+   "normal": 36.87,
+   "deutan": 31.05,
+   "protan": 22.23,
+   "tritan": 43.35
+  },
+  {
+   "a": "brick",
+   "b": "brown",
+   "normal": 22.57,
+   "deutan": 3.4,
+   "protan": 7.69,
+   "tritan": 15.73
+  },
+  {
+   "a": "brick",
+   "b": "pink",
+   "normal": 24.86,
+   "deutan": 30.58,
+   "protan": 32.76,
+   "tritan": 15.03
+  },
+  {
+   "a": "brick",
+   "b": "control",
+   "normal": 33.6,
+   "deutan": 26.78,
+   "protan": 32.79,
+   "tritan": 35.0
+  },
+  {
+   "a": "brick",
+   "b": "other",
+   "normal": 42.43,
+   "deutan": 36.15,
+   "protan": 43.49,
+   "tritan": 43.57
+  },
+  {
+   "a": "slate",
+   "b": "brown",
+   "normal": 27.83,
+   "deutan": 28.54,
+   "protan": 25.05,
+   "tritan": 35.76
+  },
+  {
+   "a": "slate",
+   "b": "pink",
+   "normal": 29.5,
+   "deutan": 17.64,
+   "protan": 13.28,
+   "tritan": 37.65
+  },
+  {
+   "a": "slate",
+   "b": "control",
+   "normal": 30.15,
+   "deutan": 30.5,
+   "protan": 28.42,
+   "tritan": 31.45
+  },
+  {
+   "a": "slate",
+   "b": "other",
+   "normal": 41.35,
+   "deutan": 41.77,
+   "protan": 39.86,
+   "tritan": 42.29
+  },
+  {
+   "a": "brown",
+   "b": "pink",
+   "normal": 35.32,
+   "deutan": 27.6,
+   "protan": 32.92,
+   "tritan": 11.28
+  },
+  {
+   "a": "brown",
+   "b": "control",
+   "normal": 25.38,
+   "deutan": 24.34,
+   "protan": 26.14,
+   "tritan": 26.01
+  },
+  {
+   "a": "brown",
+   "b": "other",
+   "normal": 35.25,
+   "deutan": 34.17,
+   "protan": 36.35,
+   "tritan": 35.78
+  },
+  {
+   "a": "pink",
+   "b": "control",
+   "normal": 26.81,
+   "deutan": 13.31,
+   "protan": 20.65,
+   "tritan": 26.42
+  },
+  {
+   "a": "pink",
+   "b": "other",
+   "normal": 34.33,
+   "deutan": 24.38,
+   "protan": 30.87,
+   "tritan": 33.93
+  },
+  {
+   "a": "control",
+   "b": "other",
+   "normal": 12.63,
+   "deutan": 12.63,
+   "protan": 12.63,
+   "tritan": 12.63
+  }
+ ]
+}
