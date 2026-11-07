@@ -3,6 +3,18 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.6
+
+Grammar decisions of 7 Nov.
+
+- One colour, one estimate per line: two estimates of one role in one row are allowed only in different columns (each
+  with its own header and axis); two on one line of a column fail to build.
+- A column whose header is its single role's word (a gap drawn in the neutral role) shows that header in the role's
+  colour and no colour word above the rows.
+- Stacks carry no whiskers: `Stack(columns=[TextColumn(...)])` prints a segment's interval beside the bars.
+- Sweep points measured on their own: `Point(value=..., lo=..., hi=...)` with a vertical whisker; the line itself
+  carries no status.
+
 ## 0.1.5
 
 Fixes a 0.1.4 regression and two placement gaps.

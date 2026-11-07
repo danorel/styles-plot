@@ -29,6 +29,7 @@ class _Col:
     w: float = 0.0
     pid: int = -1  # panel id, for matching a panel with its axis title and cue
     header: list[str] = field(default_factory=list)
+    header_role: str | None = None  # the header is this role's word: drawn in its colour, no colour word above
     title: list[str] = field(default_factory=list)
     cue: list[str] = field(default_factory=list)
     strip: list = field(default_factory=list)  # [(x_left, level, word, colour, weight, size, tags)]
@@ -132,33 +133,43 @@ def _validate(t: DotTable, ctx: Ctx) -> None:
                 raise BuildError(f"{ctx.figure_id}: a control series needs control=<a [controls] name> ({c.header!r})")
         if c.connect and not all(any(s.role == r for s in c.series) for r in c.connect):
             raise BuildError(f"{ctx.figure_id}: connect={c.connect} names a role with no series in {c.header!r}")
+        keys = [(r, ln.key) for r in t.rows for ln in t.lanes] if t.lanes else list(t.rows)
+        for k in keys:
+            roles = [s.role for s in c.series if isinstance(s.cells.get(k), Est)]
+            twice = sorted({r for r in roles if roles.count(r) > 1})
+            if twice:
+                raise BuildError(f"{ctx.figure_id}: two estimates of {twice[0]!r} on one line of column {c.header!r} "
+                                 f"({k!r}); one colour means one estimate per line: give the second its own column, "
+                                 "header and axis (GRAMMAR.md, D)")  # fmt: skip
 
 
 def _text_cells(lay: _Layout, ctx: Ctx) -> None:
     """Format every text-column cell once (numbers are logged here)."""
-    muted = ctx.chrome("muted")
     for c in lay.cols:
-        if not c.is_text:
-            continue
-        ink = ctx.role_hex(c.spec.role) if c.spec.role else ctx.chrome("text")
-        meta_role = {"role": c.spec.role} if c.spec.role else {}
-        for key in (k for r in lay.rows for k in r.keys):
-            val = c.spec.cells.get(key)
-            if val is None:
-                parts = []
-            elif isinstance(val, Missing):
-                parts = [(val.words, muted, "normal", {"kind": "missing"})]
-            elif isinstance(val, Count):
-                parts = [(ctx.count(val.k, val.n, val.key), ink, "normal",
-                          {"kind": "value", "key": val.key, "cell": val.cell, "unit": c.spec.unit, **meta_role})]  # fmt: skip
-            else:
-                parts = [(ctx.value(c.spec.unit, val.value, val.key), ink, "normal",
-                          {"kind": "value", "key": val.key, "cell": val.cell, "unit": c.spec.unit, **meta_role})]  # fmt: skip
-                if val.lo is not None:
-                    parts.append((" " + ctx.interval(c.spec.unit, val.lo, val.hi, val.key), muted, "normal",
-                                  {"kind": "value", "key": f"{val.key}.interval", "cell": val.cell,
-                                   "unit": c.spec.unit}))  # fmt: skip
-            c.texts[key] = parts
+        if c.is_text:
+            for key in (k for r in lay.rows for k in r.keys):
+                c.texts[key] = text_parts(ctx, c.spec, key)
+
+
+def text_parts(ctx: Ctx, col: TextColumn, key) -> list:
+    """A text column's cell as [(text, colour, weight, tags)]: a value and its interval, a count, or missing words."""
+    muted = ctx.chrome("muted")
+    ink = ctx.role_hex(col.role) if col.role else ctx.chrome("text")
+    meta_role = {"role": col.role} if col.role else {}
+    val = col.cells.get(key)
+    if val is None:
+        return []
+    if isinstance(val, Missing):
+        return [(val.words, muted, "normal", {"kind": "missing"})]
+    if isinstance(val, Count):
+        return [(ctx.count(val.k, val.n, val.key), ink, "normal",
+                 {"kind": "value", "key": val.key, "cell": val.cell, "unit": col.unit, **meta_role})]  # fmt: skip
+    parts = [(ctx.value(col.unit, val.value, val.key), ink, "normal",
+              {"kind": "value", "key": val.key, "cell": val.cell, "unit": col.unit, **meta_role})]  # fmt: skip
+    if val.lo is not None:
+        parts.append((" " + ctx.interval(col.unit, val.lo, val.hi, val.key), muted, "normal",
+                      {"kind": "value", "key": f"{val.key}.interval", "cell": val.cell, "unit": col.unit}))  # fmt: skip
+    return parts
 
 
 def _widths(lay: _Layout, ctx: Ctx, label_w: float) -> None:
@@ -301,9 +312,12 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
     sz = ctx.sizes
     first = {k: (i, j) for i, r in enumerate(lay.rows) for j, k in enumerate(r.keys)}
     words, seen = [], set()
+    for s in c.spec.series:  # a header that is a role's word names that role: no colour word above the rows
+        if s.role != "control" and c.spec.header and c.spec.header == (s.word or ctx.vocab.role(s.role).word):
+            c.header_role = s.role
     for s in c.spec.series:
         word = None if s.role == "control" else (s.word or ctx.vocab.role(s.role).word)
-        if word is None or word in seen:
+        if word is None or word in seen or (c.header_role == s.role and word == c.spec.header):
             continue
         xs = sorted((first[rk], val.value) for rk, val in s.cells.items() if isinstance(val, Est) and rk in first)
         if not xs:
@@ -354,9 +368,11 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
         gx = min(c.x for c in lay.cols if c.group is g)
         cv.text(gx, top + lay.group_h / 2, g.header, kind="header", size=sz.header, weight="bold", color=ink)
     for c in lay.cols:
+        named = {"kind": "role_word", "role": c.header_role, "color": ctx.role_hex(c.header_role)} if c.header_role \
+            else {"kind": "header", "color": ink}  # fmt: skip
         for i, s in enumerate(c.header):
-            cv.text(c.x, top + lay.group_h + (i + 0.5) * line_h(sz.header), s, kind="header", size=sz.header,
-                    weight="bold", color=ink, full=c.spec.header)  # fmt: skip
+            cv.text(c.x, top + lay.group_h + (i + 0.5) * line_h(sz.header), s, size=sz.header, weight="bold",
+                    full=c.spec.header, **named)  # fmt: skip
 
     for c in lay.cols:
         if c.is_panel:

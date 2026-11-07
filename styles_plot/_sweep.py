@@ -46,7 +46,8 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
         ctx.role_hex(ln.role)
         lines[ln.row].append(ln)
     xs = np.concatenate([np.asarray(ln.x, float) for ln in s.lines])
-    ys = np.concatenate([np.asarray(v, float) for ln in s.lines for v in (ln.y, *(ln.band or ()))])
+    ys = np.concatenate([np.asarray(v, float) for ln in s.lines for v in (ln.y, *(ln.band or ()))]
+                        + [np.asarray([v for v in (p.value, p.lo, p.hi) if v is not None], float) for p in s.points])
     xlim = s.xlim or (float(xs.min()), float(xs.max()))
     try:
         ylim = s.ylim or padded(float(ys.min()), float(ys.max()), yu.scale)
@@ -62,13 +63,22 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
         if ln is None:
             raise BuildError(f"{ctx.figure_id}: point at x={p.x} on {p.row!r} has no {p.role!r} line (a point marks a "
                              "cell on a line; a whole line's status is a panel tag: GRAMMAR.md, C)")  # fmt: skip
-        idx = [i for i, xv in enumerate(ln.x) if abs(xv - p.x) < 1e-9]
-        if not idx:
-            raise BuildError(f"{ctx.figure_id}: point x={p.x} is not one of the line's x values (GRAMMAR.md, C)")
+        if (p.lo is None) != (p.hi is None) or (p.lo is not None and p.value is None):
+            raise BuildError(f"{ctx.figure_id}: a point's own interval needs value, lo and hi")
+        if p.value is None:
+            idx = [i for i, xv in enumerate(ln.x) if abs(xv - p.x) < 1e-9]
+            if not idx:
+                raise BuildError(f"{ctx.figure_id}: point x={p.x} is not one of the line's x values; give value= for "
+                                 "a point measured on its own (GRAMMAR.md, C)")  # fmt: skip
+            yv = float(ln.y[idx[0]])
+        else:
+            yv = float(p.value)
         st = ctx.status(p.cell)
         if st.hollow:
             enc.add(("post_hoc",))
-        points.append((p, float(ln.y[idx[0]]), st))
+        if p.lo is not None:
+            enc.add(("whisker", p.interval))
+        points.append((p, yv, st))
     for ln in s.lines:
         if ln.band is not None:
             enc.add(("shading", ln.interval))
@@ -232,6 +242,10 @@ def _line(ax, ctx: Ctx, ln) -> None:
 def _point(cv, ax, ctx: Ctx, p, yv, st, unit, to_in, obstacles, panel) -> None:
     mk, bg = ctx.marks, ctx.palette.chrome["background"]
     col = ctx.role_hex(p.role)
+    if p.lo is not None:  # the point's own interval, vertical
+        tag(ax.plot([p.x, p.x], [p.lo, p.hi], color=col, lw=mk.whisker_lw, solid_capstyle="butt", zorder=3),
+            kind="whisker", interval=p.interval, role=p.role, cell=p.cell)  # fmt: skip
+        obstacles = [*obstacles, to_in([p.x, p.x], [p.lo, p.hi])]
     tag(ax.plot([p.x], [yv], marker=mk.marker, ls="none", ms=mk.dot_size, color=col, mfc=bg if st.hollow else col,
                 mec=col, mew=mk.hollow_edge if st.hollow else 0, zorder=4),
         kind="dot", role=p.role, cell=p.cell, timing=st.timing, claim=st.claim, hollow=st.hollow)  # fmt: skip

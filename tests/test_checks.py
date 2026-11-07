@@ -535,3 +535,51 @@ def test_diagonal_arrow_label_is_off_its_line(vocab):
     (x0, y0), (x1, y1) = tags(arrow)["seg"]
     tag(arrow.figure.text((x0 + x1) / 2, (y0 + y1) / 2, "swap", ha="center", va="center", fontsize=11), kind="text")
     assert "SP601" in codes(_checks.run(mpl))
+
+
+# ---- v0.1.6 (grammar decisions) --------------------------------------------------------------------------------------
+def test_one_estimate_per_colour_per_line(vocab):
+    two = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [
+        sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")}),
+        sp.Series("second", {"m1": sp.Est(70, cell="acc.m1")})])  # fmt: skip
+    with pytest.raises(sp.BuildError, match="its own column"):
+        run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [two])))
+    a = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")})])
+    b = sp.DotColumn("answers", "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(70, cell="acc.m1")})])
+    assert run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [a, b])))[1] == []  # across columns: allowed
+
+
+def test_header_that_is_the_role_word(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text() + '\n[roles.diff]\nslot = "slate"\nword = "gap"\nmeaning = "a quantity of no role"\n')
+    v = sp.load(p)
+    col = sp.DotColumn("gap", "gap", (-4, 98), (0, 30, 60), [sp.Series("diff", {"m1": sp.Est(40, cell="acc.m1")})])
+    mpl, problems = run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [col])))
+    assert problems == [], [str(p) for p in problems]
+    words = [t for t in mpl.findobj(lambda a: tags(a).get("kind") == "role_word")]
+    assert len(words) == 1 and words[0].get_text() == "gap" and words[0].get_color() == v.role("diff").hex
+
+
+def test_stack_with_a_text_column(vocab):
+    st = example("stack")
+    fig = st.stack(vocab)
+    block = fig.blocks[0]
+    tc = sp.TextColumn("correct", "share", {m: sp.Est(0.6, 0.55, 0.65, cell=f"correct.{m}", key=f"tc.{m}")
+                                            for m in block.rows}, unit_title=False)  # fmt: skip
+    fig.blocks[0] = dataclasses.replace(block, columns=[tc])
+    mpl, problems = run(fig)
+    assert problems == [], [str(p) for p in problems]
+    assert ("tc.m1.interval", "[0.55, 0.65]") in mpl._sp_info.numbers
+
+
+def test_sweep_point_with_its_own_value_and_interval(vocab):
+    xs = list(range(0, 25))
+    ln = sp.Line("c1", "second", xs, [1000 / (1 + x) + 50 for x in xs], cell="line.c1")
+    pt = sp.Point("c1", "second", 11, cell="pick.c1", value=300, lo=200, hi=450, key="pt", label=True)
+    mpl, problems = run(sp.Figure("sweep", vocab).add(sp.Sweep(["c1"], "layer", "rank", [ln], kind="checkpoints",
+                                                                  points=[pt], xticks=[0, 10, 20])))  # fmt: skip
+    assert problems == [], [str(p) for p in problems]
+    assert any(tags(a).get("kind") == "whisker" for a in mpl.findobj(lambda a: bool(tags(a))))
+    with pytest.raises(sp.BuildError, match="value, lo and hi"):
+        run(sp.Figure("sweep", vocab).add(sp.Sweep(["c1"], "layer", "rank", [ln], kind="checkpoints",
+                                                   points=[sp.Point("c1", "second", 11, lo=1, hi=2)])))  # fmt: skip

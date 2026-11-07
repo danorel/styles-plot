@@ -155,7 +155,8 @@ class Line:
 
 @dataclass(frozen=True)
 class Point:
-    """A dot on a line at x (a cell fixed in advance, or a chosen layer)."""
+    """A dot on a line at x (a cell fixed in advance, or a chosen layer). By default it sits on the line's value at x;
+    a point measured on its own gives `value` and may carry its own interval as a vertical whisker (lo, hi)."""
 
     row: str
     role: str
@@ -163,6 +164,10 @@ class Point:
     cell: str | None = None
     key: str | None = None
     label: bool = False
+    value: float | None = None
+    lo: float | None = None
+    hi: float | None = None
+    interval: str = "ci95"
 
 
 @dataclass(frozen=True)
@@ -219,6 +224,7 @@ class Stack:
     kind: str = "models"
     unit: str = "share"
     header: str = ""
+    columns: Sequence[TextColumn] = ()  # numbers beside the bars (a segment's interval: stacks carry no whiskers)
 
 
 # ---- scatter -----------------------------------------------------------------------------------------------------------

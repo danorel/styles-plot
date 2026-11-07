@@ -8,6 +8,7 @@ from matplotlib.patches import Rectangle
 from styles_plot._grid import claim_tags, draw_tags, draw_x_bottom, place_on_levels, x_bottom_height
 from styles_plot._model import Est, Stack
 from styles_plot._render import BuildError, Canvas, Ctx, Plan
+from styles_plot._table import text_parts
 from styles_plot._tags import tag
 from styles_plot._text import line_h
 
@@ -31,7 +32,18 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
         if abs(total - 1) > 1e-6:
             raise BuildError(f"{ctx.figure_id}: row {r!r} sums to {total:.6f}, not 1")
 
-    pw = width - label_w - RIGHT
+    # text columns beside the bars: their numbers formatted once, their widths measured
+    cols = []
+    for tc in s.columns:
+        ctx.unit(tc.unit)
+        parts = {r: text_parts(ctx, tc, r) for r in s.rows}
+        w = max([sum(ctx.measure(t, sz.value, wt)[0] for t, _c, wt, _m in ps) for ps in parts.values()]
+                + [max((ctx.measure(x, sz.header, "bold")[0] for x in tc.header.split()), default=0.0), 0.5]) + 0.05
+        cols.append((tc, parts, w))
+    cols_w = sum(w + th.pad for _tc, _p, w in cols)
+    pw = width - label_w - RIGHT - cols_w
+    if pw < 1.0:
+        raise BuildError(f"{ctx.figure_id}: the stack's text columns leave {pw:.2f} in for the bars")
     enc: set = set()
     for seg in s.segments:
         if any(ctx.status(v.cell).hollow for v in seg.shares.values()):
@@ -50,7 +62,8 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
     head = 0.08
     header = ctx.wrap(s.header, pw, sz.header, "bold") if s.header else []
     head += len(header) * line_h(sz.header)
-    strip_h = levels * line_h(sz.role_word) + 0.08
+    head_lines = max((len(ctx.wrap(tc.header, w, sz.header, "bold")) for tc, _p, w in cols), default=0)
+    strip_h = max(levels * line_h(sz.role_word), head_lines * line_h(sz.header)) + 0.08
     body_top = head + strip_h
     row_tags = {r: claim_tags(ctx, [seg.shares[r].cell for seg in s.segments]) for r in s.rows}
     tops, y = {}, 0.0
@@ -100,5 +113,19 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
                                 color=colour, ha="center", key=v.key, cell=v.cell, unit=s.unit, **meta)  # fmt: skip
                 left += v.value
         draw_x_bottom(cv, ctx, x0, pw, body_top + body_h, (0, 1), [0, 0.5, 1], unit, title, cue, pid=None)
+        cx = x0 + pw + th.pad
+        for tc, parts, w in cols:  # header just above the first row, numbers on each row, unit title under
+            for i, t in enumerate(ctx.wrap(tc.header, w, sz.header, "bold")[::-1]):
+                cv.text(cx, body_top - 0.06 - (i + 0.5) * line_h(sz.header), t, kind="header", size=sz.header,
+                        weight="bold", full=tc.header)  # fmt: skip
+            for r in s.rows:
+                cv.rich(cx, body_top + tops[r] + th.row_h / 2, parts[r], size=sz.value)
+            if tc.unit_title:
+                u = ctx.vocab.unit(tc.unit)
+                for i, t in enumerate(ctx.wrap(u.title, w + th.pad * 0.8, sz.axis)):
+                    cv.text(cx + w / 2, body_top + body_h + 0.06 + line_h(sz.tick) + (i + 0.5) * line_h(sz.axis), t,
+                            kind="axis_title", size=sz.axis, color=ctx.chrome("muted"), ha="center", unit=u.name,
+                            full=u.title)  # fmt: skip
+            cx += w + th.pad
 
     return Plan(height, enc, draw)

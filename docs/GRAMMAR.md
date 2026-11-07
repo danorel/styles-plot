@@ -59,10 +59,12 @@ source`), and every data mark carries its cell id.
 ## C. Marks
 
 - **The dot** is an estimate; a same-colour whisker is its interval; a grey connector joins dots of one row.
-- **Bars** only in 100% stacks and histograms.
+- **Bars** only in 100% stacks and histograms. A stack carries no whiskers: the interval its claim rests on is
+  printed in a text column beside it.
 - **Lines** only when x is depth (layers). A line is never hollow: a whole line's status is a grey tag above its panel
   ("post hoc", "descriptive", "not claimed: <reason>", joined with " · "), like a dot table's tags. Points on a line
-  are dots that keep their timing: filled when fixed in advance, hollow when post hoc.
+  are dots that keep their timing: filled when fixed in advance, hollow when post hoc. A point measured on its own
+  (fixed in advance, off the line's values) carries its own interval as a vertical whisker.
 - **An interval band** on a line is the line's colour at the theme's one shading alpha; it names an interval, never a
   variable.
 - **The largest same-size control** (or the project's definition) is a grey tick on the estimate's own axis.
@@ -77,13 +79,17 @@ source`), and every data mark carries its cell id.
   lane (a sub-row), named in grey words under the row's name or by its colour word above the table. Small multiples
   stack in entity order with a shared x axis.
 - Two quantities on different scales are two panels with their own axis titles, never a twin axis.
+- One colour means one estimate per line: a second estimate of the same role in a row gets its own column, header and
+  axis, never a second dot of that colour in the same column.
 - A panel header names a quantity, never a claim. All text is horizontal.
 - Several blocks in one figure are one matplotlib figure (subfigures) with one key under the last.
 
 ## E. Keys: every encoding named in the figure
 
 1. Every role colour in a panel is named by a coloured word above its first row (or next to its cloud): one line, in
-   the order the dots appear from left to right. Words that do not fit one line fail the layout check.
+   the order the dots appear from left to right. Words that do not fit one line fail the layout check. A column whose
+   header is its only role's word (a difference drawn in the neutral role) shows that header in the role's colour
+   instead.
 2. One key line under the figure, in this order, listing only what is drawn:
    `grey: <controls>` · `grey tick: <definition>` · `○ post hoc` · `whiskers: <interval>` · `shading: <interval>` ·
    `line: median` · `grey band: <definition>`. The interval phrase comes from the vocabulary ("95% interval",
