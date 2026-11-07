@@ -108,7 +108,7 @@ def test_cli_check_clean(saved, vocab_dir, capsys):
 def test_cli_check_stale_and_conflicts(saved, vocab_dir, capsys):
     side = saved / "stack.styles.json"
     meta = json.loads(side.read_text())
-    meta["png"]["sha256"] = "0" * 64
+    meta["png"]["pixels_sha256"] = "0" * 64
     meta["numbers"]["gap.band.m1"] = "99.9"
     meta["cells"]["correct.m1"] = {"timing": "post_hoc", "claim": "claimed"}
     side.write_text(json.dumps(meta))
@@ -153,7 +153,7 @@ def test_figure_set_with_meta_and_sheets_folders(tmp_path, vocab_dir, capsys):
     assert "2 figure(s), 0 problem(s)" in capsys.readouterr().out  # the sheets in _sheets are not figures
     side = root / "_meta" / "main" / "stack.styles.json"
     meta = json.loads(side.read_text())
-    meta["png"]["sha256"] = "0" * 64
+    meta["png"]["pixels_sha256"] = "0" * 64
     side.write_text(json.dumps(meta))
     assert main(["check", str(root), "--vocab", str(p)]) == 1  # the sidecar in _meta is found
     assert "SP902" in capsys.readouterr().out
@@ -165,3 +165,20 @@ def test_bad_sidecar_dir(vocab_dir, bad):
     p.write_text(p.read_text() + f'\n[output]\nsidecar_dir = "{bad}"\n')
     with pytest.raises(sp.VocabError, match="sidecar_dir"):
         sp.load(p)
+
+
+def test_sidecar_hashes_pixels_not_bytes(tmp_path, vocab, capsys):
+    from PIL import Image
+
+    out = tmp_path / "figs"
+    rep = sp.save(example("stack").stack(vocab), out / "stack.png", "post")
+    side = json.loads(rep.sidecar.read_text())
+    assert "pixels_sha256" in side["png"] and "sha256" not in side["png"]
+    Image.open(rep.path).save(rep.path, compress_level=1)  # other bytes, same pixels (another machine's zlib)
+    assert main(["check", str(out)]) == 0
+    capsys.readouterr()
+    im = Image.open(rep.path).convert("RGB")
+    im.putpixel((5, 5), (0, 0, 0))
+    im.save(rep.path)  # one pixel changed
+    assert main(["check", str(out)]) == 1
+    assert "SP902" in capsys.readouterr().out

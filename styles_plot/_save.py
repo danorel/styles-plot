@@ -18,7 +18,7 @@ from pathlib import Path
 
 from styles_plot import _checks
 from styles_plot._checks._base import Problem
-from styles_plot._png import check_png
+from styles_plot._png import check_png, pixels_sha256
 from styles_plot._render import Figure, RenderInfo, info
 from styles_plot._tags import DATA_KINDS, tags
 
@@ -110,7 +110,8 @@ def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path
     fd, tmp = tempfile.mkstemp(suffix=".png", dir=path.parent)
     os.close(fd)
     try:
-        mpl.savefig(tmp, dpi=i.theme.dpi, facecolor=i.vocab.palette.chrome["background"])
+        # no "Software" stamp: the PNG's bytes should not change with the matplotlib version
+        mpl.savefig(tmp, dpi=i.theme.dpi, facecolor=i.vocab.palette.chrome["background"], metadata={"Software": None})
         png_problems = check_png(tmp, i.theme, i.vocab.palette) if i.theme.strict_layout else []
         png_problems = [Problem(p.code, p.message, i.figure) for p in png_problems]
         if png_problems and strict:
@@ -164,7 +165,7 @@ def _sidecar(mpl, i: RenderInfo, png: Path, mode: str, problems: list[Problem]) 
         "target": i.target,
         "mode": mode,
         "publishable": i.theme.publishable,
-        "png": {"sha256": _sha(png), "dpi": i.theme.dpi},
+        "png": {"pixels_sha256": pixels_sha256(png), "dpi": i.theme.dpi},
         "roles": sorted(roles),
         "controls": sorted(controls),
         "cells": dict(sorted(cells.items())),

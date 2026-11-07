@@ -10,14 +10,13 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 from styles_plot._palette import Palette
-from styles_plot._png import check_png
+from styles_plot._png import check_png, pixels_sha256
 from styles_plot._registry import load as load_registry
 from styles_plot._save import StyleError, save, sidecar_path
 from styles_plot._sheet import contact_sheets, figures_in
@@ -48,8 +47,11 @@ def _check(args) -> int:
         lines += [f"{rel}: {p.code} {p.message}" for p in check_png(png, targets[target], palette)]
         if meta is None:
             continue
-        if hashlib.sha256(png.read_bytes()).hexdigest() != meta["png"]["sha256"]:
-            lines.append(f"{rel}: SP902 the PNG changed after its sidecar was written")
+        recorded = meta.get("png", {}).get("pixels_sha256")
+        if recorded is None:
+            lines.append(f"{rel}: SP902 the sidecar records no pixel hash (written by an older styles-plot): rebuild")
+        elif pixels_sha256(png) != recorded:
+            lines.append(f"{rel}: SP902 the PNG's pixels changed after its sidecar was written")
         if not meta.get("publishable", True):
             lines.append(f"{rel}: SP903 a {target} figure is never published")
         for p in meta.get("problems", []):

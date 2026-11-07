@@ -21,6 +21,17 @@ from styles_plot._theme import Theme
 CHROMA, DIST, TOLERANCE = 40, 22, 0.05  # anti-aliasing between two slots is not a hue of its own
 
 
+def pixels_sha256(png: str | Path) -> str:
+    """A hash of what a PNG shows, not of its bytes: mode, size and decoded RGBA pixels. Two machines that draw the
+    same pixels agree, whatever their zlib makes of them."""
+    import hashlib
+
+    im = Image.open(png).convert("RGBA")
+    h = hashlib.sha256(f"RGBA {im.width}x{im.height}\n".encode())
+    h.update(im.tobytes())
+    return h.hexdigest()
+
+
 def _rgb(hexes) -> np.ndarray:
     return np.array([[int(h[i : i + 2], 16) for i in (1, 3, 5)] for h in hexes], dtype=float)
 
