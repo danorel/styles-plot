@@ -92,7 +92,8 @@ def _size(cx: CheckCtx) -> list[Problem]:
     if th.height_in is not None and cx.info.natural_height > th.height_in + 1e-6:
         out.append(cx.problem("SP604", f"needs {cx.info.natural_height:.2f} in of height, the target {th.name!r} "
                                        f"has {th.height_in:g} in"))  # fmt: skip
-    if th.aspect is not None and not th.aspect[0] - 1e-6 <= w / h <= th.aspect[1] + 1e-6:
+    wide_ok = cx.info.text_only  # cards may be as short as their text
+    if th.aspect is not None and not (th.aspect[0] - 1e-6 <= w / h and (wide_ok or w / h <= th.aspect[1] + 1e-6)):
         out.append(cx.problem("SP604", f"width : height {w / h:.2f} outside {th.aspect[0]:g}-{th.aspect[1]:g}"))
     return out
 

@@ -195,6 +195,7 @@ class RenderInfo:
     encodings: frozenset
     key_figure: bool = False
     all_post_hoc: bool = False
+    text_only: bool = False  # cards only: exempt from the target's widest proportion
     findings: tuple[tuple[str, str], ...] = ()
 
 
@@ -369,6 +370,13 @@ class Figure:
             self._registry = R.load(self.vocab.registry_path)
         return self._registry
 
+    def _text_only(self) -> bool:
+        """A figure of example cards only: text, as wide and as short as its lines (no padding to the target's widest
+        proportion; the narrowest still holds)."""
+        from styles_plot._model import Card
+
+        return bool(self.blocks) and all(isinstance(b, Card) for b in self.blocks)
+
     def status(self, cell: str) -> R.Status | None:
         reg = self.registry
         return None if reg is None else reg.get(self.id, cell)
@@ -413,7 +421,7 @@ class Figure:
         height = natural
         if theme.height_in is not None:
             height = max(natural, theme.height_in)
-        elif theme.aspect is not None:
+        elif theme.aspect is not None and not self._text_only():
             height = max(natural, W / theme.aspect[1])  # too wide for the target: white space under the key
         if height > natural + 1e-9:
             sections.append((height - natural, lambda cv: None))
@@ -429,6 +437,6 @@ class Figure:
             figure=self.id, target=target, theme=theme, vocab=self.vocab, registry=self.registry,
             numbers=tuple(ctx.numbers), direct_labels=self.direct_labels, natural_height=natural,
             blocks=tuple(type(b).__name__ for b in self.blocks), encodings=enc, key_figure=self._key_figure,
-            all_post_hoc=ctx.all_post_hoc, findings=tuple(ctx.findings),
+            all_post_hoc=ctx.all_post_hoc, findings=tuple(ctx.findings), text_only=self._text_only(),
         )  # fmt: skip
         return fig

@@ -3,6 +3,19 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.13
+
+From the bridge-jspace example cards.
+
+- Card prompts take paragraphs: a list of part-lists, each starting a new line with a small gap; a leading part such
+  as ("Lookup:", "lookup", True) labels a paragraph in its role's colour.
+- Card text keeps its own spacing: a part that starts with punctuation sticks to the word before it ("frog.", not
+  "frog ."). Card prompt and answer text is verbatim and exempt from the run-id check (SP403); an item's own ids may
+  appear in it.
+- A figure of cards only is as short as its text: no padding to the target's widest proportion (its narrowest still
+  holds), in the layout check and the PNG check alike.
+- A 100% stack's rows may sum to 1 within ±0.001 (shares stored to a few decimals).
+
 ## 0.1.12
 
 From the bridge-jspace README brief.

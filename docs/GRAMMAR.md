@@ -123,7 +123,7 @@ A target fixes width, dpi, fonts, minimum text size and whether a title and capt
 
 | target | size | dpi | title, caption | checks |
 |---|---|---:|---|---|
-| post | 8.0 in wide, width : height 1.0–2.6 | 200 | no | strict |
+| post | 8.0 in wide, width : height 1.0–2.6 (cards only: as short as their text) | 200 | no | strict |
 | slide | 12.3 × 6.5 in (a 7.5 in slide minus a one-line title) | 200 | no | strict; a figure that does not fit is split across slides |
 | readme | 11 in wide, width : height 1.0–3.0 | 160 | yes | strict |
 | notebook | 8.0 in wide | 100 | no | relaxed, never published |

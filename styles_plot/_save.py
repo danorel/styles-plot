@@ -112,7 +112,7 @@ def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path
     try:
         # no "Software" stamp: the PNG's bytes should not change with the matplotlib version
         mpl.savefig(tmp, dpi=i.theme.dpi, facecolor=i.vocab.palette.chrome["background"], metadata={"Software": None})
-        png_problems = check_png(tmp, i.theme, i.vocab.palette) if i.theme.strict_layout else []
+        png_problems = check_png(tmp, i.theme, i.vocab.palette, i.text_only) if i.theme.strict_layout else []
         png_problems = [Problem(p.code, p.message, i.figure) for p in png_problems]
         if png_problems and strict:
             raise StyleError(png_problems)
@@ -165,6 +165,7 @@ def _sidecar(mpl, i: RenderInfo, png: Path, mode: str, problems: list[Problem]) 
         "target": i.target,
         "mode": mode,
         "publishable": i.theme.publishable,
+        "text_only": i.text_only,
         "png": {"pixels_sha256": pixels_sha256(png), "dpi": i.theme.dpi},
         "roles": sorted(roles),
         "controls": sorted(controls),

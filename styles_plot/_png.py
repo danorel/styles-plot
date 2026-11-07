@@ -57,7 +57,7 @@ def off_palette(png: Path, palette: Palette) -> tuple[float, str, int]:
     return len(bad) / len(sat), top, len(sat)
 
 
-def check_png(png: str | Path, theme: Theme, palette: Palette) -> list[Problem]:
+def check_png(png: str | Path, theme: Theme, palette: Palette, wide_ok: bool = False) -> list[Problem]:
     png = Path(png)
     name = png.name
     im = Image.open(png)
@@ -69,7 +69,7 @@ def check_png(png: str | Path, theme: Theme, palette: Palette) -> list[Problem]:
     if theme.height_in is not None and abs(h - round(theme.height_in * theme.dpi)) > 1:
         out.append(Problem("SP802", f"{h} px high, the target {theme.name!r} is {round(theme.height_in * theme.dpi)} px",
                            name))  # fmt: skip
-    if theme.aspect is not None and not theme.aspect[0] - 0.01 <= w / h <= theme.aspect[1] + 0.01:
+    if theme.aspect is not None and not (theme.aspect[0] - 0.01 <= w / h and (wide_ok or w / h <= theme.aspect[1] + 0.01)):
         out.append(Problem("SP802", f"width : height {w / h:.2f} outside {theme.aspect[0]:g}-{theme.aspect[1]:g}", name))
     a = np.asarray(im.convert("RGBA"))
     if (a[..., 3] < 255).any():

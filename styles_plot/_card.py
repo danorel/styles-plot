@@ -12,31 +12,53 @@ from styles_plot._text import line_h
 
 PAD = 0.12  # inches of margin left and right
 GAP = 0.15  # inches between the card's parts and between columns
+PARA_GAP = 0.08  # inches between two paragraphs of the prompt
 
 
 def _flow(ctx: Ctx, parts, width: float, size: float) -> list[list[tuple]]:
-    """Flow (text, role, bold) parts into lines of words no wider than `width`: [[(word, role, bold, x), ...]]."""
+    """Flow (text, role, bold) parts into lines no wider than `width`, keeping the text's own spacing: a part that
+    starts with punctuation sticks to the word before it. Returns [[(token, role, bold, x), ...]] per line."""
+    import re
+
     space = ctx.measure(" ", size)[0] + 0.01
-    lines: list[list[tuple]] = [[]]
-    x = 0.0
+    groups: list[list[tuple]] = [[]]  # words: runs of non-space tokens, possibly across parts
     for part in parts:
         text, role = part[0], part[1]
         bold = len(part) > 2 and bool(part[2])
-        weight = "bold" if bold else "normal"
-        for word in text.split():
-            w = ctx.measure(word, size, weight)[0]
-            if lines[-1] and x + w > width:
-                lines.append([])
-                x = 0.0
-            lines[-1].append((word, role, bold, x))
-            x += w + space
+        for tok in re.findall(r"\s+|\S+", text):
+            if tok.isspace():
+                if groups[-1]:
+                    groups.append([])
+            else:
+                groups[-1].append((tok, role, bold))
+    groups = [g for g in groups if g]
+    lines: list[list[tuple]] = [[]]
+    x = 0.0
+    for g in groups:
+        widths = [ctx.measure(t, size, "bold" if b else "normal")[0] for t, _r, b in g]
+        w = sum(widths)
+        if lines[-1] and x + w > width:
+            lines.append([])
+            x = 0.0
+        for (t, r, b), wt in zip(g, widths):
+            lines[-1].append((t, r, b, x))
+            x += wt
+        x += space
     return lines if lines[-1] else lines[:-1]
+
+
+def _paragraphs(prompt) -> list[list[tuple]]:
+    """A prompt as paragraphs: a list of parts is one paragraph; a list of lists of parts is several."""
+    if prompt and isinstance(prompt[0], (list, tuple)) and prompt[0] and isinstance(prompt[0][0], tuple):
+        return [list(p) for p in prompt]
+    return [list(prompt)]
 
 
 def plan(card: Card, ctx: Ctx, width: float, label_w: float) -> Plan:
     sz = ctx.sizes
-    for part in card.prompt:
-        if len(part) not in (2, 3):
+    paragraphs = _paragraphs(card.prompt)
+    for part in (p for para in paragraphs for p in para):
+        if not isinstance(part, tuple) or len(part) not in (2, 3):
             raise BuildError(f"{ctx.figure_id}: a prompt part is (text, role) or (text, role, bold)")
         if part[1] is not None:
             ctx.role_hex(part[1])
@@ -48,7 +70,7 @@ def plan(card: Card, ctx: Ctx, width: float, label_w: float) -> Plan:
         if extra:
             raise BuildError(f"{ctx.figure_id}: answers for {sorted(extra)}, which are not the card's columns")
     inner = width - 2 * PAD
-    prompt = _flow(ctx, card.prompt, inner, sz.value)
+    prompt = [_flow(ctx, para, inner, sz.value) for para in paragraphs]
     lab_w = max((ctx.measure(r.label, sz.role_word, "bold")[0] for r in card.rows), default=0.0) + GAP
     col_w = (inner - lab_w - GAP * (len(card.columns) - 1)) / len(card.columns)
     if col_w < 0.6:
@@ -59,20 +81,23 @@ def plan(card: Card, ctx: Ctx, width: float, label_w: float) -> Plan:
     row_hs = [max([1, *(len(c) for c in row)]) * line_h(sz.value) + 0.12 for row in cells]
     note = ctx.wrap(card.note, inner, sz.tag) if card.note else []
     head_h = max(len(h) for h in headers) * line_h(sz.header) + 0.06
-    prompt_h = len(prompt) * line_h(sz.value)
+    prompt_h = sum(len(lines) for lines in prompt) * line_h(sz.value) + PARA_GAP * (len(prompt) - 1)
     note_h = len(note) * line_h(sz.tag)
     height = 0.1 + prompt_h + GAP + head_h + sum(row_hs) + (GAP + note_h if note else 0.0) + 0.1
 
     def draw(cv: Canvas) -> None:
         ink, muted = ctx.chrome("text"), ctx.chrome("muted")
         y = 0.1
-        for line in prompt:
-            for word, role, bold, x in line:
-                meta = {"role": role} if role else {}
-                cv.text(PAD + x, y + line_h(sz.value) / 2, word, kind="card_text", size=sz.value,
-                        weight="bold" if bold else "normal", color=ctx.role_hex(role) if role else ink, verbatim=True,
-                        **meta)  # fmt: skip
-            y += line_h(sz.value)
+        for k, lines in enumerate(prompt):
+            if k:
+                y += PARA_GAP
+            for line in lines:
+                for word, role, bold, x in line:
+                    meta = {"role": role} if role else {}
+                    cv.text(PAD + x, y + line_h(sz.value) / 2, word, kind="card_text", size=sz.value,
+                            weight="bold" if bold else "normal", color=ctx.role_hex(role) if role else ink,
+                            verbatim=True, ids_ok=True, **meta)  # fmt: skip
+                y += line_h(sz.value)
         y += GAP
         x0 = PAD + lab_w
         for j, lines in enumerate(headers):
@@ -89,7 +114,8 @@ def plan(card: Card, ctx: Ctx, width: float, label_w: float) -> Plan:
             for j, lines in enumerate(row):
                 for i, s in enumerate(lines):
                     cv.text(x0 + j * (col_w + GAP), y + 0.06 + (i + 0.5) * line_h(sz.value), s, kind="card_text",
-                            size=sz.value, color=colour, role=r.role, verbatim=True, full=r.answers[card.columns[j]])  # fmt: skip
+                            size=sz.value, color=colour, role=r.role, verbatim=True, ids_ok=True,
+                            full=r.answers[card.columns[j]])  # fmt: skip
             y += h
         if note:
             y += GAP

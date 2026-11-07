@@ -33,7 +33,7 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
         if any(not isinstance(v, Est) for v in vals):
             raise BuildError(f"{ctx.figure_id}: row {r!r} lacks a share in some segment")
         total = sum(v.value for v in vals)
-        if abs(total - 1) > 1e-6:
+        if abs(total - 1) > 1e-3:  # shares stored to a few decimals sum to 0.9999 or 1.0001
             raise BuildError(f"{ctx.figure_id}: row {r!r} sums to {total:.6f}, not 1")
 
     # text columns beside the bars: their numbers formatted once, their widths measured

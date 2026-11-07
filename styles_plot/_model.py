@@ -316,7 +316,9 @@ class Card:
     """A real item as an image: the prompt verbatim, one row per reader with its answer under each condition, and a
     small grey note (the selection rule, the item's id). Use in a Figure with direct_labels=True."""
 
-    prompt: Sequence[tuple]  # (text, role or None) or (text, role or None, bold): the prompt, verbatim
+    # the prompt, verbatim: parts (text, role or None[, bold]) for one paragraph, or a list of such lists for several
+    # (each starts a new line; a leading part such as ("Lookup:", "lookup", True) labels it)
+    prompt: Sequence
     columns: Sequence[str]  # condition names (vocabulary terms), e.g. "before", "the whole change"
     rows: Sequence[CardRow]
     note: str = ""  # verbatim; may hold an item id

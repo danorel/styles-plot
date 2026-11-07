@@ -8,8 +8,10 @@ import styles_plot as sp
 
 def card(v: sp.Vocab) -> sp.Figure:
     c = sp.Card(
-        prompt=[("The violin is in the third locker. The ", None), ("flute", None, True),
-                (" is in the first one. Which locker holds the violin?", None)],
+        prompt=[[("The violin is in the third locker; the ", None), ("flute", None, True),
+                 (". It is in the first one (shelf_notes_12).", None)],
+                [("alpha", "first", True), (" Which locker holds the violin?", None)],
+                [("beta", "second", True), (" Which locker holds the flute?", None)]],
         columns=["before", "the whole change", "without the probe", "without a random direction"],
         rows=[sp.CardRow("alpha", "first", {"before": "the third locker", "the whole change": "the first locker",
                                               "without the probe": "the third locker",

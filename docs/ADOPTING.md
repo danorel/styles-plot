@@ -4,7 +4,7 @@
 
 ```
 # uv / pyproject.toml
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.12
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.13
 # pip / requirements.txt
 styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.2
 ```

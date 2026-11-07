@@ -44,7 +44,8 @@ def _check(args) -> int:
         if target not in targets:
             lines.append(f"{rel}: SP901 unknown target {target!r}")
             continue
-        lines += [f"{rel}: {p.code} {p.message}" for p in check_png(png, targets[target], palette)]
+        wide_ok = bool(meta and meta.get("text_only"))
+        lines += [f"{rel}: {p.code} {p.message}" for p in check_png(png, targets[target], palette, wide_ok)]
         if meta is None:
             continue
         recorded = meta.get("png", {}).get("pixels_sha256")

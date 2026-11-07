@@ -783,6 +783,11 @@ def test_card_alone_and_with_a_schematic(vocab):
     words = [t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "card_text") if t.get_fontweight() == "bold"
              or t.get_fontweight() == 700]
     assert "flute" in words
+    r = mpl.canvas.get_renderer()
+    toks = {t.get_text(): t.get_window_extent(r) for t in mpl.findobj(lambda a: tags(a).get("kind") == "card_text")}
+    assert abs(toks["."].x0 - toks["flute"].x1) < 3  # the full stop sits right after the bold word
+    w, h = mpl.get_size_inches()
+    assert w / h > 2.6  # a short card is as short as its text: no padding band
     fig = example("card").card(vocab)
     fig.add(sp.Schematic(1.2, [sp.Box(0.3, 0.2, 1.0, 0.6, "model", role="first"),
                                sp.Words(1.6, 0.5, [("probe", "probe", True)])]))  # fmt: skip
@@ -817,3 +822,9 @@ def test_read_line_shared_titles_and_five_segments(vocab_dir):
     assert "SP401" not in codes(run(sp.Figure("stack", v).add(sp.Stack(rows, segs)))[1])
     with pytest.raises(sp.BuildError, match="share a name"):
         run(sp.Figure("stack", v).add(sp.Stack(rows, [segs[0], dataclasses.replace(segs[1], name="correct"), *segs[2:]])))
+
+
+def test_stack_shares_rounded_to_four_decimals(vocab):
+    segs = [sp.Segment(n, r, {"m1": sp.Est(v, cell=f"{c}.m1")}) for n, r, c, v in
+            (("correct", "first", "correct", 0.3333), ("wrong", "second", "wrong", 0.3333), ("no answer", "other", "none", 0.3333))]  # fmt: skip
+    assert run(sp.Figure("stack", vocab).add(sp.Stack(["m1"], segs)))[1] == []
