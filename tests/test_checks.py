@@ -509,3 +509,29 @@ def test_scatter_header_numbers_arrow_label_bold_part_and_entities_in_code(vocab
     assert [e.name for e in v2.entities("heads")] == ["L12H3", "L14H0"]
     with pytest.raises(sp.VocabError, match="duplicate"):
         v.with_entities("heads", [("a", "x"), ("b", "x")])
+
+
+@pytest.mark.parametrize("both", [True, False])
+def test_labels_beside_a_connector_and_a_near_control(vocab, both):
+    # fig08a: two series joined by a connector; fig10: a labelled value with a control dot close to it
+    rows = ["m1", "m2", "m3", "m4"]
+    vals = {"m1": (0.08, 0.27), "m2": (0.10, 0.05), "m3": (0.06, 0.12), "m4": (0.93, 0.90)}
+    a = sp.Series("swap", {m: sp.Est(vals[m][0], cell=f"acc.{m}", key=f"a.{m}", label=True) for m in rows})
+    b = sp.Series("control", {m: sp.Est(vals[m][1], cell=f"acc.{m}", key=f"b.{m}", label=both) for m in rows},
+                  control="a random direction")  # fmt: skip
+    col = sp.DotColumn("score", "score", (-0.1, 1.0), (0, 0.5, 1), [b, a], connect=("control", "swap"),
+                       band=(-0.1, 0.1))  # fmt: skip
+    problems = run(sp.Figure("methods", vocab).add(sp.DotTable(rows, [col])))[1]
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]
+
+
+def test_diagonal_arrow_label_is_off_its_line(vocab):
+    sch = sp.Schematic(2.4, [sp.Box(0.3, 0.2, 1.2, 0.5, "model", role="first"),
+                             sp.Arrow((1.5, 0.5), (3.5, 2.0), role="swap", label="swap")])  # fmt: skip
+    mpl, problems = run(sp.Figure("s", vocab, direct_labels=True).add(sch))
+    assert problems == [], [str(p) for p in problems]
+    # the check sees the arrow: a word laid on it fails
+    arrow = next(a for a in mpl.findobj(lambda a: tags(a).get("kind") == "arrow"))
+    (x0, y0), (x1, y1) = tags(arrow)["seg"]
+    tag(arrow.figure.text((x0 + x1) / 2, (y0 + y1) / 2, "swap", ha="center", va="center", fontsize=11), kind="text")
+    assert "SP601" in codes(_checks.run(mpl))

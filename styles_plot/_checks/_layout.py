@@ -105,6 +105,14 @@ def _obstacles(cx: CheckCtx):
                 sizes = col.get_sizes()
                 rad = (np.sqrt(sizes.max() if len(sizes) else 0) / 2 + MARK_CLEAR) * px
                 marks += [(p, rad) for p in col.get_offset_transform().transform(col.get_offsets())]
+    from matplotlib.path import Path
+
+    for sub in cx.fig.subfigs:  # schematic arrows live on subfigures, not axes
+        for a in sub.artists:
+            t = tags(a)
+            if t.get("kind") == "arrow" and "seg" in t:
+                pts = t["trans"].transform(t["seg"])
+                paths.append((Path(pts), (a.get_linewidth() / 2 + LINE_CLEAR) * px))
     return paths, marks
 
 

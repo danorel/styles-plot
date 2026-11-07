@@ -6,6 +6,8 @@ it is then exempt from the colour-vision floors, and every coloured element need
 
 from __future__ import annotations
 
+import math
+
 from matplotlib.lines import Line2D
 from matplotlib.patches import FancyArrowPatch, Rectangle
 
@@ -68,13 +70,20 @@ def arrow(cv: Canvas, ctx: Ctx, e: Arrow) -> None:
                         transform=cv.sub.transSubfigure, arrowstyle="-|>", mutation_scale=12, color=col, lw=1.4,
                         shrinkA=0, shrinkB=0)  # fmt: skip
     cv.sub.add_artist(a)
-    tag(a, kind="arrow", **({"role": e.role} if e.role else {}))
-    if e.label:  # beside the middle, above a flat arrow, right of a steep one
+    seg = ((cv.fx(e.start[0]), cv.fy(e.start[1])), (cv.fx(e.end[0]), cv.fy(e.end[1])))
+    tag(a, kind="arrow", seg=seg, trans=cv.sub.transSubfigure, **({"role": e.role} if e.role else {}))
+    if e.label:  # beside the middle, off the arrow along its normal (the upper side), clear of its line
         mx, my = (e.start[0] + e.end[0]) / 2, (e.start[1] + e.end[1]) / 2
-        flat = abs(e.end[0] - e.start[0]) >= abs(e.end[1] - e.start[1])
+        dx, dy = e.end[0] - e.start[0], e.end[1] - e.start[1]
+        length = math.hypot(dx, dy) or 1.0
+        nx, ny = -dy / length, dx / length  # a normal (inches, y down); take the one pointing up
+        if ny > 0 or (ny == 0 and nx < 0):
+            nx, ny = -nx, -ny
+        w, h = ctx.measure(e.label, ctx.sizes.value)
+        dist = 0.06 + abs(nx) * w / 2 + abs(ny) * h / 2
         meta = {"role": e.role} if e.role else {}
-        cv.text(mx if flat else mx + 0.08, my - 0.12 if flat else my, e.label, kind="schematic_word",
-                size=ctx.sizes.value, color=col, ha="center" if flat else "left", **meta)  # fmt: skip
+        cv.text(mx + nx * dist, my + ny * dist, e.label, kind="schematic_word", size=ctx.sizes.value, color=col,
+                ha="center", **meta)  # fmt: skip
 
 
 def words(cv: Canvas, ctx: Ctx, e: Words) -> None:

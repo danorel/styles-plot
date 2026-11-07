@@ -243,8 +243,10 @@ def _point(cv, ax, ctx: Ctx, p, yv, st, unit, to_in, obstacles, panel) -> None:
     w, h = ctx.measure(s, ctx.sizes.value)
     (cx,), (cy,) = to_in([p.x], [yv])
     g = (mk.dot_size / 2 + 4) * PT
-    candidates = []  # nearest first: the four diagonals and straight above / below, at growing distances
-    for k in (1, 2, 3, 4):
+    # nearest first: the four diagonals and straight above / below, at one and two steps. No farther: a value a
+    # layer away from its dot reads as another dot's, so with no clear spot near it the layout check fails instead
+    candidates = []
+    for k in (1, 2):
         d = k * g
         candidates += [(cx + d, cy - d - h), (cx - d - w, cy - d - h), (cx + d, cy + d), (cx - d - w, cy + d),
                        (cx - w / 2, cy - d - g - h), (cx - w / 2, cy + d + g)]  # fmt: skip

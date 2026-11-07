@@ -3,6 +3,18 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.5
+
+Fixes a 0.1.4 regression and two placement gaps.
+
+- Dot-table value labels: every dot (with its radius and the check's clearance), whisker, connector and grey tick on
+  the line is an obstacle; a label goes right of its own dot in the first gap that touches none of them, else left of
+  the line's marks. 0.1.4 placed a label "beside its own dot" across a connector or on a neighbouring dot.
+- Sweep point labels stay within two steps of their dot; with no clear spot that near, the layout check fails
+  (SP601) instead of a label landing a layer away, where it reads as another dot's.
+- Schematic arrow labels sit off the arrow along its normal; arrows are now obstacles in the crossing check (SP601),
+  so a word laid on an arrow fails.
+
 ## 0.1.4
 
 From the esk-audit port and the wider bridge-jspace port.
