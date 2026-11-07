@@ -7,6 +7,7 @@ checks read meaning from those tags, not from pixels.
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -40,6 +41,7 @@ class Ctx:
     figure_id: str
     registry: R.Registry | None
     numbers: list[tuple[str, str]] = field(default_factory=list)  # (data key, printed string)
+    all_post_hoc: bool = False  # every estimate is post hoc: marks drawn filled, the key says so once
 
     @property
     def palette(self):
@@ -92,7 +94,10 @@ class Ctx:
         """A cell's status. A cell the registry lacks draws filled and untagged; the status check reports it."""
         if cell is None or self.registry is None:
             return R.Status()
-        return self.registry.get(self.figure_id, cell) or R.Status()
+        st = self.registry.get(self.figure_id, cell) or R.Status()
+        if self.all_post_hoc and st.timing == "post_hoc":
+            st = dataclasses.replace(st, drawn_filled=True)
+        return st
 
     # numbers: every printed number goes through here and is logged by its data key
     def _log(self, key: str | None, s: str) -> str:
@@ -188,6 +193,7 @@ class RenderInfo:
     blocks: tuple[str, ...]
     encodings: frozenset
     key_figure: bool = False
+    all_post_hoc: bool = False
 
 
 def info(fig) -> RenderInfo:
@@ -213,6 +219,8 @@ def key_items(ctx: Ctx, enc: set) -> list[tuple[str, str, str, tuple]]:
         out.append(("", "", w.tick.format(v.key_tick), ("tick",)))
     if ("post_hoc",) in enc:
         out.append(("", "", w.post_hoc, ("post_hoc",)))
+    if ("all_post_hoc",) in enc:
+        out.append(("", "", w.all_post_hoc, ("all_post_hoc",)))
     kinds = {e[1] for e in enc if e[0] in ("whisker", "shading")}
     unknown = kinds - set(v.intervals)
     if unknown:
@@ -284,6 +292,32 @@ def _planner(block) -> Callable:
     raise BuildError(f"not a figure block: {type(block).__name__}")
 
 
+def _estimate_cells(block) -> list:
+    """The registry cells of a block's estimates (the marks that could be hollow, and sweep lines)."""
+    from styles_plot._model import DotColumn, Est
+
+    if isinstance(block, DotTable):
+        return [v.cell for c, _g in block.flat_columns() if isinstance(c, DotColumn) for s in c.series
+                for v in s.cells.values() if isinstance(v, Est)]  # fmt: skip
+    if isinstance(block, Sweep):
+        return [ln.cell for ln in block.lines] + [p.cell for p in block.points]
+    if isinstance(block, Distribution):
+        return list(block.cells.values()) if block.cells else [None]
+    if isinstance(block, Stack):
+        return [v.cell for seg in block.segments for v in seg.shares.values()]
+    if isinstance(block, Scatter):
+        return [c.cell for p in block.panels for c in p.clouds]
+    return []
+
+
+def _all_post_hoc(fig, registry) -> bool:
+    """Whether every estimate of a figure is post hoc in the registry (then hollow marks would say nothing)."""
+    cells = [c for b in fig.blocks for c in _estimate_cells(b)]
+    if not cells or registry is None or any(c is None for c in cells):
+        return False
+    return all((st := registry.get(fig.id, c)) is not None and st.timing == "post_hoc" for c in cells)
+
+
 def _label_width(ctx: Ctx, block) -> float:
     """The row-label column every block shares: the widest entity name or row sub-line."""
     rows = getattr(block, "rows", None)
@@ -340,13 +374,13 @@ class Figure:
             raise BuildError(str(e)) from None
         if not self.blocks:
             raise BuildError(f"figure {self.id!r} has no blocks")
-        ctx = Ctx(self.vocab, theme, self.id, self.registry)
+        ctx = Ctx(self.vocab, theme, self.id, self.registry, all_post_hoc=_all_post_hoc(self, self.registry))
         W, inner = theme.width_in, theme.width_in - 2 * MARGIN
         muted = ctx.chrome("muted")
 
         label_w = max(_label_width(ctx, b) for b in self.blocks)
         plans = [_planner(b)(b, ctx, W, label_w) for b in self.blocks]
-        enc = frozenset().union(*(p.encodings for p in plans))
+        enc = frozenset().union(*(p.encodings for p in plans)) | ({("all_post_hoc",)} if ctx.all_post_hoc else set())
         k_lines = _key_lines(ctx, key_items(ctx, set(enc)), inner)
         controls = tuple(sorted(e[1] for e in enc if e[0] == "control"))
 
@@ -383,5 +417,6 @@ class Figure:
             figure=self.id, target=target, theme=theme, vocab=self.vocab, registry=self.registry,
             numbers=tuple(ctx.numbers), direct_labels=self.direct_labels, natural_height=natural,
             blocks=tuple(type(b).__name__ for b in self.blocks), encodings=enc, key_figure=self._key_figure,
+            all_post_hoc=ctx.all_post_hoc,
         )  # fmt: skip
         return fig

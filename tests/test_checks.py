@@ -298,14 +298,14 @@ def test_role_words_in_one_line_in_dot_order(vocab):
 
 def test_whole_line_status_is_a_panel_tag(vocab_dir):
     with (vocab_dir / "status.csv").open("a") as f:
-        f.write("sweep2,line.c1,post_hoc,descriptive,,,\nsweep2,line.c2,post_hoc,claimed,,,\n")
+        f.write("sweep2,line.c1,post_hoc,descriptive,,,\nsweep2,line.c2,fixed_in_advance,descriptive,,,\n")
     v = sp.load(vocab_dir / "plotstyle.toml")
     lines = [sp.Line(r, "second", [0, 1, 2], [300, 200, 100], cell=f"line.{r}") for r in ("c1", "c2")]
     fig = sp.Figure("sweep2", v).add(sp.Sweep(["c1", "c2"], "layer", "rank", lines, kind="checkpoints"))
     mpl, problems = run(fig)
     assert problems == []
     texts = {t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "status_tag")}
-    assert texts == {"post hoc · descriptive", "post hoc"}
+    assert texts == {"post hoc · descriptive", "descriptive"}
     for t in mpl.findobj(lambda a: tags(a).get("kind") == "status_tag"):
         t.set_visible(False)
     assert "SP202" in codes(_checks.run(mpl))
@@ -714,3 +714,24 @@ def test_lines_ending_together_get_leaders_and_wide_missing_words_say_so(vocab_d
     col = sp.DotColumn("accuracy", "accuracy", (-20, 100), (0, 50, 100),
                        [sp.Series("second", {"m1": sp.Missing("no comparable run at all")})], width=0.9)  # fmt: skip
     assert "SP610" in codes(run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [col])))[1])
+
+
+def test_all_estimates_post_hoc_said_once(vocab_dir):
+    with (vocab_dir / "status.csv").open("a") as f:
+        f.write("allph,a.m1,post_hoc,claimed,,,\nallph,a.m2,post_hoc,claimed,,,\nallmix,a.m1,post_hoc,claimed,,,\n"
+                "allmix,a.m2,fixed_in_advance,claimed,,,\n")
+    v = sp.load(vocab_dir / "plotstyle.toml")
+    def fig(fid):
+        col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100),
+                           [sp.Series("second", {"m1": sp.Est(60, cell="a.m1"), "m2": sp.Est(70, cell="a.m2")})])  # fmt: skip
+        return sp.Figure(fid, v).add(sp.DotTable(["m1", "m2"], [col]))
+    mpl, problems = run(fig("allph"))
+    assert problems == [], [str(p) for p in problems]
+    dots = mpl.findobj(lambda a: tags(a).get("kind") == "dot")
+    assert dots and not any(tags(d)["hollow"] for d in dots)
+    keys = {t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "key")}
+    assert "all estimates post hoc" in keys and "○ post hoc" not in keys
+    tags(dots[0])["hollow"] = True
+    assert "SP201" in codes(_checks.run(mpl))
+    mpl, problems = run(fig("allmix"))  # one fixed in advance: the usual hollow marks
+    assert problems == [] and any(tags(d)["hollow"] for d in mpl.findobj(lambda a: tags(a).get("kind") == "dot"))

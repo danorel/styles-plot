@@ -3,6 +3,12 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.9
+
+- All post hoc, said once: when every estimate of a figure is post hoc in the registry, its marks are drawn filled and
+  the key reads "all estimates post hoc" instead of "○ post hoc" (a sweep line's panel tag drops "post hoc"). Decided
+  in the esk-audit review. Migration: such figures change from hollow to filled marks; the registry is unchanged.
+
 ## 0.1.8
 
 Fixes from the bridge-jspace port on 0.1.7.

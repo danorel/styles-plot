@@ -91,7 +91,7 @@ def y_tick_width(ctx: Ctx, values) -> float:
 
 def tag_words(st, words, line: bool = False) -> str:
     """The grey words a cell carries: its claim's tag, and for a whole line (never hollow) also "post hoc"."""
-    parts = [words.post_hoc_tag] if line and st.timing == "post_hoc" else []
+    parts = [words.post_hoc_tag] if line and st.timing == "post_hoc" and not st.drawn_filled else []
     if st.claim == "descriptive":
         parts.append(words.descriptive)
     elif st.claim == "not_claimed":

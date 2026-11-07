@@ -8,6 +8,8 @@ SP204 a data mark without a cell id
 
 from __future__ import annotations
 
+import dataclasses
+
 from styles_plot._checks._base import CheckCtx, Problem, full_text
 from styles_plot._grid import tag_words
 from styles_plot._tags import DATA_KINDS, tags
@@ -37,6 +39,8 @@ def check(cx: CheckCtx) -> list[Problem]:
         if st is None:
             out.append(cx.problem("SP203", f"cell {cell!r} is not in the registry for figure {fid!r}"))
             continue
+        if cx.info.all_post_hoc:
+            st = dataclasses.replace(st, drawn_filled=True)
         if "hollow" in t and t["hollow"] != st.hollow:
             out.append(cx.problem("SP201", f"cell {cell!r} is drawn {'hollow' if t['hollow'] else 'filled'}, the "
                                            f"registry says {st.timing}"))  # fmt: skip
@@ -54,6 +58,8 @@ def check(cx: CheckCtx) -> list[Problem]:
         st = reg.get(fid, cell) if reg is not None else None
         if st is None:
             continue
+        if cx.info.all_post_hoc:
+            st = dataclasses.replace(st, drawn_filled=True)
         want = tag_words(st, words, cell in line_cells)
         have = tagged.get(cell, "")
         if have != want:

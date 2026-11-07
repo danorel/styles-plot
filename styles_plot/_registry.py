@@ -30,10 +30,11 @@ class Status:
     claim_reason: str = ""
     reason: str = ""
     source: str = ""
+    drawn_filled: bool = False  # set by the renderer when every estimate of a figure is post hoc (said once instead)
 
     @property
     def hollow(self) -> bool:
-        return self.timing == "post_hoc"
+        return self.timing == "post_hoc" and not self.drawn_filled
 
     def as_dict(self) -> dict:
         return {"timing": self.timing, "claim": self.claim, "claim_reason": self.claim_reason}

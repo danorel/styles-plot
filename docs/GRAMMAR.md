@@ -52,7 +52,9 @@ have a word in its colour right next to it.
 Every drawn cell has a row in the project's status registry (`figure, cell, timing, claim, claim_reason, reason,
 source`), and every data mark carries its cell id.
 
-- **timing** decides the mark: **hollow (○) = post hoc**, and nothing else. Fixed in advance is filled.
+- **timing** decides the mark: **hollow (○) = post hoc**, and nothing else. Fixed in advance is filled. When every
+  estimate of a figure is post hoc, hollow marks would tell nothing apart: the marks are drawn filled and the key says
+  once "all estimates post hoc" (and a sweep line's panel tag drops "post hoc").
 - **claim** decides the grey tag in the cell: none for a claimed cell, "descriptive", or "not claimed: <reason>".
 - A **missing cell** says why in grey words from the vocabulary's list ("no run", "no interval"…).
 

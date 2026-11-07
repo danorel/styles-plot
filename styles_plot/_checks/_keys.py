@@ -14,7 +14,7 @@ from styles_plot._tags import tags
 
 
 def drawn_encodings(cx: CheckCtx) -> set[tuple]:
-    enc: set[tuple] = set()
+    enc: set[tuple] = {("all_post_hoc",)} if cx.info.all_post_hoc else set()
     for a in cx.marks:
         t = tags(a)
         kind = t.get("kind")

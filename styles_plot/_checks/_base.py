@@ -121,6 +121,7 @@ def library_phrases(vocab) -> set[str]:
     for phrase in vocab.intervals.values():
         out |= {w.whisker.format(phrase), w.shading.format(phrase)}
     out.add(w.post_hoc_tag)
+    out.add(w.all_post_hoc)
     claims = [w.descriptive, *(w.not_claimed.format(r) for r in vocab.not_claimed)]
     out |= {w.tag_join.join((w.post_hoc_tag, c)) for c in claims}  # a whole line's timing and claim
     return out

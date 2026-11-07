@@ -96,6 +96,7 @@ class Phrases:
     descriptive: str = "descriptive"
     not_claimed: str = "not claimed: {}"
     post_hoc_tag: str = "post hoc"  # a grey panel tag for a whole line that is post hoc (a line is never hollow)
+    all_post_hoc: str = "all estimates post hoc"  # the key's one statement when every estimate of a figure is post hoc
     tag_join: str = " · "  # between two tags of one cell ("post hoc · descriptive")
     cue: str = "→ {word} {quantity}"  # under an x-axis
     cue_y: str = "↑ {word} {quantity}"  # beside a sweep's value axis
