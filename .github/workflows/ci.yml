@@ -48,7 +48,7 @@ jobs:
           python-version: "3.12"
       - run: uv venv --clear && uv pip install -e ".[dev]"
       - name: build the gallery (strict)
-        run: uv run --no-sync python examples/build_gallery.py gallery
+        run: uv run --no-sync python examples/build_gallery.py --out gallery
       - name: check it
         run: |
           for t in post slide readme; do
