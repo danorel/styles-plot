@@ -72,10 +72,19 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
     for ln in s.lines:
         if ln.band is not None:
             enc.add(("shading", ln.interval))
+        if ln.median:
+            enc.add(("median",))
+    for _x0, _x1, name in s.windows:
+        enc.add(("band", name))
+    hlabels = [(rl, rule_label(ctx, rl) if rl.label else "") for rl in s.hrules]
+    for rl, _t in hlabels:
+        if yu.scale == "log" and rl.x <= 0:
+            raise BuildError(f"{ctx.figure_id}: a horizontal rule at {rl.x} on a log axis")
 
     ytw = y_tick_width(ctx, yt)
     px0 = label_w + ytw
-    pw = width - px0 - RIGHT
+    right = max([RIGHT, *(ctx.measure(t, sz.tag)[0] + 0.15 for _rl, t in hlabels if t)])
+    pw = width - px0 - right
     panel_h = s.panel_h or th.row_h * 2.4
     header = s.header or yu.quantity
     head_lines = ctx.wrap(header, pw, sz.header, "bold") if header else []
@@ -88,10 +97,10 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
 
     items, seen = [], set()
     for ln in lines[s.rows[0]]:
-        if ln.role in seen or ln.role == "control":
+        word = None if ln.role == "control" else (ln.word or ctx.vocab.role(ln.role).word)
+        if word is None or word in seen:
             continue
-        seen.add(ln.role)
-        word = ctx.vocab.role(ln.role).word
+        seen.add(word)
         items.append((dx(ln.x[-1]), ctx.measure(word, sz.role_word, "bold")[0],
                       (word, ctx.role_hex(ln.role), "bold", sz.role_word, {"kind": "role_word", "role": ln.role})))  # fmt: skip
     for rl in s.rules:
@@ -145,6 +154,9 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
             ax.set_xticks([])
             ax.spines["bottom"].set_visible(True)
             ax.spines["bottom"].set_color(ctx.chrome("faint"))
+            for x0w, x1w, name in s.windows:
+                win = ax.axvspan(x0w, x1w, facecolor=ctx.chrome("band"), edgecolor="none", lw=0, zorder=0.5)
+                tag(win, kind="band", band=name)
             for tv in xt:
                 tag(ax.plot([tv, tv], ylim, color=ctx.chrome("grid"), lw=0.8, zorder=0), kind="grid")
             for tv in yt:
@@ -154,11 +166,28 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
             for rl in s.rules:
                 tag(ax.plot([rl.x, rl.x], ylim, color=ctx.chrome("rule"), lw=ctx.marks.rule_lw,
                             ls=(0, ctx.marks.rule_dash), zorder=1), kind="rule")  # fmt: skip
+            for rl, text in hlabels:
+                tag(ax.plot(xlim, [rl.x, rl.x], color=ctx.chrome("rule"), lw=ctx.marks.rule_lw,
+                            ls=(0, ctx.marks.rule_dash), zorder=1), kind="rule")  # fmt: skip
+                if text and row == s.rows[0]:  # labelled once, in the margin right of the first panel
+                    yy = top + (1 - _frac(rl.x, ylim, yu.scale)) * panel_h
+                    cv.text(px0 + pw + 0.08, yy, text, kind="rule_label", size=sz.tag, color=muted,
+                            **({"key": rl.key} if rl.key else {}))  # fmt: skip
             for ln in lines[row]:
                 _line(ax, ctx, ln)
+            def to_in(xs, ys, top=top):
+                xs, ys = np.asarray(xs, float), np.asarray(ys, float)
+                fx = (xs - xlim[0]) / (xlim[1] - xlim[0]) * pw + px0
+                fy = top + (1 - np.array([_frac(v, ylim, yu.scale) for v in ys])) * panel_h
+                return fx, fy
+
+            obstacles = [to_in(ln.x, ln.y) for ln in lines[row]]
+            obstacles += [to_in([rl.x, rl.x], ylim) for rl in s.rules]
+            obstacles += [to_in(xlim, [rl.x, rl.x]) for rl, _t in hlabels]
+            obstacles.append(([px0, px0 + pw], [top + panel_h, top + panel_h]))  # the panel's bottom spine
             for p, yv, st in points:
                 if p.row == row:
-                    _point(cv, ax, ctx, p, yv, st, s.y_unit, px0, pw, top, panel_h, xlim, ylim, yu.scale)
+                    _point(cv, ax, ctx, p, yv, st, s.y_unit, to_in, obstacles, (px0, top, pw, panel_h))
         draw_x_bottom(cv, ctx, px0, pw, tops[s.rows[-1]] + panel_h, xlim, xt, xu, xtitle, xcue, pid=None)
 
     return Plan(height, enc, draw)
@@ -192,7 +221,7 @@ def _frac(v: float, lim, scale: str) -> float:
 def _line(ax, ctx: Ctx, ln) -> None:
     col = ctx.role_hex(ln.role)
     st = ctx.status(ln.cell)
-    meta = {"role": ln.role, "cell": ln.cell, "timing": st.timing, "claim": st.claim}
+    meta = {"role": ln.role, "cell": ln.cell, "timing": st.timing, "claim": st.claim, "median": ln.median}
     if ln.band is not None:
         lo, hi = ln.band
         poly = ax.fill_between(ln.x, lo, hi, color=col, alpha=ctx.marks.shading_alpha, lw=0, zorder=1)
@@ -200,16 +229,40 @@ def _line(ax, ctx: Ctx, ln) -> None:
     tag(ax.plot(ln.x, ln.y, color=col, lw=ctx.marks.line_lw, solid_capstyle="round", zorder=2), kind="line", **meta)
 
 
-def _point(cv, ax, ctx: Ctx, p, yv, st, unit, px0, pw, top, panel_h, xlim, ylim, scale) -> None:
+def _point(cv, ax, ctx: Ctx, p, yv, st, unit, to_in, obstacles, panel) -> None:
     mk, bg = ctx.marks, ctx.palette.chrome["background"]
     col = ctx.role_hex(p.role)
     tag(ax.plot([p.x], [yv], marker=mk.marker, ls="none", ms=mk.dot_size, color=col, mfc=bg if st.hollow else col,
                 mec=col, mew=mk.hollow_edge if st.hollow else 0, zorder=4),
         kind="dot", role=p.role, cell=p.cell, timing=st.timing, claim=st.claim, hollow=st.hollow)  # fmt: skip
-    if p.label:
-        if not p.key:
-            raise BuildError(f"{ctx.figure_id}: a printed point needs key=")
-        s = ctx.value(unit, yv, p.key)
-        x = px0 + (p.x - xlim[0]) / (xlim[1] - xlim[0]) * pw + (mk.dot_size / 2 + 5) * PT
-        y = top + (1 - _frac(yv, ylim, scale)) * panel_h - (mk.dot_size / 2 + 5) * PT - line_h(ctx.sizes.value) / 2
-        cv.text(x, y, s, kind="value", size=ctx.sizes.value, color=col, key=p.key, cell=p.cell, unit=unit, role=p.role)
+    if not p.label:
+        return
+    if not p.key:
+        raise BuildError(f"{ctx.figure_id}: a printed point needs key=")
+    s = ctx.value(unit, yv, p.key)
+    w, h = ctx.measure(s, ctx.sizes.value)
+    (cx,), (cy,) = to_in([p.x], [yv])
+    g = (mk.dot_size / 2 + 4) * PT
+    candidates = []  # nearest first: the four diagonals and straight above / below, at growing distances
+    for k in (1, 2, 3, 4):
+        d = k * g
+        candidates += [(cx + d, cy - d - h), (cx - d - w, cy - d - h), (cx + d, cy + d), (cx - d - w, cy + d),
+                       (cx - w / 2, cy - d - g - h), (cx - w / 2, cy + d + g)]  # fmt: skip
+    pad = (mk.line_lw / 2 + 2.5) * PT  # the layout check's clearance (half the line, 1.5 pt) and a margin
+    best = min(candidates, key=lambda c: _label_cost(c, w, h, obstacles, panel, pad))  # min keeps the nearest tie
+    cv.text(best[0], best[1] + h / 2, s, kind="value", size=ctx.sizes.value, color=col, key=p.key, cell=p.cell,
+            unit=unit, role=p.role)  # fmt: skip
+
+
+def _label_cost(pos, w, h, obstacles, panel, pad) -> tuple:
+    """(leaves the panel, touches a line): a label's spot is best when inside its panel and clear of every line."""
+    x0, y0 = pos
+    px0, top, pw, ph = panel
+    outside = x0 < px0 or x0 + w > px0 + pw or y0 < top or y0 + h > top + ph
+    hits = 0
+    for xs, ys in obstacles:
+        for i in range(len(xs) - 1):  # sample each segment densely: a point inside the padded box is a crossing
+            t = np.linspace(0, 1, 24)
+            sx, sy = xs[i] + t * (xs[i + 1] - xs[i]), ys[i] + t * (ys[i + 1] - ys[i])
+            hits += int(np.any((sx > x0 - pad) & (sx < x0 + w + pad) & (sy > y0 - pad) & (sy < y0 + h + pad)))
+    return (outside, hits)

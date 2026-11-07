@@ -6,7 +6,7 @@ written). The vocabulary owns every word that names a project concept, and every
     [project]          name
     [roles.<name>]     slot, word, meaning
     [controls]         names: the grey things
-    [key]              tick, band: definitions behind the key's fixed phrases
+    [key]              tick, band: definitions behind the key's fixed phrases; [key.bands] <name> = other bands
     [intervals]        <kind> = phrase ("95% interval", "± 1 SEM (bootstrap)")
     [formats.<name>]   decimals, suffix, sign, style ("decimal" | "k of n")
     [units.<name>]     title, quantity, format, scale ("linear" | "log"), cue, cue_word ("more" | "larger")
@@ -24,6 +24,7 @@ written). The vocabulary owns every word that names a project concept, and every
 
 from __future__ import annotations
 
+import dataclasses
 import re
 import sys
 from dataclasses import dataclass, field
@@ -113,6 +114,7 @@ class Vocab:
     controls: tuple[str, ...] = ()
     key_tick: str = ""
     key_band: str = ""
+    key_bands: dict[str, str] = field(default_factory=dict)  # named grey bands besides [key].band
     intervals: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_INTERVALS))
     formats: dict[str, Format] = field(default_factory=dict)
     units: dict[str, Unit] = field(default_factory=dict)
@@ -153,6 +155,23 @@ class Vocab:
             return self.entity_kinds[kind]
         except KeyError:
             raise KeyError(f"no entity kind {kind!r}; kinds are {', '.join(self.entity_kinds)}") from None
+
+    def band(self, name: str = "") -> str:
+        """A grey band's definition: [key].band, or a named one from [key.bands]."""
+        text = self.key_band if not name else self.key_bands.get(name, "")
+        if not text:
+            raise KeyError(f"no grey band {name or '[key].band'!r} in the vocabulary")
+        return text
+
+    def with_entities(self, kind: str, rows) -> Vocab:
+        """A copy with an entity kind given in code, [(key, name)] in order: rows read from a run file."""
+        es = tuple(Entity(str(k), str(n), str(k)) for k, n in rows)
+        for attr in ("key", "name"):
+            vals = [getattr(e, attr) for e in es]
+            dup = sorted({x for x in vals if vals.count(x) > 1})
+            if dup:
+                raise VocabError(f"entities {kind!r}: duplicate {attr} {dup}")
+        return dataclasses.replace(self, entity_kinds={**self.entity_kinds, kind: es})
 
     def entity(self, kind: str, key: str) -> Entity:
         for e in self.entities(kind):
@@ -264,6 +283,7 @@ def from_dict(doc: dict, root: Path | None = None, source: Path | None = None) -
         controls=_strs((doc.get("controls") or {}).get("names", []), f"{where} [controls].names"),
         key_tick=key.get("tick", ""),
         key_band=key.get("band", ""),
+        key_bands=dict(key.get("bands") or {}),
         intervals={**DEFAULT_INTERVALS, **(doc.get("intervals") or {})},
         formats=formats,
         units=_units(doc.get("units") or {}, formats, words.cue_words, where),

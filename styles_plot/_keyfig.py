@@ -75,7 +75,7 @@ def plan_legend(_b: KeyLegend, ctx: Ctx, width: float, label_w: float) -> Plan:
     if v.key_tick:
         marks.append(("tick", w.tick.format(v.key_tick), ("tick",)))
     if v.key_band:
-        marks.append(("band", w.band.format(v.key_band), ("band",)))
+        marks.append(("band", w.band.format(v.key_band), ("band", "")))
     enc = {e for _k, _p, e in marks} | {("control", c) for c in v.controls}
 
     def rows_of(text: str, x: float, size: float) -> tuple[list[str], float]:
@@ -199,4 +199,4 @@ def _band(cv: Canvas, ctx: Ctx, x, y):
     h = 0.6 * ctx.theme.row_h
     r = Rectangle((cv.fx(x - 0.12), cv.fy(y + h / 2)), 0.24 / cv.w, h / cv.h, transform=cv.sub.transSubfigure,
                   facecolor=ctx.chrome("band"), edgecolor="none", lw=0, zorder=1)  # fmt: skip
-    _add(cv, r, kind="band")
+    _add(cv, r, kind="band", band="")

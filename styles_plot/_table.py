@@ -229,7 +229,7 @@ def _statuses(lay: _Layout, ctx: Ctx) -> set:
         if c.is_panel and c.spec.ticks:
             enc.add(("tick",))
         if c.is_panel and c.spec.band:
-            enc.add(("band",))
+            enc.add(("band", c.spec.band_name))
     sz = ctx.sizes
     for r in lay.rows:
         n_lines = 0
@@ -439,7 +439,7 @@ def _panel(cv: Canvas, ctx: Ctx, lay: _Layout, c: _Col) -> None:
         rect = Rectangle((spec.band[0], b0), spec.band[1] - spec.band[0], b1 - b0, facecolor=ctx.chrome("band"),
                          edgecolor="none", lw=0, zorder=0.5)  # fmt: skip
         ax.add_patch(rect)
-        tag(rect, kind="band")
+        tag(rect, kind="band", band=spec.band_name)
     for rl in spec.rules:
         for a, b in _segments(b0, b1, cuts):
             tag(ax.plot([rl.x, rl.x], [a, b], color=ctx.chrome("rule"), lw=mk.rule_lw, ls=(0, mk.rule_dash), zorder=1),
@@ -477,9 +477,7 @@ def _line(cv: Canvas, ax, ctx: Ctx, c: _Col, key, y_abs: float, head: float, vli
         extents += _dot(ax, ctx, s, val, y)
         if val.label:
             labels.append((val, s.role))
-    for val, role in labels:
-        col = ctx.chrome("muted") if role == "control" else ctx.role_hex(role)
-        _value_label(cv, ctx, c, y_abs, ctx.value(spec.unit, val.value, val.key), col, extents, vlines, val, role)
+    _value_labels(cv, ctx, c, y_abs, labels, extents, vlines)
 
 
 def _missing(cv: Canvas, ctx: Ctx, c: _Col, y: float, words: str, vlines) -> None:
@@ -529,26 +527,57 @@ def _dot(ax, ctx: Ctx, s, val: Est, y: float) -> list[float]:
     return out
 
 
-def _value_label(cv: Canvas, ctx: Ctx, c: _Col, y: float, s: str, col: str, extents, vlines, val: Est, role) -> None:
-    """A value beside its row's marks: right of them if it fits clear of every vertical line, else left."""
+def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, extents, vlines) -> None:
+    """The printed values of one line, placed together: each right of its own marks when that spot covers no other
+    mark, else after all the line's marks, else left of them (never past the panel's left edge); always clear of
+    vertical lines and of each other."""
     per = c.per_inch()
     lo, hi = c.spec.xlim
-    wd = ctx.measure(s, ctx.sizes.value)[0] * per
     gap = (ctx.marks.dot_size / 2 + 5) * PT * per
     clear = 3 * PT * per
     room = ctx.theme.pad * 0.7 * per
-    meta = {"kind": "value", "key": val.key, "cell": val.cell, "unit": c.spec.unit, "role": role}
+    taken: list[tuple[float, float]] = []
 
-    def blocked(a, b):
-        return [xv for xv in vlines if a - clear < xv < b + clear]
+    def hits(a: float, b: float) -> list[float]:
+        return [xv for xv in vlines if a - clear < xv < b + clear] + [e for s0, e in taken if a - clear < e and s0 < b + clear]
 
-    x = max(extents) + gap
-    while blocked(x, x + wd) and x + wd <= hi + room:
-        x = max(blocked(x, x + wd)) + clear
-    if x + wd <= hi + room:
-        cv.text(c.x + c.dx(x), y, s, size=ctx.sizes.value, color=col, **meta)
-        return
-    x = min(extents) - gap
-    while blocked(x - wd, x) and x - wd >= lo - room:
-        x = min(blocked(x - wd, x)) - clear
-    cv.text(c.x + c.dx(x), y, s, size=ctx.sizes.value, color=col, ha="right", **meta)
+    def rightward(x: float, wd: float) -> float | None:
+        for _ in range(64):  # every step moves strictly right, so the search ends
+            if x + wd > hi + room:
+                return None
+            h = hits(x, x + wd)
+            if not h:
+                return x
+            x = max(max(h) + clear, x + clear)
+        return None
+
+    def leftward(x: float, wd: float) -> float | None:  # x is the right end
+        for _ in range(64):
+            if x - wd < lo:
+                return None
+            h = [xv for xv in vlines if x - wd - clear < xv < x + clear] + [s0 for s0, e in taken if x - wd - clear < e
+                                                                          and s0 < x + clear]  # fmt: skip
+            if not h:
+                return x
+            x = min(min(h) - clear, x - clear)
+        return None
+
+    for val, role in sorted(labels, key=lambda lr: lr[0].value):
+        text = ctx.value(c.spec.unit, val.value, val.key)
+        col = ctx.chrome("muted") if role == "control" else ctx.role_hex(role)
+        wd = ctx.measure(text, ctx.sizes.value)[0] * per
+        meta = {"kind": "value", "key": val.key, "cell": val.cell, "unit": c.spec.unit, "role": role}
+        own = max(val.value, val.hi if val.hi is not None else val.value) + gap
+        x = rightward(own, wd)
+        if x is not None and any(x - clear < m < x + wd + clear for m in extents):
+            x = None  # beside its own dot it would cover another mark
+        if x is None:
+            x = rightward(max(extents) + gap, wd)
+        if x is not None:
+            taken.append((x, x + wd))
+            cv.text(c.x + c.dx(x), y, text, size=ctx.sizes.value, color=col, **meta)
+            continue
+        right = leftward(min(extents) - gap, wd)
+        right = right if right is not None else max(lo + wd, min(extents) - gap)
+        taken.append((right - wd, right))
+        cv.text(c.x + c.dx(right), y, text, size=ctx.sizes.value, color=col, ha="right", **meta)

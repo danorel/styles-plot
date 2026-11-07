@@ -21,9 +21,11 @@ def plan(s: Schematic, ctx: Ctx, width: float, label_w: float) -> Plan:
         if role is not None:
             ctx.role_hex(role)
         if isinstance(e, Words):
-            for _text, r in e.parts:
-                if r is not None:
-                    ctx.role_hex(r)
+            for part in e.parts:
+                if len(part) not in (2, 3):
+                    raise BuildError(f"{ctx.figure_id}: a Words part is (text, role) or (text, role, bold)")
+                if part[1] is not None:
+                    ctx.role_hex(part[1])
         if isinstance(e, Mark):
             if e.hollow:
                 enc.add(("post_hoc",))
@@ -67,13 +69,20 @@ def arrow(cv: Canvas, ctx: Ctx, e: Arrow) -> None:
                         shrinkA=0, shrinkB=0)  # fmt: skip
     cv.sub.add_artist(a)
     tag(a, kind="arrow", **({"role": e.role} if e.role else {}))
+    if e.label:  # beside the middle, above a flat arrow, right of a steep one
+        mx, my = (e.start[0] + e.end[0]) / 2, (e.start[1] + e.end[1]) / 2
+        flat = abs(e.end[0] - e.start[0]) >= abs(e.end[1] - e.start[1])
+        meta = {"role": e.role} if e.role else {}
+        cv.text(mx if flat else mx + 0.08, my - 0.12 if flat else my, e.label, kind="schematic_word",
+                size=ctx.sizes.value, color=col, ha="center" if flat else "left", **meta)  # fmt: skip
 
 
 def words(cv: Canvas, ctx: Ctx, e: Words) -> None:
-    weight = "bold" if e.bold else "normal"
     size = ctx.sizes.role_word if e.bold else ctx.sizes.value
     parts = []
-    for text, role in e.parts:
+    for part in e.parts:
+        text, role = part[0], part[1]
+        weight = "bold" if e.bold or (len(part) == 3 and part[2]) else "normal"
         col = ctx.role_hex(role) if role else ctx.chrome("text")
         meta = {"kind": "schematic_word", "verbatim": e.verbatim, **({"role": role} if role else {})}
         parts.append((text, col, weight, meta))

@@ -115,8 +115,9 @@ def library_phrases(vocab) -> set[str]:
     out |= {w.not_claimed.format(r) for r in vocab.not_claimed}
     if vocab.key_tick:
         out.add(w.tick.format(vocab.key_tick))
-    if vocab.key_band:
-        out.add(w.band.format(vocab.key_band))
+    for band in (vocab.key_band, *vocab.key_bands.values()):
+        if band:
+            out.add(w.band.format(band))
     for phrase in vocab.intervals.values():
         out |= {w.whisker.format(phrase), w.shading.format(phrase)}
     out.add(w.post_hoc_tag)

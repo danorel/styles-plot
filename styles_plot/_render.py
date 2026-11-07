@@ -114,10 +114,10 @@ class Ctx:
         return _numbers.tick(v)
 
     def measure(self, s: str, size: float, weight: str = "normal") -> tuple[float, float]:
-        return text_size(s, size, weight, self.theme.font)
+        return text_size(s, size, weight, self.theme.font, self.theme.dpi)
 
     def wrap(self, s: str, width: float, size: float, weight: str = "normal") -> list[str]:
-        return wrap(s, width, size, weight, self.theme.font)
+        return wrap(s, width, size, weight, self.theme.font, self.theme.dpi)
 
 
 # ---- canvas: an inch-based view of a subfigure -----------------------------------------------------------------------
@@ -145,7 +145,7 @@ class Canvas:
         for s, col, wt, meta in parts:
             if s:
                 self.text(cx, y, s, size=size, color=col, weight=wt, **{"kind": "text", **meta})
-            cx += self.ctx.measure(s, size, wt)[0]
+            cx += self.ctx.measure(s, size, wt)[0] + 0.01  # a hair between parts: no rounding overlap
 
     def rect(self, x, y, w, h, color, *, kind, zorder=-5, **meta):
         r = Rectangle((self.fx(x), self.fy(y + h)), w / self.w, h / self.h, transform=self.sub.transSubfigure,
@@ -223,10 +223,11 @@ def key_items(ctx: Ctx, enc: set) -> list[tuple[str, str, str, tuple]]:
                 out.append(("", "", getattr(w, what).format(v.intervals[kind]), (what, kind)))
     if ("median",) in enc:
         out.append(("", "", w.median, ("median",)))
-    if ("band",) in enc:
-        if not v.key_band:
-            raise BuildError("a grey band is drawn but the vocabulary has no [key].band")
-        out.append(("", "", w.band.format(v.key_band), ("band",)))
+    for name in sorted({e[1] for e in enc if e[0] == "band"}):
+        try:
+            out.append(("", "", w.band.format(v.band(name)), ("band", name)))
+        except KeyError as e:
+            raise BuildError(f"a grey band is drawn but {e.args[0]}") from None
     return out
 
 

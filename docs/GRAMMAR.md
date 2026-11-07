@@ -66,8 +66,9 @@ source`), and every data mark carries its cell id.
 - **An interval band** on a line is the line's colour at the theme's one shading alpha; it names an interval, never a
   variable.
 - **The largest same-size control** (or the project's definition) is a grey tick on the estimate's own axis.
-- **Reference lines** are dashed grey with a vocabulary label ("chance"); **the grey band** has the vocabulary's
-  definition.
+- **Reference lines** are dashed grey with a vocabulary label ("chance"), vertical in a dot table, vertical or
+  horizontal in a sweep. **A grey band** has a vocabulary definition: `[key].band`, or a named one in `[key.bands]`.
+  One figure shows grey bands of one meaning only (two greys cannot be told apart).
 - No marker other than the theme's, no hatching, no violins.
 
 ## D. Layout
@@ -132,7 +133,7 @@ example row from the data read aloud. Its marks' phrases are the key, so no key 
 |---|---|
 | SP101–SP104 | colour by role; one meaning per colour; every drawn role named by its word |
 | SP201–SP204 | hollow ↔ post hoc; grey tag ↔ claim; every drawn cell in the registry; every data mark has a cell |
-| SP301–SP303 | key complete both ways; no legend box |
+| SP301–SP305 | key complete both ways; no legend box; every grey mark names its control; one grey-band meaning per figure |
 | SP401–SP407 | words from the vocabulary; banned variants; ids; cues; axis titles |
 | SP501–SP502 | numbers through formatters; one key, one string |
 | SP601–SP608 | text crossing lines or marks, off the figure, too small, overlapping, rotated; size; titles; markers |

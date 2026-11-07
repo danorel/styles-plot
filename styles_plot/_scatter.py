@@ -42,7 +42,8 @@ def plan(sc: Scatter, ctx: Ctx, width: float, label_w: float) -> Plan:
                 enc.add(("post_hoc",))
             if c.role == "control":
                 enc.add(("control", c.name))
-    head_lines = max((len(ctx.wrap(p.header, pw, sz.header, "bold")) for p in sc.panels if p.header), default=0)
+    headers = [_header(ctx, p) for p in sc.panels]
+    head_lines = max((len(ctx.wrap(h, pw, sz.header, "bold")) for h in headers if h), default=0)
     panel_tags = [claim_tags(ctx, [c.cell for c in p.clouds]) for p in sc.panels]
     n_tags = max(len(t) for t in panel_tags)
     head_h = 0.08 + head_lines * line_h(sz.header) + n_tags * line_h(sz.tag) + line_h(sz.axis) + 0.06
@@ -60,10 +61,10 @@ def plan(sc: Scatter, ctx: Ctx, width: float, label_w: float) -> Plan:
         for j, p in enumerate(sc.panels):
             x0 = 0.15 + j * (pw + GAP)
             y = 0.08
-            if p.header:
-                for i, s in enumerate(ctx.wrap(p.header, pw, sz.header, "bold")):
+            if headers[j]:
+                for i, s in enumerate(ctx.wrap(headers[j], pw, sz.header, "bold")):
                     cv.text(x0, y + (i + 0.5) * line_h(sz.header), s, kind="header", size=sz.header, weight="bold",
-                            full=p.header)  # fmt: skip
+                            full=headers[j])  # fmt: skip
             y = 0.08 + head_lines * line_h(sz.header)
             draw_tags(cv, ctx, x0, y, panel_tags[j])
             y += n_tags * line_h(sz.tag)
@@ -98,6 +99,16 @@ def plan(sc: Scatter, ctx: Ctx, width: float, label_w: float) -> Plan:
             _direct_labels(cv, ax, ctx, p, labels, x0, head_h, pw, side, xlim, ylim, pts)
 
     return Plan(height, enc, draw)
+
+
+def _header(ctx: Ctx, p) -> str:
+    """A panel's header with its numbers printed in their units and logged by key ("PCA (PC1 {pc1}, PC2 {pc2})")."""
+    if not p.numbers:
+        return p.header
+    try:
+        return p.header.format(**{n: ctx.value(unit, value, key) for n, (value, unit, key) in p.numbers.items()})
+    except (KeyError, IndexError) as e:
+        raise BuildError(f"{ctx.figure_id}: scatter header field without a number: {e}") from None
 
 
 def _cloud(ax, ctx: Ctx, c) -> list:

@@ -122,7 +122,7 @@ def test_key_drawn_but_not_named_and_named_but_not_drawn(vocab):
     assert "SP301" in codes(_checks.run(mpl))
     mpl = simple(vocab).render("post")
     t = mpl.subfigs[-1].text(0.6, 0.5, "grey band: within 0.10 of a random direction", color="#6b6b6b")
-    tag(t, kind="key", encoding=("band",))
+    tag(t, kind="key", encoding=("band", ""))
     assert "SP302" in codes(_checks.run(mpl))
 
 
@@ -426,3 +426,86 @@ def test_sheet_order(tmp_path, vocab):
     assert main(["sheet", str(tmp_path), "--order", str(tmp_path / "order.txt")]) == 0
     (tmp_path / "bad.txt").write_text("nope\n")
     assert main(["sheet", str(tmp_path), "--order", str(tmp_path / "bad.txt")]) == 2
+
+
+# ---- v0.1.4 ----------------------------------------------------------------------------------------------------------
+def test_control_distribution_needs_its_name(vocab):
+    data = {"c1": [0.1, 0.2, 0.3], "c2": [0.2, 0.3]}
+    cells = {"c1": "strip.c1", "c2": "strip.c2"}
+    ok = sp.Distribution(["c1", "c2"], "score", data, "control", kind="checkpoints", style="strip", cells=cells,
+                         control="a random direction", xlim=(-1, 1), xticks=[-1, 0, 1])  # fmt: skip
+    mpl, problems = run(sp.Figure("strip", vocab).add(ok))
+    assert problems == []
+    assert any("a random direction" in t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "key"))
+    with pytest.raises(sp.BuildError, match="control="):
+        run(sp.Figure("strip", vocab).add(dataclasses.replace(ok, control=None)))
+    mpl = sp.Figure("strip", vocab).add(ok).render("post")
+    for a in mpl.findobj(lambda a: tags(a).get("kind") == "point"):
+        tags(a).pop("control")
+    assert "SP304" in codes(_checks.run(mpl))
+
+
+def test_sweep_hrule_window_median_words_and_point_label(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text().replace('[key]\n', '[key.bands]\nchosen = "the layers fixed in advance"\n[key]\n', 1)
+                 .replace('"chance", "layer 11",', '"chance", "layer 11", "early", "late",'))
+    v = sp.load(p)
+    xs = list(range(0, 25))
+    lines = [sp.Line("c1", "second", xs, [1000 / (1 + x) + 50 for x in xs], cell="line.c1", median=True, word="early"),
+             sp.Line("c1", "second", xs, [3000 / (1 + x) + 90 for x in xs], cell="line.c1", word="late"),
+             sp.Line("c2", "second", xs, [2000 / (1 + x) + 70 for x in xs], cell="line.c2", median=True)]
+    s = sp.Sweep(["c1", "c2"], "layer", "rank", lines, kind="checkpoints",
+                 points=[sp.Point("c1", "second", 11, cell="pick.c1", key="p.c1", label=True),
+                         sp.Point("c2", "second", 11, cell="pick.c2", key="p.c2", label=True)],
+                 hrules=[sp.Rule(100, "chance")], windows=[(9, 13, "chosen")], xticks=[0, 10, 20])  # fmt: skip
+    mpl, problems = run(sp.Figure("sweep", v).add(s))
+    assert problems == [], [str(p) for p in problems]
+    words = {t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "role_word")}
+    assert {"early", "late"} <= words
+    keys = {t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "key")}
+    assert {"line: median", "grey band: the layers fixed in advance"} <= keys
+
+
+def test_two_band_meanings_in_one_figure(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text().replace('[key]\n', '[key.bands]\nrange = "the range of 200 random vectors"\n[key]\n', 1))
+    v = sp.load(p)
+    a = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")})],
+                     band=(45, 55))  # fmt: skip
+    b = dataclasses.replace(a, band=(70, 80), band_name="range")
+    assert "SP305" in codes(run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [a, b])))[1])
+    assert run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [b])))[1] == []
+    with pytest.raises(sp.BuildError, match="grey band"):
+        run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [dataclasses.replace(a, band_name="nope")])))
+
+
+def test_value_labels_of_several_series_and_lines_on_the_clearance(vocab):
+    col = sp.DotColumn("accuracy", "accuracy", (0, 100), (0, 50, 100), [
+        sp.Series("first", {"m1": sp.Est(40, cell="acc.m1", key="a", label=True)}),
+        sp.Series("second", {"m1": sp.Est(42, cell="acc.m1", key="b", label=True)}),
+        sp.Series("probe", {"m1": sp.Est(44, cell="acc.m1", key="c", label=True)})],
+        rules=[sp.Rule(47.3), sp.Rule(52.1), sp.Rule(97)])  # fmt: skip
+    mpl, problems = run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [col])))
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]
+    assert len(mpl.findobj(lambda a: tags(a).get("kind") == "value")) == 3
+
+
+def test_scatter_header_numbers_arrow_label_bold_part_and_entities_in_code(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text().replace('templates = [\n', 'templates = [\n    "PCA (PC1 {num}, PC2 {num})",\n', 1))
+    v = sp.load(p)
+    import numpy as np
+
+    xy = np.random.default_rng(0).normal(size=(12, 2))
+    panel = sp.ScatterPanel([sp.Cloud("beta", "second", xy, cell="pca.method")], embedding="PCA",
+                            header="PCA (PC1 {a}, PC2 {b})", numbers={"a": (0.42, "share", "pc1"), "b": (0.18, "share", "pc2")})  # fmt: skip
+    mpl, problems = run(sp.Figure("scatter", v).add(sp.Scatter([panel], panel_h=2.5)))
+    assert problems == [] and ("pc1", "0.42") in mpl._sp_info.numbers
+    sch = sp.Schematic(1.4, [sp.Box(0.3, 0.3, 1.2, 0.6, "model", role="first"),
+                             sp.Arrow((1.6, 0.6), (3.0, 0.6), role="swap", label="swap"),
+                             sp.Words(3.2, 0.6, [("The capital of ", None), ("France", "first", True)], verbatim=True)])  # fmt: skip
+    assert run(sp.Figure("s", v, direct_labels=True).add(sch))[1] == []
+    v2 = v.with_entities("heads", [("L12H3", "L12H3"), ("L14H0", "L14H0")])
+    assert [e.name for e in v2.entities("heads")] == ["L12H3", "L14H0"]
+    with pytest.raises(sp.VocabError, match="duplicate"):
+        v.with_entities("heads", [("a", "x"), ("b", "x")])

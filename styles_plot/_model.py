@@ -88,6 +88,7 @@ class DotColumn:
     band: tuple[float, float] | None = None  # the grey band
     rules: Sequence[Rule] = ()
     width: float | None = None  # inches; None shares the remaining width
+    band_name: str = ""  # which [key.bands] definition the band has; "" = [key].band
 
 
 @dataclass(frozen=True)
@@ -148,6 +149,8 @@ class Line:
     cell: str | None = None
     band: tuple[Sequence[float], Sequence[float]] | None = None  # interval band (lo, hi) per x
     interval: str = "ci95"  # names the band in the key
+    median: bool = False  # the line is a median: the key says "line: median"
+    word: str | None = None  # the words at the line's end (a vocabulary term); default: the role's word
 
 
 @dataclass(frozen=True)
@@ -171,7 +174,9 @@ class Sweep:
     kind: str = "models"
     header: str = ""  # a vocabulary term naming the quantity; defaults to the y unit's quantity
     points: Sequence[Point] = ()
-    rules: Sequence[Rule] = ()
+    rules: Sequence[Rule] = ()  # vertical, at x (a chosen layer)
+    hrules: Sequence[Rule] = ()  # horizontal, at a value of the y unit (chance); Rule.x holds the value
+    windows: Sequence[tuple[float, float, str]] = ()  # grey x-ranges (x0, x1, band name; "" = [key].band)
     xlim: tuple[float, float] | None = None
     ylim: tuple[float, float] | None = None
     xticks: Sequence[float] | None = None
@@ -196,6 +201,7 @@ class Distribution:
     xticks: Sequence[float] | None = None
     median: bool = False  # a role-colour line at each median
     panel_h: float | None = None
+    control: str | None = None  # for role "control": which control ([controls].names)
 
 
 # ---- stack -------------------------------------------------------------------------------------------------------------
@@ -231,7 +237,8 @@ class ScatterPanel:
     clouds: Sequence[Cloud]
     embedding: str | None = None  # "UMAP": axes "UMAP 1"/"UMAP 2", no ticks, no cue
     units: tuple[str, str] | None = None  # (x unit, y unit) for a scatter with quantities
-    header: str = ""
+    header: str = ""  # a vocabulary term or template; "{name}" fields are filled from `numbers`
+    numbers: Mapping[str, tuple] = field(default_factory=dict)  # name -> (value, unit, data key)
 
 
 @dataclass(frozen=True)
@@ -257,15 +264,16 @@ class Arrow:
     start: tuple[float, float]
     end: tuple[float, float]
     role: str | None = None
+    label: str = ""  # words beside the arrow's middle, in its colour (a vocabulary term)
 
 
 @dataclass(frozen=True)
 class Words:
     x: float
     y: float
-    parts: Sequence[tuple[str, str | None]]  # (text, role or None)
+    parts: Sequence[tuple]  # (text, role or None) or (text, role or None, bold)
     verbatim: bool = False
-    bold: bool = False
+    bold: bool = False  # every part bold, at the role-word size
 
 
 @dataclass(frozen=True)

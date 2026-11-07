@@ -3,6 +3,29 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.4
+
+From the esk-audit port and the wider bridge-jspace port.
+
+Fixes:
+- Value labels: no more hang when a vertical line sits on the clearance boundary; the labels of one row (or lane)
+  are placed together, each beside its own dot when that covers no other mark, else after the row's marks, else left
+  of them, never past the panel's left edge.
+- Text is measured at the target's dpi, so side-by-side texts (a value and its interval) no longer overlap by a
+  pixel.
+- A grey (control) distribution names its control: `Distribution(control=...)`; a control data mark without a name
+  fails the new check SP304 (it used to pass silently, with no "grey: …" in the key).
+
+New:
+- Sweep: `hrules` (horizontal dashed rules such as chance, labelled in the right margin), `windows` (grey x-ranges
+  with a band definition), `Line(median=True)` (the key says "line: median"), `Line(word=...)` (two lines of one role
+  named at their ends), point labels that keep clear of lines.
+- Named grey bands: `[key.bands] <name> = "<definition>"`, `DotColumn(band_name=...)`; two band meanings in one
+  figure fail SP305.
+- `ScatterPanel(header="PCA (PC1 {a}, PC2 {b})", numbers={...})`: numbers in a header, printed and logged by key.
+- Schematic: `Arrow(label=...)`; a `Words` part may be `(text, role, bold)`.
+- `vocab.with_entities(kind, [(key, name)])`: rows read from data (head ids), still ordered and checked.
+
 ## 0.1.3
 
 From the bridge-jspace pilot port.

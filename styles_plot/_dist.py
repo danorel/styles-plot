@@ -32,6 +32,8 @@ def plan(d: Distribution, ctx: Ctx, width: float, label_w: float) -> Plan:
     if d.style == "hist" and cu is None:
         raise BuildError(f"{ctx.figure_id}: a histogram needs count_unit= (the unit that names its counts)")
     hexr = ctx.role_hex(d.role)
+    if d.role == "control" and d.control not in ctx.vocab.controls:
+        raise BuildError(f"{ctx.figure_id}: a control distribution needs control=<one of [controls].names>")
     sz, th = ctx.sizes, ctx.theme
     cols = list(d.columns) or [None]
     data = {}
@@ -56,6 +58,8 @@ def plan(d: Distribution, ctx: Ctx, width: float, label_w: float) -> Plan:
             enc.add(("post_hoc",))
     if d.median:
         enc.add(("median",))
+    if d.role == "control":
+        enc.add(("control", d.control))
 
     ytw = y_tick_width(ctx, yt) if yt else 0.1
     gutter = 0.3
@@ -114,7 +118,7 @@ def plan(d: Distribution, ctx: Ctx, width: float, label_w: float) -> Plan:
                 ax.spines["bottom"].set_color(ctx.chrome("faint"))
                 st = ctx.status(d.cells.get(k))
                 meta = {"role": d.role, "cell": d.cells.get(k), "timing": st.timing, "claim": st.claim,
-                        "hollow": st.hollow}  # fmt: skip
+                        "hollow": st.hollow, **({"control": d.control} if d.role == "control" else {})}  # fmt: skip
                 for tv in xt:
                     tag(ax.plot([tv, tv], [0, 1], color=ctx.chrome("grid"), lw=0.8, zorder=0,
                                 transform=ax.get_xaxis_transform()), kind="grid")  # fmt: skip
