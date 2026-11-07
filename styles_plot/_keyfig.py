@@ -98,11 +98,14 @@ def plan_legend(_b: KeyLegend, ctx: Ctx, width: float, label_w: float) -> Plan:
                         full=r.meaning)  # fmt: skip
 
         left.append((h, role))
-    if v.controls:
+    controls_item = None
+    if v.controls:  # across the whole width under both columns: a long list of controls wraps into few lines
         phrase = w.control.format(" · ".join(v.controls))
-        lines, h = rows_of(phrase, SWATCH_X + 0.2, sz.key)
+        full_w = width - 0.2
+        lines_c = ctx.wrap(phrase, max(full_w - SWATCH_X - 0.2, 1.0), sz.key)
+        h_c = max(ROW, len(lines_c) * line_h(sz.key) + 0.12)
 
-        def controls(cv, x0, y, lines=lines, phrase=phrase):
+        def controls(cv, x0, y, lines=lines_c, phrase=phrase):
             yc = y + ROW / 2
             _dot(cv, ctx, x0 + SWATCH_X, yc, ctx.palette.control, kind="swatch", role="control",
                  controls=tuple(v.controls))  # fmt: skip
@@ -110,7 +113,7 @@ def plan_legend(_b: KeyLegend, ctx: Ctx, width: float, label_w: float) -> Plan:
                 cv.text(x0 + SWATCH_X + 0.2, yc + i * line_h(sz.key), line, kind="key", size=sz.key, color=muted,
                         encoding=("control",), controls=tuple(v.controls), full=phrase)  # fmt: skip
 
-        left.append((h, controls))
+        controls_item = (h_c, controls)
 
     right: list = [(ROW, lambda cv, x0, y: cv.text(x0 + 0.1, y + ROW / 2, w.key_marks, kind="header", size=sz.header,
                                                      weight="bold"))]  # fmt: skip
@@ -140,7 +143,8 @@ def plan_legend(_b: KeyLegend, ctx: Ctx, width: float, label_w: float) -> Plan:
                                           for i, line in enumerate(m_lines)]))  # fmt: skip
 
     columns = [(0.0, left), (col_w + 0.2, right)] if two else [(0.0, left + right)]
-    height = 0.1 + max(sum(h for h, _f in items) for _x, items in columns) + 0.15
+    body = max(sum(h for h, _f in items) for _x, items in columns)
+    height = 0.1 + body + (controls_item[0] if controls_item else 0.0) + 0.15
 
     def draw(cv: Canvas) -> None:
         for x0, items in columns:
@@ -148,6 +152,8 @@ def plan_legend(_b: KeyLegend, ctx: Ctx, width: float, label_w: float) -> Plan:
             for h, f in items:
                 f(cv, x0, y)
                 y += h
+        if controls_item:
+            controls_item[1](cv, 0.0, 0.1 + body)
 
     return Plan(height, enc, draw)
 

@@ -18,6 +18,11 @@ Grammar decisions of 7 Nov.
   every mark, onto a near control); a status tag and a note on one row no longer overlap (the note moves to the next
   line); on a row with lanes a tag sits right under its cell's lane; colour words that do not fit one line above a
   panel fail with SP609 and say why.
+- More from the bridge port: a sweep's grey control line names its control (`Line(role="control", control=...)`,
+  "grey: …" in the key); missing-cell words keep clear of their line's marks; rule labels wrap inside their panel on
+  levels of their own and group headers wrap inside their span (no overlap across adjacent columns); the key figure
+  lists the controls across its full width, so a long list no longer pushes it below the target's proportions; two
+  grey control dots on one line of a column fail like two of one role.
 - Figure sets in folders: `[output] sidecar_dir = "_meta"` puts sidecars under the set's root keeping each PNG's path
   (`save(..., root=<set>)`: main/fig01.png -> _meta/main/fig01.styles.json); `styles-plot check` and `sheet` take PNGs
   in subfolders, skip folders starting with "_" (_meta, _sheets), find sidecars beside a PNG or under _meta, and an

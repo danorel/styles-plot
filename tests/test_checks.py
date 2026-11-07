@@ -623,3 +623,46 @@ def test_colour_words_that_do_not_fit_one_line(vocab):
         sp.Series("first", {"m1": sp.Est(50, cell="acc.m1")}, word="a linear probe of the same signal"),
         sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")}, word="anything measured under a swap")], width=1.2)  # fmt: skip
     assert "SP609" in codes(run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [col])))[1])
+
+
+def test_control_line_missing_words_rule_labels_and_group_headers(vocab):
+    xs = list(range(0, 25))
+    lines = [sp.Line("c1", "second", xs, [1000 / (1 + x) + 50 for x in xs], cell="line.c1"),
+             sp.Line("c1", "control", xs, [3000 / (1 + x) + 200 for x in xs], cell="line.c1", control="a random direction")]  # fmt: skip
+    mpl, problems = run(sp.Figure("sweep", vocab).add(sp.Sweep(["c1"], "layer", "rank", lines, kind="checkpoints",
+                                                                  xticks=[0, 10, 20])))  # fmt: skip
+    assert problems == [], [str(p) for p in problems]
+    assert any("a random direction" in t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "key"))
+    with pytest.raises(sp.BuildError, match="control line"):
+        run(sp.Figure("sweep", vocab).add(sp.Sweep(["c1"], "layer", "rank", [dataclasses.replace(lines[1], control=None)],
+                                                   kind="checkpoints")))  # fmt: skip
+    # missing words beside a dot of the same line; long rule labels in two narrow adjacent panels; a long group header
+    def col(h):
+        return sp.DotColumn(h, "accuracy", (0, 100), (0, 50, 100), [
+            sp.Series("control", {"m1": sp.Est(8, cell="acc.m1")}, control="shuffled labels"),
+            sp.Series("second", {"m1": sp.Missing("no run")})],
+            rules=[sp.Rule(15, "bar fixed in advance: {}", unit="accuracy", key=f"bar.{h}")], width=1.3)  # fmt: skip
+    table = sp.DotTable(["m1"], [sp.ColumnGroup("Test A · synthetic accuracy drop accuracy drop accuracy drop",
+                                                [col("accuracy"), col("answers")])])  # fmt: skip
+    problems = run(sp.Figure("methods", vocab).add(table))[1]
+    assert [p for p in problems if p.code in ("SP601", "SP602", "SP606")] == [], [str(p) for p in problems]
+
+
+def test_two_grey_controls_on_one_line(vocab):
+    col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [
+        sp.Series("control", {"m1": sp.Est(50, cell="acc.m1")}, control="shuffled labels"),
+        sp.Series("control", {"m1": sp.Est(60, cell="acc.m1")}, control="a random direction")])  # fmt: skip
+    with pytest.raises(sp.BuildError, match="two grey control dots"):
+        run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [col])))
+
+
+def test_key_figure_with_many_controls_keeps_its_aspect(tmp_path):
+    roles = "".join(f'[roles.r{i}]\nslot = "{s}"\nword = "role {i}"\nmeaning = "a meaning for role {i}"\n'
+                    for i, s in enumerate(("ink", "violet", "teal", "amber", "blue", "brick", "slate")))  # fmt: skip
+    controls = ", ".join(f'"control number {i}"' for i in range(12))
+    v = sp.loads(f'[project]\nname = "many"\n[controls]\nnames = [{controls}]\n[key]\n'
+                 'tick = "the largest same-size control"\nband = "within 0.10 of a random part"\n' + roles)
+    mpl, problems = run(sp.key_figure(v))
+    assert problems == [], [str(p) for p in problems]
+    w, h = mpl.get_size_inches()
+    assert w / h >= 1.0

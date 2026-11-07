@@ -151,6 +151,7 @@ class Line:
     interval: str = "ci95"  # names the band in the key
     median: bool = False  # the line is a median: the key says "line: median"
     word: str | None = None  # the words at the line's end (a vocabulary term); default: the role's word
+    control: str | None = None  # for role "control": which control ([controls].names), named in the key
 
 
 @dataclass(frozen=True)

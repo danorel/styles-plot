@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from matplotlib.patches import Rectangle
 
 from styles_plot._model import ColumnGroup, Count, DotColumn, DotTable, Est, Gutter, Missing, TextColumn
-from styles_plot._grid import STRIP_GAP, place_in_line, place_on_levels
+from styles_plot._grid import STRIP_GAP, place_in_line
 from styles_plot._render import LANE_INDENT, BuildError, Canvas, Ctx, Plan
 from styles_plot._tags import tag
 from styles_plot._text import PT, line_h
@@ -82,6 +82,7 @@ class _Layout:
     groups: list[ColumnGroup]
     width: float
     note_h: float = 0.0
+    group_lines: dict = field(default_factory=dict)  # id(group) -> wrapped header lines
     group_h: float = 0.0
     head: float = 0.0  # top of the strip, inches from the block top
     strip_h: float = 0.0
@@ -130,9 +131,10 @@ def _validate(t: DotTable, ctx: Ctx) -> None:
             roles = [s.role for s in c.series if isinstance(s.cells.get(k), Est)]
             twice = sorted({r for r in roles if roles.count(r) > 1})
             if twice:
-                raise BuildError(f"{ctx.figure_id}: two estimates of {twice[0]!r} on one line of column {c.header!r} "
-                                 f"({k!r}); one colour means one estimate per line: give the second its own column, "
-                                 "header and axis (GRAMMAR.md, D)")  # fmt: skip
+                what = "two grey control dots" if twice[0] == "control" else f"two estimates of {twice[0]!r}"
+                raise BuildError(f"{ctx.figure_id}: {what} on one line of column {c.header!r} ({k!r}); one colour "
+                                 "means one estimate per line: give the second its own column (or lane), header and "
+                                 "axis (GRAMMAR.md, D)")  # fmt: skip
 
 
 def _text_cells(lay: _Layout, ctx: Ctx) -> None:
@@ -306,7 +308,12 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
     """Headers, the strip of role words above the first row, rows, and the bottom (ticks, unit titles, cues)."""
     sz, v = ctx.sizes, ctx.vocab
     lay.note_h = line_h(sz.tag) + 0.06 if lay.table.note else 0.0
-    lay.group_h = line_h(sz.header) + 0.06 if lay.groups else 0.0
+    lay.group_lines = {}
+    for g in lay.groups:
+        members = [c for c in lay.cols if c.group is g]
+        span = members[-1].x + members[-1].w - members[0].x
+        lay.group_lines[id(g)] = ctx.wrap(g.header, span, sz.header, "bold")
+    lay.group_h = max((len(v) for v in lay.group_lines.values()), default=0) * line_h(sz.header) + (0.06 if lay.groups else 0.0)
     for c in lay.cols:
         if c.is_panel or c.is_text:
             c.header = ctx.wrap(c.spec.header, c.w, sz.header, "bold") if c.spec.header else []
@@ -355,12 +362,25 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
         words = [(xc, w, (*p[:4], {**p[4], "line_full": (round(need, 2), round(c.w, 2))})) for xc, w, p in words]
     line = place_in_line(words, c.w)
     occupied = [(x0, x0 + ctx.measure(p[0], sz.role_word, "bold")[0], 0) for x0, p in line]
-    labels = [(rl, rule_label(ctx, rl)) for rl in c.spec.rules if rl.label]
-    rules = [(c.dx(rl.x), ctx.measure(text, sz.tag)[0], (text, ctx.chrome("muted"), "normal", sz.tag,
-              {"kind": "rule_label", **({"key": rl.key} if rl.key else {})})) for rl, text in labels]  # fmt: skip
-    placed, levels = place_on_levels(rules, c.w, occupied)
-    c.strip = [(x0, 0, *p) for x0, p in line] + [(x0, level, *p) for x0, level, p in placed]
-    return max(levels, 1 if line else 0)
+    c.strip = [(x0, 0, *p) for x0, p in line]
+    levels = 1 if line else 0
+    # rule labels: wrapped to the panel's width, each a block of consecutive levels clear of the words and each other
+    for rl in sorted((rl for rl in c.spec.rules if rl.label), key=lambda rl: rl.x):
+        text = rule_label(ctx, rl)
+        lines = ctx.wrap(text, c.w, sz.tag)
+        w = max(ctx.measure(t, sz.tag)[0] for t in lines)
+        x0 = min(max(c.dx(rl.x) - w / 2, 0.0), max(c.w - w, 0.0))
+        level = 0
+        while any(lv in range(level, level + len(lines)) and x0 < b + STRIP_GAP and a < x0 + w + STRIP_GAP
+                  for a, b, lv in occupied):  # fmt: skip
+            level += 1
+        meta = {"kind": "rule_label", "full": text, **({"key": rl.key} if rl.key else {})}
+        for i, t in enumerate(lines):  # the first line on top
+            lv = level + len(lines) - 1 - i
+            occupied.append((x0, x0 + w, lv))
+            c.strip.append((x0, lv, t, ctx.chrome("muted"), "normal", sz.tag, meta))
+        levels = max(levels, level + len(lines))
+    return levels
 
 
 # ---- draw ------------------------------------------------------------------------------------------------------------
@@ -392,7 +412,9 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
     top = TOP + lay.note_h
     for g in lay.groups:
         gx = min(c.x for c in lay.cols if c.group is g)
-        cv.text(gx, top + lay.group_h / 2, g.header, kind="header", size=sz.header, weight="bold", color=ink)
+        for i, t in enumerate(lay.group_lines[id(g)]):
+            cv.text(gx, top + (i + 0.5) * line_h(sz.header), t, kind="header", size=sz.header, weight="bold",
+                    color=ink, full=g.header)  # fmt: skip
     for c in lay.cols:
         named = {"kind": "role_word", "role": c.header_role, "color": ctx.role_hex(c.header_role)} if c.header_role \
             else {"kind": "header", "color": ink}  # fmt: skip
@@ -524,11 +546,11 @@ def _line(cv: Canvas, ax, ctx: Ctx, c: _Col, key, y_abs: float, head: float, vli
             role="control")  # fmt: skip
         w = (mk.tick_lw / 2 + 2) * PT * per
         spans.append((tx - w, tx + w))
-    labels = []
+    labels, missing = [], []
     r = (mk.dot_size / 2 + mk.hollow_edge + 4) * PT * per  # a dot's radius and the check's clearance
     for s, val in _cells(spec, key):
         if isinstance(val, Missing):
-            _missing(cv, ctx, c, y_abs, val.words, vlines)
+            missing.append(val.words)
             continue
         _dot(ax, ctx, s, val, y)
         spans.append((val.value - r, val.value + r))
@@ -536,19 +558,22 @@ def _line(cv: Canvas, ax, ctx: Ctx, c: _Col, key, y_abs: float, head: float, vli
             spans.append((val.lo, val.hi))
         if val.label:
             labels.append((val, s.role))
+    for words in missing:  # after the marks: missing words keep clear of them too
+        _missing(cv, ctx, c, y_abs, words, vlines, spans)
     _value_labels(cv, ctx, c, y_abs, labels, spans, vlines)
 
 
-def _missing(cv: Canvas, ctx: Ctx, c: _Col, y: float, words: str, vlines) -> None:
-    """Missing-cell words where they cross no vertical line: at the panel's left, else right-aligned at its right,
-    else in the widest gap between lines."""
+def _missing(cv: Canvas, ctx: Ctx, c: _Col, y: float, words: str, vlines, spans=()) -> None:
+    """Missing-cell words where they touch no vertical line and no mark of their line: at the panel's left, else
+    right-aligned at its right, else in the first gap wide enough."""
     w = ctx.measure(words, ctx.sizes.tag)[0]
     clear = 4 * PT
-    xs = sorted(c.dx(v) for v in vlines)
+    blocked = sorted([(c.dx(v), c.dx(v)) for v in vlines] + [(c.dx(a), c.dx(b)) for a, b in spans])
     candidates = [0.04, c.w - 0.04 - w]
-    edges = [0.0, *xs, c.w]
-    candidates += [a + clear for a, b in zip(edges, edges[1:]) if b - a - 2 * clear >= w]
-    best = next((x0 for x0 in candidates if not any(x0 - clear < xv < x0 + w + clear for xv in xs)), candidates[0])
+    edges = [(0.0, 0.0), *blocked, (c.w, c.w)]
+    candidates += [e0[1] + clear for e0, e1 in zip(edges, edges[1:]) if e1[0] - e0[1] - 2 * clear >= w]
+    best = next((x0 for x0 in candidates if not any(a - clear < x0 + w and x0 - clear < b for a, b in blocked)),
+                candidates[0])  # fmt: skip
     cv.text(c.x + best, y, words, kind="missing", size=ctx.sizes.tag, color=ctx.chrome("muted"))
 
 

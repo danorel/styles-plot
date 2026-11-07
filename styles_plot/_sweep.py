@@ -44,6 +44,8 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
         if len(ln.x) != len(ln.y) or len(ln.x) < 2:
             raise BuildError(f"{ctx.figure_id}: a line needs matching x and y with at least two points")
         ctx.role_hex(ln.role)
+        if ln.role == "control" and ln.control not in ctx.vocab.controls:
+            raise BuildError(f"{ctx.figure_id}: a control line needs control=<one of [controls].names>")
         lines[ln.row].append(ln)
     xs = np.concatenate([np.asarray(ln.x, float) for ln in s.lines])
     ys = np.concatenate([np.asarray(v, float) for ln in s.lines for v in (ln.y, *(ln.band or ()))]
@@ -84,6 +86,8 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
             enc.add(("shading", ln.interval))
         if ln.median:
             enc.add(("median",))
+        if ln.role == "control":
+            enc.add(("control", ln.control))
     for _x0, _x1, name in s.windows:
         enc.add(("band", name))
     hlabels = [(rl, rule_label(ctx, rl) if rl.label else "") for rl in s.hrules]
@@ -231,7 +235,8 @@ def _frac(v: float, lim, scale: str) -> float:
 def _line(ax, ctx: Ctx, ln) -> None:
     col = ctx.role_hex(ln.role)
     st = ctx.status(ln.cell)
-    meta = {"role": ln.role, "cell": ln.cell, "timing": st.timing, "claim": st.claim, "median": ln.median}
+    meta = {"role": ln.role, "cell": ln.cell, "timing": st.timing, "claim": st.claim, "median": ln.median,
+            **({"control": ln.control} if ln.role == "control" else {})}  # fmt: skip
     if ln.band is not None:
         lo, hi = ln.band
         poly = ax.fill_between(ln.x, lo, hi, color=col, alpha=ctx.marks.shading_alpha, lw=0, zorder=1)
