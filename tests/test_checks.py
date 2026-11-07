@@ -332,3 +332,32 @@ def test_key_figure_arguments(vocab):
 def test_slide_fits_a_five_row_table(vocab):
     assert run(example("dot_table").dot_table(vocab), "slide")[1] == []
     assert vocab.target("slide").height_in == 6.5
+
+
+# ---- v0.1.2: lanes, table notes, signed formats ----------------------------------------------------------------------
+def test_lanes_labelled_and_unlabelled(vocab):
+    lanes = [sp.Lane("a", "set one"), sp.Lane("b", "set two")]
+    col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [
+        sp.Series("second", {("m1", "a"): sp.Est(60, cell="acc.m1", key="l.m1.a", label=True),
+                             ("m1", "b"): sp.Est(70, cell="acc.m1", key="l.m1.b", label=True),
+                             ("m2", "a"): sp.Est(65, cell="acc.m2")}),
+        sp.Series("control", {("m2", "b"): sp.Est(55, cell="acc.m2")}, control="shuffled labels")])  # fmt: skip
+    t = sp.DotTable(["m1", "m2"], [col], lanes=lanes, note="synthetic data")
+    mpl, problems = run(sp.Figure("methods", vocab).add(t))
+    assert problems == []
+    labels = [a.get_text() for a in mpl.findobj(lambda a: tags(a).get("kind") == "lane_label")]
+    assert labels == ["set one", "set two", "set one", "set two"]
+    ys = sorted({round(float(d.get_ydata()[0]), 3) for d in mpl.findobj(lambda a: tags(a).get("kind") == "dot")})
+    assert len(ys) == 4  # every lane on its own line
+    plain = sp.DotTable(["m1"], [sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [
+        sp.Series("second", {("m1", "a"): sp.Est(60, cell="acc.m1")}),
+        sp.Series("first", {("m1", "b"): sp.Est(70, cell="acc.m1")})])], lanes=[sp.Lane("a"), sp.Lane("b")])  # fmt: skip
+    assert run(sp.Figure("methods", vocab).add(plain))[1] == []
+
+
+def test_signed_format(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text() + '\n[formats.diff]\ndecimals = 1\nsign = true\n[units.diff]\ntitle = "difference (points)"\nquantity = "difference"\nformat = "diff"\n')
+    v = sp.load(p)
+    assert v.format(3.25, "diff") == "+3.2" and v.format(-1.0, "diff") == "−1.0" and v.format(0.01, "diff") == "0.0"
+    assert v.format_interval(-1, 2, "diff") == "[−1.0, +2.0]"

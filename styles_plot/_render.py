@@ -25,6 +25,7 @@ from styles_plot._theme import Theme
 from styles_plot._vocab import Vocab
 
 MARGIN = 0.12  # inches left and right of the title, key and caption
+LANE_INDENT = 0.25  # inches a lane's label sits right of its row's name
 
 
 class BuildError(ValueError):
@@ -230,7 +231,7 @@ def key_items(ctx: Ctx, enc: set) -> list[tuple[str, str, str, tuple]]:
 
 
 def _key_lines(ctx: Ctx, items, width: float) -> list[list[tuple]]:
-    size, gap = ctx.sizes.key, 0.3
+    gap = 0.3
     lines: list[list[tuple]] = []
     used = 0.0
     for it in items:
@@ -290,6 +291,7 @@ def _label_width(ctx: Ctx, block) -> float:
     kind = block.kind
     widths = [ctx.measure(ctx.entity_name(kind, r), ctx.sizes.label, "bold")[0] for r in rows]
     widths += [ctx.measure(s, ctx.sizes.tag)[0] for s in getattr(block, "row_sub", {}).values()]
+    widths += [LANE_INDENT + ctx.measure(ln.label, ctx.sizes.tag)[0] for ln in getattr(block, "lanes", ()) if ln.label]
     return max(widths) + 0.25
 
 

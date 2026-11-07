@@ -12,7 +12,7 @@ from .conftest import example
 PUBLIC = {
     "load", "loads", "from_dict", "Vocab", "VocabError", "Role", "Unit", "Format", "Entity", "Palette", "Theme",
     "Sizes", "MarkStyle", "Phrases", "load_registry", "Registry", "RegistryError", "Status", "Figure", "BuildError",
-    "key_figure", "DotTable", "DotColumn", "TextColumn", "ColumnGroup", "Gutter", "Series", "Rule", "Sweep", "Line",
+    "key_figure", "DotTable", "DotColumn", "TextColumn", "ColumnGroup", "Gutter", "Lane", "Series", "Rule", "Sweep", "Line",
     "Point", "Distribution", "Stack", "Segment", "Scatter", "ScatterPanel", "Cloud", "Schematic", "Box", "Arrow",
     "Words", "Mark", "Est", "Missing", "Count", "save", "save_bundle", "check_figure", "SaveReport", "Problem",
     "StyleError", "StyleWarning", "contact_sheets",

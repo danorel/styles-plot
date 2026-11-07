@@ -12,17 +12,20 @@ MINUS = "−"
 NUM = r"[−+]?\d+(?:\.\d+)?%?"  # a number as figures print it
 
 
-def decimal(value: float, decimals: int, suffix: str = "") -> str:
+def decimal(value: float, decimals: int, suffix: str = "", sign: bool = False) -> str:
+    """A number at a precision; `sign` prints "+" before a positive value (a difference)."""
     if value is None or (isinstance(value, float) and math.isnan(value)):
         raise ValueError("cannot print a missing number; draw sp.Missing instead")
     s = f"{value:.{decimals}f}"
     if set(s.lstrip("-")) <= set("0."):  # no signed zero after rounding
         s = s.lstrip("-")
+    elif sign and not s.startswith("-"):
+        s = "+" + s
     return s.replace("-", MINUS) + suffix
 
 
-def interval(lo: float, hi: float, decimals: int, suffix: str = "") -> str:
-    return f"[{decimal(lo, decimals, suffix)}, {decimal(hi, decimals, suffix)}]"
+def interval(lo: float, hi: float, decimals: int, suffix: str = "", sign: bool = False) -> str:
+    return f"[{decimal(lo, decimals, suffix, sign)}, {decimal(hi, decimals, suffix, sign)}]"
 
 
 def count(k: int, n: int) -> str:

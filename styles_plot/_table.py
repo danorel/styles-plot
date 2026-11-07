@@ -12,7 +12,7 @@ from matplotlib.patches import Rectangle
 
 from styles_plot._model import ColumnGroup, Count, DotColumn, DotTable, Est, Gutter, Missing, TextColumn
 from styles_plot._grid import place_in_line, place_on_levels
-from styles_plot._render import BuildError, Canvas, Ctx, Plan
+from styles_plot._render import LANE_INDENT, BuildError, Canvas, Ctx, Plan
 from styles_plot._tags import tag
 from styles_plot._text import PT, line_h
 
@@ -61,10 +61,16 @@ class _Row:
     sub: float = 0.0  # height of the second line; 0 when the row has none
     tags: list = field(default_factory=list)  # [(x0, lines, cell, claim, full text)]
     notes: list = field(default_factory=list)  # [(column, words)]
+    lines: list = field(default_factory=list)  # [(cell key, lane label, y offset from top)]: one per lane, or the row
+    name_dy: float = 0.0
 
     @property
     def mid(self) -> float:
-        return self.top + (self.h - self.sub) / 2
+        return self.top + self.name_dy
+
+    @property
+    def keys(self) -> list:
+        return [k for k, _label, _dy in self.lines]
 
     @property
     def sub_top(self) -> float:
@@ -82,6 +88,7 @@ class _Layout:
     cols: list[_Col]
     groups: list[ColumnGroup]
     width: float
+    note_h: float = 0.0
     group_h: float = 0.0
     head: float = 0.0  # top of the strip, inches from the block top
     strip_h: float = 0.0
@@ -95,8 +102,10 @@ class _Layout:
 def plan(t: DotTable, ctx: Ctx, width: float, label_w: float) -> Plan:
     ctx.check_rows(t.kind, t.rows)
     _validate(t, ctx)
-    lay = _Layout(t, [_Row(r, ctx.entity_name(t.kind, r)) for r in t.rows], [_Col(c, g) for c, g in t.flat_columns()],
-                  [], width)  # fmt: skip
+    rows = [_Row(r, ctx.entity_name(t.kind, r)) for r in t.rows]
+    for r in rows:  # the cell keys of each row: the row itself, or (row, lane) per lane
+        r.lines = [((r.key, ln.key), ln.label, 0.0) for ln in t.lanes] if t.lanes else [(r.key, "", 0.0)]
+    lay = _Layout(t, rows, [_Col(c, g) for c, g in t.flat_columns()], [], width)
     for c in lay.cols:
         if c.group is not None and not any(g is c.group for g in lay.groups):
             lay.groups.append(c.group)
@@ -133,8 +142,8 @@ def _text_cells(lay: _Layout, ctx: Ctx) -> None:
             continue
         ink = ctx.role_hex(c.spec.role) if c.spec.role else ctx.chrome("text")
         meta_role = {"role": c.spec.role} if c.spec.role else {}
-        for r in lay.rows:
-            val = c.spec.cells.get(r.key)
+        for key in (k for r in lay.rows for k in r.keys):
+            val = c.spec.cells.get(key)
             if val is None:
                 parts = []
             elif isinstance(val, Missing):
@@ -149,7 +158,7 @@ def _text_cells(lay: _Layout, ctx: Ctx) -> None:
                     parts.append((" " + ctx.interval(c.spec.unit, val.lo, val.hi, val.key), muted, "normal",
                                   {"kind": "value", "key": f"{val.key}.interval", "cell": val.cell,
                                    "unit": c.spec.unit}))  # fmt: skip
-            c.texts[r.key] = parts
+            c.texts[key] = parts
 
 
 def _widths(lay: _Layout, ctx: Ctx, label_w: float) -> None:
@@ -200,7 +209,7 @@ def _statuses(lay: _Layout, ctx: Ctx) -> set:
         members = [m for m in lay.cols if c.group is not None and m.group is c.group] or [c]
         gx0, gx1 = min(m.x for m in members), max(m.x + m.w for m in members)
         for r in lay.rows:
-            vals = list(_cells(c.spec, r.key)) if c.is_panel else [(None, c.spec.cells.get(r.key))]
+            vals = [v for k in r.keys for v in (_cells(c.spec, k) if c.is_panel else [(None, c.spec.cells.get(k))])]
             for s, val in vals:
                 if not isinstance(val, (Est, Count)):
                     continue
@@ -234,13 +243,33 @@ def _statuses(lay: _Layout, ctx: Ctx) -> set:
         if not n_lines and (r.notes or lay.table.row_sub.get(r.key)):
             n_lines = 1
         r.sub = max(ctx.theme.sub_h, n_lines * line_h(sz.tag) + SUB_GAP) if n_lines else 0.0
-        r.h = ctx.theme.row_h + r.sub
+        main = _lanes(r, ctx)
+        r.h = main + r.sub
     return enc
+
+
+def _lanes(r: _Row, ctx: Ctx) -> float:
+    """Lay out a row's lines; returns the row's height above its second line. Labelled lanes sit under the row's
+    name, each on its own line; unlabelled lanes share the row's height, named by colour words above the table."""
+    rh = ctx.theme.row_h
+    if len(r.lines) == 1 and not r.lines[0][1]:
+        r.lines = [(r.lines[0][0], "", rh / 2)]
+        r.name_dy = rh / 2
+        return rh
+    labelled = any(label for _k, label, _dy in r.lines)
+    lane_h = rh * (0.8 if labelled else 0.62)
+    head = rh * 0.85 if labelled else 0.0
+    main = max(head + len(r.lines) * lane_h, rh)
+    start = head if labelled else (main - len(r.lines) * lane_h) / 2
+    r.lines = [(k, label, start + (i + 0.5) * lane_h) for i, (k, label, _dy) in enumerate(r.lines)]
+    r.name_dy = head / 2 if labelled else main / 2
+    return main
 
 
 def _vertical(lay: _Layout, ctx: Ctx) -> None:
     """Headers, the strip of role words above the first row, rows, and the bottom (ticks, unit titles, cues)."""
     sz, v = ctx.sizes, ctx.vocab
+    lay.note_h = line_h(sz.tag) + 0.06 if lay.table.note else 0.0
     lay.group_h = line_h(sz.header) + 0.06 if lay.groups else 0.0
     for c in lay.cols:
         if c.is_panel or c.is_text:
@@ -251,7 +280,7 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
                 c.cue = ctx.wrap(v.cue(u.name), c.w + ctx.theme.pad * 0.8, sz.cue)
     header_h = max((len(c.header) for c in lay.cols), default=0) * line_h(sz.header) + 0.08
     levels = max((_strip(c, lay, ctx) for c in lay.cols if c.is_panel), default=0)
-    lay.head = TOP + lay.group_h + header_h
+    lay.head = TOP + lay.note_h + lay.group_h + header_h
     lay.strip_h = levels * line_h(sz.role_word) + 0.1
     y = lay.head + lay.strip_h
     for r in lay.rows:
@@ -269,7 +298,7 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
     """A panel's role words on one line above the first row, in the order their dots appear (left to right), and its
     rule labels on the line above them where they would collide. Returns the number of lines."""
     sz = ctx.sizes
-    first = {r.key: i for i, r in enumerate(lay.rows)}
+    first = {k: (i, j) for i, r in enumerate(lay.rows) for j, k in enumerate(r.keys)}
     words, seen = [], set()
     for s in c.spec.series:
         if s.role == "control" or s.role in seen:
@@ -310,16 +339,22 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
 
     for r in lay.rows:
         cv.text(0.08, r.mid, r.name, kind="row_label", size=sz.label, weight="bold", color=ink)
+        for _k, label, dy in r.lines:
+            if label:
+                cv.text(0.08 + LANE_INDENT, r.top + dy, label, kind="lane_label", size=sz.tag, color=muted)
         sub = lay.table.row_sub.get(r.key)
         if sub:
             cv.text(0.08, r.sub_mid, sub, kind="row_sub", size=sz.tag, color=muted)
 
+    if lay.table.note:
+        cv.text(0.08, TOP + lay.note_h / 2, lay.table.note, kind="subtitle", size=sz.tag, color=muted)
+    top = TOP + lay.note_h
     for g in lay.groups:
         gx = min(c.x for c in lay.cols if c.group is g)
-        cv.text(gx, TOP + lay.group_h / 2, g.header, kind="header", size=sz.header, weight="bold", color=ink)
+        cv.text(gx, top + lay.group_h / 2, g.header, kind="header", size=sz.header, weight="bold", color=ink)
     for c in lay.cols:
         for i, s in enumerate(c.header):
-            cv.text(c.x, TOP + lay.group_h + (i + 0.5) * line_h(sz.header), s, kind="header", size=sz.header,
+            cv.text(c.x, top + lay.group_h + (i + 0.5) * line_h(sz.header), s, kind="header", size=sz.header,
                     weight="bold", color=ink, full=c.spec.header)  # fmt: skip
 
     for c in lay.cols:
@@ -327,7 +362,8 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
             _panel(cv, ctx, lay, c)
         elif c.is_text:
             for r in lay.rows:
-                cv.rich(c.x, r.mid, c.texts[r.key], size=sz.value)
+                for k, _label, dy in r.lines:
+                    cv.rich(c.x, r.top + dy, c.texts[k], size=sz.value)
 
     for r in lay.rows:
         for x0, lines, cell, claim, full in r.tags:
@@ -374,7 +410,7 @@ def _segments(a: float, b: float, cuts: list[tuple[float, float]]) -> list[tuple
 
 
 def _panel(cv: Canvas, ctx: Ctx, lay: _Layout, c: _Col) -> None:
-    mk, pal, th = ctx.marks, ctx.palette, ctx.theme
+    mk = ctx.marks
     spec: DotColumn = c.spec
     total = lay.body_end - lay.head
     ax = cv.axes(c.x, lay.head, c.w, total)
@@ -385,9 +421,6 @@ def _panel(cv: Canvas, ctx: Ctx, lay: _Layout, c: _Col) -> None:
     ax.set_xticks(list(spec.xticks), labels=[""] * len(spec.xticks))
     ax.tick_params(axis="x", length=3, color=ctx.chrome("faint"), pad=0)
     tag(ax, kind="panel", pid=c.pid, unit=spec.unit, cue=ctx.vocab.unit(spec.unit).cue)
-
-    def y_of(r: _Row) -> float:
-        return r.mid - lay.head
 
     # vertical lines stop at a row's second line where a tag spans this panel
     cuts = [(r.sub_top - lay.head, r.top + r.h - lay.head) for r in lay.rows if _second_line_in(r, c, ctx)]
@@ -412,33 +445,40 @@ def _panel(cv: Canvas, ctx: Ctx, lay: _Layout, c: _Col) -> None:
                 kind="rule")  # fmt: skip
 
     for r in lay.rows:
-        y = y_of(r)
-        ests = {s.role: val for s, val in _cells(spec, r.key) if isinstance(val, Est)}
-        if spec.connect and all(k in ests for k in spec.connect):
-            a, b = ests[spec.connect[0]].value, ests[spec.connect[1]].value
-            tag(ax.plot([a, b], [y, y], color=ctx.chrome("connector"), lw=mk.connector_lw, solid_capstyle="round",
-                        zorder=2), kind="connector")  # fmt: skip
-        extents = []
-        if r.key in spec.ticks:
-            tx, half = spec.ticks[r.key], mk.tick_half * th.row_h
-            tag(ax.plot([tx, tx], [y - half, y + half], color=pal.control, lw=mk.tick_lw, zorder=3), kind="tick",
-                role="control")  # fmt: skip
-            extents.append(tx)
-        labels = []
-        for s, val in _cells(spec, r.key):
-            if isinstance(val, Missing):
-                cv.text(c.x + 0.04, r.mid, val.words, kind="missing", size=ctx.sizes.tag, color=ctx.chrome("muted"))
-                continue
-            extents += _dot(ax, ctx, s, val, y)
-            if val.label:
-                labels.append((val, s.role))
-        for val, role in labels:
-            col = ctx.chrome("muted") if role == "control" else ctx.role_hex(role)
-            _value_label(cv, ctx, c, r.mid, ctx.value(spec.unit, val.value, val.key), col, extents, vlines, val, role)
+        for key, _label, dy in r.lines:
+            _line(cv, ax, ctx, c, key, r.top + dy, lay.head, vlines)
 
     for x0, level, word, colr, weight, size, meta in c.strip:
         cv.text(c.x + x0, lay.head + lay.strip_h - 0.05 - (level + 0.5) * line_h(ctx.sizes.role_word), word,
                 size=size, color=colr, weight=weight, **meta)  # fmt: skip
+
+
+def _line(cv: Canvas, ax, ctx: Ctx, c: _Col, key, y_abs: float, head: float, vlines) -> None:
+    """One line of a panel (a row, or a lane of a row): connector, grey tick, dots, missing words, value labels."""
+    mk, spec = ctx.marks, c.spec
+    y = y_abs - head
+    ests = {s.role: val for s, val in _cells(spec, key) if isinstance(val, Est)}
+    if spec.connect and all(k in ests for k in spec.connect):
+        a, b = ests[spec.connect[0]].value, ests[spec.connect[1]].value
+        tag(ax.plot([a, b], [y, y], color=ctx.chrome("connector"), lw=mk.connector_lw, solid_capstyle="round",
+                    zorder=2), kind="connector")  # fmt: skip
+    extents = []
+    if key in spec.ticks:
+        tx, half = spec.ticks[key], mk.tick_half * ctx.theme.row_h
+        tag(ax.plot([tx, tx], [y - half, y + half], color=ctx.palette.control, lw=mk.tick_lw, zorder=3), kind="tick",
+            role="control")  # fmt: skip
+        extents.append(tx)
+    labels = []
+    for s, val in _cells(spec, key):
+        if isinstance(val, Missing):
+            cv.text(c.x + 0.04, y_abs, val.words, kind="missing", size=ctx.sizes.tag, color=ctx.chrome("muted"))
+            continue
+        extents += _dot(ax, ctx, s, val, y)
+        if val.label:
+            labels.append((val, s.role))
+    for val, role in labels:
+        col = ctx.chrome("muted") if role == "control" else ctx.role_hex(role)
+        _value_label(cv, ctx, c, y_abs, ctx.value(spec.unit, val.value, val.key), col, extents, vlines, val, role)
 
 
 def _second_line_in(r: _Row, c: _Col, ctx: Ctx) -> bool:

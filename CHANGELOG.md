@@ -3,6 +3,15 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## Unreleased
+
+Needed to port the bridge-jspace pilot; not tagged until approved.
+
+- Dot table lanes (`sp.Lane`): sub-rows of every entity row, labelled in grey under the row's name or named by colour
+  words only; cells keyed (row, lane).
+- `DotTable(note=...)`: one grey line above a table, for figures stacked from several tables.
+- `[formats.<name>].sign = true`: a "+" before positive values, for differences.
+
 ## 0.1.1
 
 - Key figure: adds the grey tick, the grey band and one example row from the data read aloud

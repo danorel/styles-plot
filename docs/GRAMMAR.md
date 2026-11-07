@@ -72,8 +72,9 @@ source`), and every data mark carries its cell id.
 
 ## D. Layout
 
-- **Entities are rows**, in the vocabulary's order; **conditions are columns**. Small multiples stack in entity order
-  with a shared x axis.
+- **Entities are rows**, in the vocabulary's order; **conditions are columns**. A second condition of the same row is a
+  lane (a sub-row), named in grey words under the row's name or by its colour word above the table. Small multiples
+  stack in entity order with a shared x axis.
 - Two quantities on different scales are two panels with their own axis titles, never a twin axis.
 - A panel header names a quantity, never a claim. All text is horizontal.
 - Several blocks in one figure are one matplotlib figure (subfigures) with one key under the last.

@@ -106,11 +106,22 @@ class ColumnGroup:
 
 
 @dataclass(frozen=True)
+class Lane:
+    """A sub-row of every entity row: a second condition of the same rows, named in words (never a shade). Cells of
+    a table with lanes are keyed (row, lane key)."""
+
+    key: str
+    label: str = ""  # grey words in the label column (a vocabulary term); "" for lanes named by colour words only
+
+
+@dataclass(frozen=True)
 class DotTable:
     rows: Sequence[str]
     columns: Sequence[DotColumn | TextColumn | Gutter | ColumnGroup]
     kind: str = "models"
     row_sub: Mapping[str, str] = field(default_factory=dict)  # a grey second line under a row label
+    lanes: Sequence[Lane] = ()  # sub-rows of every row
+    note: str = ""  # one grey line above the table (a vocabulary term or template)
 
     def flat_columns(self) -> list[tuple[DotColumn | TextColumn | Gutter, ColumnGroup | None]]:
         out = []

@@ -8,7 +8,7 @@ written). The vocabulary owns every word that names a project concept, and every
     [controls]         names: the grey things
     [key]              tick, band: definitions behind the key's fixed phrases
     [intervals]        <kind> = phrase ("95% interval", "± 1 SEM (bootstrap)")
-    [formats.<name>]   decimals, suffix, style ("decimal" | "k of n")
+    [formats.<name>]   decimals, suffix, sign, style ("decimal" | "k of n")
     [units.<name>]     title, quantity, format, scale ("linear" | "log"), cue, cue_word ("more" | "larger")
     [terms]            canonical, templates, missing, not_claimed, [[terms.banned]] pattern/use/regex
     [[entities.<kind>]] key, name, id: ordered rows
@@ -72,6 +72,7 @@ class Format:
     decimals: int = 0
     style: str = "decimal"  # "decimal" | "k of n"
     suffix: str = ""
+    sign: bool = False  # "+" before a positive value: for differences
 
 
 @dataclass(frozen=True)
@@ -175,11 +176,11 @@ class Vocab:
         f = self.formats[self.unit(unit).format]
         if f.style == "k of n":
             raise ValueError(f"unit {unit!r} prints counts; use format_count")
-        return _numbers.decimal(value, f.decimals, f.suffix)
+        return _numbers.decimal(value, f.decimals, f.suffix, f.sign)
 
     def format_interval(self, lo: float, hi: float, unit: str) -> str:
         f = self.formats[self.unit(unit).format]
-        return _numbers.interval(lo, hi, f.decimals, f.suffix)
+        return _numbers.interval(lo, hi, f.decimals, f.suffix, f.sign)
 
     @staticmethod
     def format_count(k: int, n: int) -> str:
@@ -323,7 +324,7 @@ def _formats(doc: dict, where: str) -> dict[str, Format]:
         dec = v.get("decimals", 0)
         if not isinstance(dec, int) or not 0 <= dec <= 6:
             raise VocabError(f"{w}: decimals must be an integer 0-6")
-        out[k] = Format(k, dec, style, v.get("suffix", ""))
+        out[k] = Format(k, dec, style, v.get("suffix", ""), bool(v.get("sign", False)))
     return out
 
 

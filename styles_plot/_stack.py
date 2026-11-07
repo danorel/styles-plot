@@ -76,7 +76,7 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
         ax.spines["bottom"].set_visible(True)
         ax.spines["bottom"].set_color(ctx.chrome("faint"))
         bar_h = ctx.marks.bar_height * th.row_h
-        for i, r in enumerate(s.rows):
+        for r in s.rows:
             yc = tops[r] + th.row_h / 2
             draw_tags(cv, ctx, x0, body_top + tops[r] + th.row_h, row_tags[r])
             cv.text(0.08, body_top + yc, ctx.entity_name(s.kind, r), kind="row_label", size=sz.label, weight="bold")

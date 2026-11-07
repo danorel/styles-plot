@@ -150,7 +150,7 @@ def _direct_labels(cv, ax, ctx: Ctx, p, labels, x0, top, pw, side, xlim, ylim, p
                            (bx0 - d - w, my - h / 2), (bx1 + d, by0 - d - h), (bx0 - d - w, by0 - d - h),
                            (bx1 + d, by1 + d), (bx0 - d - w, by1 + d)]  # fmt: skip
 
-        def cost(pos):
+        def cost(pos, w=w, h=h):
             lx, ly = pos
             outside = not (x0 <= lx and lx + w <= x0 + pw and top <= ly and ly + h <= top + side)
             covered = int(np.sum((px > lx - rad) & (px < lx + w + rad) & (py > ly - rad) & (py < ly + h + rad)))
