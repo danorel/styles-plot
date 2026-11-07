@@ -96,6 +96,9 @@ class _Layout:
 def plan(t: DotTable, ctx: Ctx, width: float, label_w: float) -> Plan:
     ctx.check_rows(t.kind, t.rows)
     _validate(t, ctx)
+    if not any(isinstance(c, DotColumn) for c, _g in t.flat_columns()):
+        ctx.findings.append(("SP612", "a table of numbers only (no dot column): write it as a markdown table, not a "
+                                      "figure"))  # fmt: skip
     rows = [_Row(r, ctx.entity_name(t.kind, r)) for r in t.rows]
     for r in rows:  # the cell keys of each row: the row itself, or (row, lane) per lane
         r.lines = [((r.key, ln.key), ln.label, 0.0) for ln in t.lanes] if t.lanes else [(r.key, "", 0.0)]

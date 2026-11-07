@@ -9,6 +9,7 @@ From the esk-audit review (a Linux rebuild drew identical pixels into different 
 
 - Sidecars record `png.pixels_sha256`, a hash of the decoded image (mode, size, RGBA pixels), instead of the file's
   byte hash; `styles-plot check` compares pixels (SP902), so another machine's zlib no longer reads as a change.
+- A dot table without a dot column (numbers only) fails SP612: such a table belongs in markdown, not in an image.
 - PNGs carry no "Software" metadata stamp, so their bytes do not change with the matplotlib version.
 - Migration: sidecars written before 0.1.11 have no pixel hash; `styles-plot check` reports SP902 for them until the
   figures are rebuilt once on 0.1.11. PNG bytes can still differ between machines (zlib); compare pixels, not files.

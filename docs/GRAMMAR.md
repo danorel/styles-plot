@@ -144,7 +144,7 @@ example row from the data read aloud. Its marks' phrases are the key, so no key 
 | SP301–SP305 | key complete both ways; no legend box; every grey mark names its control; one grey-band meaning per figure |
 | SP401–SP407 | words from the vocabulary; banned variants; ids; cues; axis titles |
 | SP501–SP502 | numbers through formatters; one key, one string |
-| SP601–SP608 | text crossing lines or marks, off the figure, too small, overlapping, rotated; size; titles; markers |
+| SP601–SP612 | text crossing lines or marks, off the figure, too small, overlapping, rotated; size; titles; markers |
 | SP700–SP704 | colour-vision floors; direct labels |
 | SP801–SP804 | the saved PNG: width, proportions, background, hues on the palette |
 | SP901–SP904 | `styles-plot check`: unknown target, stale sidecar, unpublished target, registry changed since drawing |

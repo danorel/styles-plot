@@ -769,3 +769,8 @@ def test_margin_words_too_far_and_log_dot_table(vocab_dir):
     col = sp.DotColumn("rank", "rank", (10, 1000), (10, 100, 1000), [sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")})])
     with pytest.raises(sp.BuildError, match="log scale"):
         run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [col])))
+
+
+def test_a_table_of_numbers_only(vocab):
+    tc = sp.TextColumn("answers", "prompts", {"m1": sp.Count(3, 4, cell="acc.m1", key="n.m1")})
+    assert "SP612" in codes(run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [tc])))[1])

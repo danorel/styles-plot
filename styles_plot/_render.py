@@ -42,6 +42,7 @@ class Ctx:
     registry: R.Registry | None
     numbers: list[tuple[str, str]] = field(default_factory=list)  # (data key, printed string)
     all_post_hoc: bool = False  # every estimate is post hoc: marks drawn filled, the key says so once
+    findings: list[tuple[str, str]] = field(default_factory=list)  # (code, message) a block reports while laid out
 
     @property
     def palette(self):
@@ -194,6 +195,7 @@ class RenderInfo:
     encodings: frozenset
     key_figure: bool = False
     all_post_hoc: bool = False
+    findings: tuple[tuple[str, str], ...] = ()
 
 
 def info(fig) -> RenderInfo:
@@ -417,6 +419,6 @@ class Figure:
             figure=self.id, target=target, theme=theme, vocab=self.vocab, registry=self.registry,
             numbers=tuple(ctx.numbers), direct_labels=self.direct_labels, natural_height=natural,
             blocks=tuple(type(b).__name__ for b in self.blocks), encodings=enc, key_figure=self._key_figure,
-            all_post_hoc=ctx.all_post_hoc,
+            all_post_hoc=ctx.all_post_hoc, findings=tuple(ctx.findings),
         )  # fmt: skip
         return fig
