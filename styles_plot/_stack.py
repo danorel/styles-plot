@@ -36,6 +36,9 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
         if abs(total - 1) > 1e-3:  # shares stored to a few decimals sum to 0.9999 or 1.0001
             raise BuildError(f"{ctx.figure_id}: row {r!r} sums to {total:.6f}, not 1")
 
+    # a segment that is zero in every row draws nothing, so it is neither drawn nor named (a text column can carry it)
+    shown = [seg for seg in s.segments if any(v.value > 0 for v in seg.shares.values())]
+
     # text columns beside the bars: their numbers formatted once, their widths measured
     cols = []
     for tc in s.columns:
@@ -49,13 +52,13 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
     if pw < 1.0:
         raise BuildError(f"{ctx.figure_id}: the stack's text columns leave {pw:.2f} in for the bars")
     enc: set = set()
-    for seg in s.segments:
+    for seg in shown:
         if any(ctx.status(v.cell).hollow for v in seg.shares.values()):
             enc.add(("post_hoc",))
     # segment names over the first row's segments
     first, left, items = s.rows[0], 0.0, []
     muted = ctx.chrome("muted")
-    for seg in s.segments:
+    for seg in shown:
         v = seg.shares[first].value
         colr, meta = ((muted, {"kind": "segment_name"}) if seg.role == "other"
                       else (ctx.role_hex(seg.role), {"kind": "role_word", "role": seg.role}))  # fmt: skip
@@ -69,7 +72,7 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
     head_lines = max((len(ctx.wrap(tc.header, w, sz.header, "bold")) for tc, _p, w in cols), default=0)
     strip_h = max(levels * line_h(sz.role_word), head_lines * line_h(sz.header)) + 0.08
     body_top = head + strip_h
-    row_tags = {r: claim_tags(ctx, [seg.shares[r].cell for seg in s.segments]) for r in s.rows}
+    row_tags = {r: claim_tags(ctx, [seg.shares[r].cell for seg in shown]) for r in s.rows}
     tops, y = {}, 0.0
     for r in s.rows:
         tops[r] = y
@@ -98,7 +101,7 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
             draw_tags(cv, ctx, x0, body_top + tops[r] + th.row_h, row_tags[r])
             cv.text(0.08, body_top + yc, ctx.entity_name(s.kind, r), kind="row_label", size=sz.label, weight="bold")
             left = 0.0
-            for seg in s.segments:
+            for seg in shown:
                 v = seg.shares[r]
                 col = ctx.role_hex(seg.role)
                 st = ctx.status(v.cell)

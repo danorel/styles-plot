@@ -62,7 +62,8 @@ source`), and every data mark carries its cell id.
 
 - **The dot** is an estimate; a same-colour whisker is its interval; a grey connector joins dots of one row.
 - **Bars** only in 100% stacks and histograms. A stack carries no whiskers: the interval its claim rests on is
-  printed in a text column beside it.
+  printed in a text column beside it. A segment that is zero in every row is not drawn or named; a text column says
+  so when it matters.
 - **Lines** only when x is depth (layers). A line is never hollow: a whole line's status is a grey tag above its panel
   ("post hoc", "descriptive", "not claimed: <reason>", joined with " · "), like a dot table's tags. Points on a line
   are dots that keep their timing: filled when fixed in advance, hollow when post hoc. A point measured on its own

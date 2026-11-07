@@ -828,3 +828,13 @@ def test_stack_shares_rounded_to_four_decimals(vocab):
     segs = [sp.Segment(n, r, {"m1": sp.Est(v, cell=f"{c}.m1")}) for n, r, c, v in
             (("correct", "first", "correct", 0.3333), ("wrong", "second", "wrong", 0.3333), ("no answer", "other", "none", 0.3333))]  # fmt: skip
     assert run(sp.Figure("stack", vocab).add(sp.Stack(["m1"], segs)))[1] == []
+
+
+def test_stack_segment_zero_in_every_row_is_not_named(vocab):
+    segs = [sp.Segment("correct", "first", {"m1": sp.Est(0.6, cell="correct.m1")}),
+            sp.Segment("wrong", "second", {"m1": sp.Est(0.0, cell="wrong.m1")}),
+            sp.Segment("no answer", "other", {"m1": sp.Est(0.4, cell="none.m1")})]  # fmt: skip
+    mpl, problems = run(sp.Figure("stack", vocab).add(sp.Stack(["m1"], segs)))
+    assert problems == [], [str(p) for p in problems]
+    names = {t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") in ("role_word", "segment_name"))}
+    assert names == {"correct", "no answer"}

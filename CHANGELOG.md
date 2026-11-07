@@ -3,6 +3,11 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.14
+
+- A 100% stack's segment that is zero in every row is neither drawn nor named above the bars (its word would sit
+  over nothing); when its absence is the finding, print it in a text column beside the stack.
+
 ## 0.1.13
 
 From the bridge-jspace example cards.
