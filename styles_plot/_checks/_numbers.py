@@ -15,6 +15,7 @@ from styles_plot._tags import tags
 
 _HAS_NUMBER = re.compile(rf"(?<![\w.]){NUM}(?![\w.])")
 _PRINTED = {"value", "tick_label"}  # texts the library formats
+_FREE_TEXT = {None, "text", "schematic_word", "rule_label"}  # texts a caller writes; others come from the vocabulary
 
 
 def conflicts(numbers) -> dict[str, set[str]]:
@@ -36,7 +37,7 @@ def check(cx: CheckCtx) -> list[Problem]:
             if kind == "value" and not t.get("key"):
                 out.append(cx.problem("SP501", f"value {s!r} has no data key"))
             continue
-        if kind in ("title", "caption", "key") or t.get("verbatim") or s in allowed or v.template_re.fullmatch(s):
+        if kind not in _FREE_TEXT or t.get("verbatim") or s in allowed or v.template_re.fullmatch(s):
             continue
         if _HAS_NUMBER.search(s):
             out.append(cx.problem("SP501", f"{kind or 'text'} {s[:40]!r} prints a number no formatter made"))

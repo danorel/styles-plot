@@ -39,10 +39,12 @@ from styles_plot._model import (
     TextColumn,
     Words,
 )
+from styles_plot._keyfig import key_figure
 from styles_plot._palette import Palette
 from styles_plot._registry import Registry, RegistryError, Status
 from styles_plot._registry import load as load_registry
 from styles_plot._render import BuildError, Figure
+from styles_plot._sheet import contact_sheets
 from styles_plot._save import Problem, SaveReport, StyleError, StyleWarning, check_figure, save, save_bundle
 from styles_plot._theme import MarkStyle, Phrases, Sizes, Theme
 from styles_plot._vocab import Entity, Format, Role, Unit, Vocab, VocabError, from_dict, load, loads
@@ -76,6 +78,7 @@ __all__ = [
     # figure
     "Figure",
     "BuildError",
+    "key_figure",
     # blocks
     "DotTable",
     "DotColumn",
@@ -110,4 +113,5 @@ __all__ = [
     "Problem",
     "StyleError",
     "StyleWarning",
+    "contact_sheets",
 ]

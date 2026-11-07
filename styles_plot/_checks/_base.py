@@ -108,7 +108,10 @@ def colours(a) -> set[str]:
 def library_phrases(vocab) -> set[str]:
     """Whole phrases the library prints from the vocabulary: key entries, status tags, cues."""
     w = vocab.words
-    out = {w.post_hoc, w.median, w.descriptive, w.control_mark}
+    out = {w.post_hoc, w.median, w.descriptive, w.control_mark, w.key_roles, w.key_marks}
+    out.add(w.key_missing.format(" · ".join(vocab.missing)))
+    if vocab.controls:
+        out.add(w.control.format(" · ".join(vocab.controls)))
     out |= {w.not_claimed.format(r) for r in vocab.not_claimed}
     if vocab.key_tick:
         out.add(w.tick.format(vocab.key_tick))

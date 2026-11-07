@@ -51,7 +51,8 @@ def check(cx: CheckCtx) -> list[Problem]:
     for t_ in cx.texts:
         t = tags(t_)
         if t.get("kind") == "status_tag":
-            tagged[t["cell"]] = full_text(t_)
+            for cell in t.get("cells") or (t["cell"],):
+                tagged[cell] = full_text(t_)
     for cell in sorted(drawn | set(tagged)):
         st = reg.get(fid, cell) if reg is not None else None
         if st is None:

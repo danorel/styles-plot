@@ -126,14 +126,14 @@ class Canvas:
     def __init__(self, sub, width: float, height: float, ctx: Ctx):
         self.sub, self.w, self.h, self.ctx = sub, width, height, ctx
 
-    def _fx(self, x: float) -> float:
+    def fx(self, x: float) -> float:
         return x / self.w
 
-    def _fy(self, y: float) -> float:
+    def fy(self, y: float) -> float:
         return 1 - y / self.h
 
     def text(self, x, y, s, *, kind, size, color=None, weight="normal", ha="left", va="center", **meta):
-        t = self.sub.text(self._fx(x), self._fy(y), s, ha=ha, va=va, fontsize=size, fontweight=weight,
+        t = self.sub.text(self.fx(x), self.fy(y), s, ha=ha, va=va, fontsize=size, fontweight=weight,
                           color=color or self.ctx.chrome("text"), fontfamily=self.ctx.theme.font)  # fmt: skip
         return tag(t, kind=kind, **meta)
 
@@ -147,14 +147,14 @@ class Canvas:
             cx += self.ctx.measure(s, size, wt)[0]
 
     def rect(self, x, y, w, h, color, *, kind, zorder=-5, **meta):
-        r = Rectangle((self._fx(x), self._fy(y + h)), w / self.w, h / self.h, transform=self.sub.transSubfigure,
+        r = Rectangle((self.fx(x), self.fy(y + h)), w / self.w, h / self.h, transform=self.sub.transSubfigure,
                       facecolor=color, edgecolor="none", lw=0, zorder=zorder)  # fmt: skip
         self.sub.add_artist(r)
         return tag(r, kind=kind, **meta)
 
     def axes(self, x, y, w, h):
         """Bare axes at a position in inches: no spines, no ticks, transparent."""
-        ax = self.sub.add_axes((self._fx(x), self._fy(y + h), w / self.w, h / self.h))
+        ax = self.sub.add_axes((self.fx(x), self.fy(y + h), w / self.w, h / self.h))
         ax.patch.set_alpha(0)
         for s in ax.spines.values():
             s.set_visible(False)

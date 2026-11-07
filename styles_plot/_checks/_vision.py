@@ -19,7 +19,7 @@ from styles_plot._tags import tags
 
 NEXT_TO = 0.15  # inches between an element and its word, at most
 
-_SCHEMATIC_MARKS = {"box", "arrow", "dot"}
+_SCHEMATIC_MARKS = {"box", "arrow", "swatch"}
 
 
 def check(cx: CheckCtx) -> list[Problem]:

@@ -1,0 +1,44 @@
+figure,cell,timing,claim,claim_reason,reason,source
+dot_table,band.m1,fixed_in_advance,claimed,,fixed before the run,synthetic
+dot_table,band.m2,fixed_in_advance,claimed,,fixed before the run,synthetic
+dot_table,band.m3,post_hoc,not_claimed,shared with a baseline,run after the data,synthetic
+dot_table,band.m4,fixed_in_advance,claimed,,fixed before the run,synthetic
+dot_table,band.m5,post_hoc,not_claimed,gone under another score,run after the data,synthetic
+dot_table,layer.m1,fixed_in_advance,claimed,,fixed before the run,synthetic
+dot_table,layer.m2,fixed_in_advance,claimed,,fixed before the run,synthetic
+dot_table,layer.m3,fixed_in_advance,claimed,,fixed before the run,synthetic
+dot_table,layer.m4,post_hoc,claimed,,gate lowered after the data,synthetic
+dot_table,layer.m5,fixed_in_advance,descriptive,,a description only,synthetic
+dot_table,ctrl.m1,fixed_in_advance,claimed,,,synthetic
+dot_table,ctrl.m2,fixed_in_advance,claimed,,,synthetic
+dot_table,ctrl.m3,fixed_in_advance,claimed,,,synthetic
+dot_table,ctrl.m4,fixed_in_advance,claimed,,,synthetic
+dot_table,ctrl.m5,fixed_in_advance,claimed,,,synthetic
+sweep,line.c1,fixed_in_advance,descriptive,,a description only,synthetic
+sweep,line.c2,fixed_in_advance,descriptive,,a description only,synthetic
+sweep,pick.c1,post_hoc,claimed,,the layer was picked from this sweep,synthetic
+sweep,pick.c2,post_hoc,claimed,,the layer was picked from this sweep,synthetic
+distribution,dist.c1.one,fixed_in_advance,claimed,,,synthetic
+distribution,dist.c1.two,fixed_in_advance,claimed,,,synthetic
+distribution,dist.c2.one,fixed_in_advance,claimed,,,synthetic
+distribution,dist.c2.two,post_hoc,claimed,,second set added after the data,synthetic
+strip,strip.c1,fixed_in_advance,claimed,,,synthetic
+strip,strip.c2,fixed_in_advance,claimed,,,synthetic
+stack,correct.m1,fixed_in_advance,claimed,,,synthetic
+stack,correct.m2,fixed_in_advance,claimed,,,synthetic
+stack,correct.m3,fixed_in_advance,claimed,,,synthetic
+stack,wrong.m1,fixed_in_advance,claimed,,,synthetic
+stack,wrong.m2,fixed_in_advance,claimed,,,synthetic
+stack,wrong.m3,fixed_in_advance,claimed,,,synthetic
+stack,none.m1,fixed_in_advance,claimed,,,synthetic
+stack,none.m2,fixed_in_advance,claimed,,,synthetic
+stack,none.m3,fixed_in_advance,claimed,,,synthetic
+scatter,umap.method,fixed_in_advance,descriptive,,,synthetic
+scatter,umap.random,fixed_in_advance,descriptive,,,synthetic
+scatter,pca.method,fixed_in_advance,descriptive,,,synthetic
+scatter,pca.random,fixed_in_advance,descriptive,,,synthetic
+methods,acc.m1,fixed_in_advance,claimed,,,synthetic
+methods,acc.m2,fixed_in_advance,claimed,,,synthetic
+methods,acc.m3,fixed_in_advance,claimed,,,synthetic
+methods,acc.m4,fixed_in_advance,claimed,,,synthetic
+methods,acc.m5,fixed_in_advance,claimed,,,synthetic

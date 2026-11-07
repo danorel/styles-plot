@@ -11,13 +11,13 @@ from dataclasses import dataclass, field
 from matplotlib.patches import Rectangle
 
 from styles_plot._model import ColumnGroup, Count, DotColumn, DotTable, Est, Gutter, Missing, TextColumn
+from styles_plot._grid import place_on_levels
 from styles_plot._render import BuildError, Canvas, Ctx, Plan
 from styles_plot._tags import tag
 from styles_plot._text import PT, line_h
 
 TOP = 0.08  # inches above the first header line
 SUB_GAP = 0.06  # inches of air inside a row's second line
-STRIP_GAP = 0.12  # inches between two words on one strip level
 RIGHT = 0.1  # inches right of the last column
 
 
@@ -284,15 +284,9 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
         if rl.label:
             items.append((c.dx(rl.x), ctx.measure(rl.label, sz.tag)[0],
                           (rl.label, ctx.chrome("muted"), "normal", sz.tag, {"kind": "rule_label"})))  # fmt: skip
-    placed: list[tuple[float, float, int]] = []
-    for xc, w, payload in sorted(items, key=lambda it: it[0]):
-        x0 = min(max(xc - w / 2, 0.0), max(c.w - w, 0.0))
-        level = 0
-        while any(lv == level and x0 < b + STRIP_GAP and a < x0 + w + STRIP_GAP for a, b, lv in placed):
-            level += 1
-        placed.append((x0, x0 + w, level))
-        c.strip.append((x0, level, *payload))
-    return max((lv for *_ab, lv in placed), default=-1) + 1
+    placed, levels = place_on_levels(items, c.w)
+    c.strip = [(x0, level, *payload) for x0, level, payload in placed]
+    return levels
 
 
 # ---- draw ------------------------------------------------------------------------------------------------------------

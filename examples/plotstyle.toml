@@ -1,0 +1,141 @@
+# The examples' vocabulary: synthetic, no project's words. A project writes its own file like this one.
+
+[project]
+name = "styles-plot examples"
+
+[roles.first]
+slot = "ink"
+word = "method A"
+meaning = "the first method under test"
+
+[roles.second]
+slot = "violet"
+word = "method B"
+meaning = "the second method under test"
+
+[roles.probe]
+slot = "teal"
+word = "probe"
+meaning = "a linear probe of the same signal"
+
+[roles.swap]
+slot = "amber"
+word = "swap"
+meaning = "anything measured under a swap"
+
+[controls]
+names = ["a random direction", "shuffled labels"]
+
+[key]
+tick = "the largest control of the same size"
+band = "within 0.10 of a random direction"
+
+[intervals]
+ci95 = "95% interval"
+iqr = "interquartile range"
+sem = "± 1 SEM (bootstrap)"
+
+[units.drop]
+title = "accuracy drop (points)"
+quantity = "accuracy drop"
+format = "points"
+
+[units.gap]
+title = "gap: A − B (points)"
+quantity = "gap"
+format = "points"
+
+[units.blocked]
+title = "share of switches"
+quantity = "switches blocked"
+format = "share"
+
+[units.gap_share]
+title = "gap: A − B (share of switches)"
+quantity = "gap"
+format = "share"
+
+[units.accuracy]
+title = "accuracy (%)"
+quantity = "accuracy"
+format = "accuracy"
+
+[units.rank]
+title = "rank of the target word, lower is easier (log scale)"
+quantity = "rank"
+format = "z"
+scale = "log"
+
+[units.layer]
+title = "layer"
+format = "z"
+cue = false
+
+[units.score]
+title = "projection score"
+quantity = "score"
+format = "share"
+
+[units.prompts]
+title = "prompts"
+quantity = "prompts"
+format = "z"
+
+[units.share]
+title = "share of answers"
+quantity = "share"
+format = "share"
+
+[terms]
+canonical = [
+    "synthetic data",
+    "Test A · synthetic", "Test B · synthetic",
+    "accuracy drop", "gap", "switches blocked", "accuracy", "rank", "projection score", "answers",
+    "set one", "set two",
+    "correct", "wrong", "no answer",
+    "UMAP", "PCA", "first layer", "last layer",
+    "input", "model", "output", "The capital of France is",
+    "chance", "layer 11",
+]
+templates = ["{num} items", "bar fixed in advance: {num}"]
+missing = ["no run", "no interval", "below gate"]
+not_claimed = ["shared with a baseline", "gone under another score"]
+
+[[terms.banned]]
+pattern = "ablation"
+use = "knock-out"
+
+[[terms.banned]]
+pattern = "pts"
+use = "points"
+
+[[entities.models]]
+key = "m1"
+name = "Model 1"
+
+[[entities.models]]
+key = "m2"
+name = "Model 2"
+
+[[entities.models]]
+key = "m3"
+name = "Model 3"
+
+[[entities.models]]
+key = "m4"
+name = "Model 4"
+
+[[entities.models]]
+key = "m5"
+name = "Model 5"
+
+[[entities.checkpoints]]
+key = "c1"
+name = "checkpoint 1"
+
+[[entities.checkpoints]]
+key = "c2"
+name = "checkpoint 2"
+
+[registry]
+path = "status.csv"

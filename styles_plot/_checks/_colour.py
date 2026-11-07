@@ -13,7 +13,7 @@ from styles_plot._tags import DATA_KINDS, tags
 
 # role-tagged artists whose colour is the role's
 _ROLE_KINDS = DATA_KINDS | {"whisker", "shading", "tick", "median", "role_word", "value", "key_mark", "schematic_word",
-                            "box", "arrow"}  # fmt: skip
+                            "box", "arrow", "swatch"}  # fmt: skip
 _NAMING_KINDS = {"role_word", "schematic_word"}
 
 
@@ -34,7 +34,7 @@ def check(cx: CheckCtx) -> list[Problem]:
         role = t.get("role")
         if role is not None and t.get("kind") in _ROLE_KINDS:
             want = pal.control if role == "control" else pal.other if role == "other" else v.roles[role].hex
-            ok = {want, bg} if t.get("kind") in DATA_KINDS else {want}
+            ok = {want, bg} if t.get("kind") in DATA_KINDS | {"swatch"} else {want}
             if t.get("kind") == "value" and role == "control":
                 ok = {pal.chrome["muted"]}
             for c in cols - ok:

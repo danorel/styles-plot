@@ -55,7 +55,7 @@ TARGETS: dict[str, Theme] = {
     "post": Theme("post", 8.0, 200, (1.0, 2.6)),
     # a slide's figure area, 12.3 x 5.3 in at 200 dpi; the slide title carries the claim, the notes the caption
     "slide": Theme("slide", 12.3, 200, None, height_in=5.3, min_pt=12.0,
-                   sizes=Sizes(14, 13, 13, 12, 13, 14, 12, 12, 12), row_h=0.5, sub_h=0.3, pad=0.3),  # fmt: skip
+                   sizes=Sizes(14, 13, 13, 12, 12, 13, 12, 12, 12), row_h=0.4, sub_h=0.26, pad=0.3),  # fmt: skip
     # a README's figure, 11 in at 160 dpi (shown at the 880 px column): a bold claim above, a caption under
     "readme": Theme("readme", 11.0, 160, (1.0, 3.0), sizes=Sizes(13, 12, 12, 11, 12, 13, 11, 11, 11),
                     title=True, caption=True),  # fmt: skip
@@ -97,6 +97,9 @@ class Phrases:
     cue: str = "→ more {}"  # under an x-axis
     cue_y: str = "↑ more {}"  # beside a sweep's value axis
     control_mark: str = "●"  # the grey mark before the key's control phrase
+    key_roles: str = "colour = role"  # the key figure's two section headers
+    key_marks: str = "marks"
+    key_missing: str = "a missing cell says why: {}"
 
     @property
     def cue_prefixes(self) -> tuple[str, str]:
@@ -147,7 +150,7 @@ def marks_from(doc: dict | None) -> MarkStyle:
 
 def phrases_from(doc: dict | None) -> Phrases:
     p = _merge(Phrases(), doc or {}, "[phrases]")
-    for k in ("control", "tick", "whisker", "shading", "band", "not_claimed", "cue", "cue_y"):
+    for k in ("control", "tick", "whisker", "shading", "band", "not_claimed", "cue", "cue_y", "key_missing"):
         if getattr(p, k).count("{}") != 1:
             raise ValueError(f"[phrases].{k}: needs exactly one {{}} placeholder")
     if "←" in p.cue or "←" in p.cue_y:
