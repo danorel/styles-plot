@@ -26,6 +26,7 @@ from styles_plot._grid import (
 )
 from styles_plot._model import Sweep
 from styles_plot._render import BuildError, Canvas, Ctx, Plan
+from styles_plot._table import rule_label
 from styles_plot._tags import tag
 from styles_plot._text import PT, line_h
 
@@ -95,8 +96,9 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
                       (word, ctx.role_hex(ln.role), "bold", sz.role_word, {"kind": "role_word", "role": ln.role})))  # fmt: skip
     for rl in s.rules:
         if rl.label:
-            items.append((dx(rl.x), ctx.measure(rl.label, sz.tag)[0],
-                          (rl.label, ctx.chrome("muted"), "normal", sz.tag, {"kind": "rule_label"})))  # fmt: skip
+            text = rule_label(ctx, rl)
+            items.append((dx(rl.x), ctx.measure(text, sz.tag)[0],
+                          (text, ctx.chrome("muted"), "normal", sz.tag, {"kind": "rule_label"})))  # fmt: skip
     role_items = [it for it in items if it[2][4]["kind"] == "role_word"]
     line = place_in_line(role_items, pw)
     occupied = [(x0, x0 + ctx.measure(p[0], sz.role_word, "bold")[0], 0) for x0, p in line]

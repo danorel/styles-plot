@@ -2,7 +2,7 @@
 
     styles-plot check <dir> [--vocab plotstyle.toml] [--target post]   saved PNGs: size, background, palette; with
                                                                        sidecars: meaning, staleness, one key one string
-    styles-plot sheet <dir> [--width 720] [-o DIR]                     contact sheets, colour and gray
+    styles-plot sheet <dir> [--width 720] [-o DIR] [--order FILE]      contact sheets, colour and gray
     styles-plot key --vocab plotstyle.toml [-o key.png] [--target post] the project's key figure
     styles-plot palette [--vocab plotstyle.toml]                       colour-vision table of the slots
 """
@@ -73,6 +73,14 @@ def _check(args) -> int:
 def _sheet(args) -> int:
     root = Path(args.dir)
     pngs = figures_in(root)
+    if args.order:  # one file name (or stem) per line: that order first, the rest after in name order
+        wanted = [ln.strip() for ln in Path(args.order).read_text().splitlines() if ln.strip()]
+        rank = {Path(n).stem: i for i, n in enumerate(wanted)}
+        missing = [n for n in wanted if not any(p.stem == Path(n).stem for p in pngs)]
+        if missing:
+            print(f"styles-plot sheet: not found under {root}: {', '.join(missing)}", file=sys.stderr)
+            return 2
+        pngs = sorted(pngs, key=lambda p: (rank.get(p.stem, len(rank)), p.name))
     if not pngs:
         print(f"styles-plot sheet: no PNGs under {root}", file=sys.stderr)
         return 2
@@ -126,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("dir")
     s.add_argument("--width", type=int, default=720)
     s.add_argument("-o", "--out", help="directory for the sheets (default: the figures' directory)")
+    s.add_argument("--order", help="a text file: one figure name per line, in reading order")
     k = sub.add_parser("key", help="draw the project's key figure")
     k.add_argument("--vocab", required=True)
     k.add_argument("-o", "--out", default="key.png")

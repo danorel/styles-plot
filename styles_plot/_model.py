@@ -58,10 +58,13 @@ Value = Union[Est, Missing, Count]
 
 @dataclass(frozen=True)
 class Rule:
-    """A dashed grey reference line with a canonical label ("chance")."""
+    """A dashed grey reference line with a canonical label ("chance"). A label with a number in it is a template with
+    one "{}" filled with `x` in `unit`'s format and logged under `key` ("bar fixed in advance: {}")."""
 
     x: float
     label: str = ""
+    unit: str | None = None
+    key: str | None = None
 
 
 # ---- dot table ---------------------------------------------------------------------------------------------------------
@@ -70,6 +73,7 @@ class Series:
     role: str  # a vocabulary role, or "control"
     cells: Mapping[str, Est | Missing]
     control: str | None = None  # for role "control": which control ([controls].names)
+    word: str | None = None  # the colour word above the first row (a vocabulary term); default: the role's word
 
 
 @dataclass(frozen=True)
@@ -92,6 +96,7 @@ class TextColumn:
     unit: str
     cells: Mapping[str, Value]
     role: str | None = None  # colour of the printed values; None = ink
+    unit_title: bool = True  # False: no unit title under the column (its header already names the quantity)
 
 
 @dataclass(frozen=True)

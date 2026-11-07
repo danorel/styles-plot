@@ -38,10 +38,11 @@ def key(v: sp.Vocab) -> sp.Figure:
     gap_col = sp.DotColumn("gap", "gap", (-4, 98), (0, 30, 60),
                            series=[sp.Series("first", {m: sp.Est(gap, gap - 4, gap + 4, cell="band.m2",
                                                                  key="gap.band.m2", label=True)})])  # fmt: skip
-    text = (f"read: on {v.entity('models', m).name}, the knock-out drops alpha {v.format(a, 'drop')} points and beta "
-            f"{v.format(b, 'drop')}; the gap is {v.format(gap, 'gap')}, the largest same-size control's "
-            f"{v.format(ctrl, 'gap')}")  # fmt: skip
-    return sp.key_figure(v, example=sp.DotTable([m], [col, gap_col]), read_aloud=text)
+    text = (f"read: on {v.entity('models', m).name}, the knock-out drops alpha {{a}} points and beta {{b}}; the gap "
+            "is {gap}, the largest same-size control's {ctrl}")  # fmt: skip
+    numbers = {"a": (a, "drop", "drop.alpha.m2"), "b": (b, "drop", "drop.beta.m2"), "gap": (gap, "gap", "gap.band.m2"),
+               "ctrl": (ctrl, "gap", "ctrl.band.m2")}  # fmt: skip
+    return sp.key_figure(v, example=sp.DotTable([m], [col, gap_col]), read_aloud=text, numbers=numbers)
 
 
 def main(argv: list[str] | None = None) -> int:

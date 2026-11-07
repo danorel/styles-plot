@@ -3,6 +3,22 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.3
+
+From the bridge-jspace pilot port.
+
+- Key figure: the legend sits in two columns (roles left, marks right) on a page 6 in or wider, and every phrase wraps
+  in its column (a long controls line no longer runs off the figure). The read-aloud sentence takes its numbers as
+  `numbers={name: (value, unit, data key)}`: printed in the unit's format and logged by key.
+- `Series(word=...)`: a series' colour word other than its role's (a lane's condition), in the role's colour.
+- `Rule(x, "bar fixed in advance: {}", unit=..., key=...)`: a rule label's number is printed and logged like any other.
+- Missing-cell words avoid vertical lines (left, else right-aligned, else the widest gap).
+- An interval's bounds are never signed, also under a signed format: "+6.2 [3.2, 8.9]". Migration: none needed;
+  0.1.2 printed "[+3.2, +8.9]".
+- `TextColumn(unit_title=False)`: no unit title under a text column whose header names the quantity.
+- `styles-plot sheet --order FILE`: the figures in reading order.
+- pillow is a declared dependency (it always came with matplotlib).
+
 ## 0.1.2
 
 What the bridge-jspace pilot port needs; no change to existing figures.

@@ -180,7 +180,7 @@ class Vocab:
 
     def format_interval(self, lo: float, hi: float, unit: str) -> str:
         f = self.formats[self.unit(unit).format]
-        return _numbers.interval(lo, hi, f.decimals, f.suffix, f.sign)
+        return _numbers.interval(lo, hi, f.decimals, f.suffix)
 
     @staticmethod
     def format_count(k: int, n: int) -> str:

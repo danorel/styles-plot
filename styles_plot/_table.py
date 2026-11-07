@@ -275,7 +275,8 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
         if c.is_panel or c.is_text:
             c.header = ctx.wrap(c.spec.header, c.w, sz.header, "bold") if c.spec.header else []
             u = v.unit(c.spec.unit)
-            c.title = ctx.wrap(u.title, c.w + ctx.theme.pad * 0.8, sz.axis)
+            show = c.is_panel or c.spec.unit_title
+            c.title = ctx.wrap(u.title, c.w + ctx.theme.pad * 0.8, sz.axis) if show else []
             if c.is_panel and u.cue:
                 c.cue = ctx.wrap(v.cue(u.name), c.w + ctx.theme.pad * 0.8, sz.cue)
     header_h = max((len(c.header) for c in lay.cols), default=0) * line_h(sz.header) + 0.08
@@ -301,20 +302,20 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
     first = {k: (i, j) for i, r in enumerate(lay.rows) for j, k in enumerate(r.keys)}
     words, seen = [], set()
     for s in c.spec.series:
-        if s.role == "control" or s.role in seen:
+        word = None if s.role == "control" else (s.word or ctx.vocab.role(s.role).word)
+        if word is None or word in seen:
             continue
         xs = sorted((first[rk], val.value) for rk, val in s.cells.items() if isinstance(val, Est) and rk in first)
         if not xs:
             continue
-        seen.add(s.role)
-        word = ctx.vocab.role(s.role).word
+        seen.add(word)
         words.append((c.dx(xs[0][1]), ctx.measure(word, sz.role_word, "bold")[0],
                       (word, ctx.role_hex(s.role), "bold", sz.role_word, {"kind": "role_word", "role": s.role})))  # fmt: skip
     line = place_in_line(words, c.w)
     occupied = [(x0, x0 + ctx.measure(p[0], sz.role_word, "bold")[0], 0) for x0, p in line]
-    rules = [(c.dx(rl.x), ctx.measure(rl.label, sz.tag)[0],
-              (rl.label, ctx.chrome("muted"), "normal", sz.tag, {"kind": "rule_label"}))
-             for rl in c.spec.rules if rl.label]  # fmt: skip
+    labels = [(rl, rule_label(ctx, rl)) for rl in c.spec.rules if rl.label]
+    rules = [(c.dx(rl.x), ctx.measure(text, sz.tag)[0], (text, ctx.chrome("muted"), "normal", sz.tag,
+              {"kind": "rule_label", **({"key": rl.key} if rl.key else {})})) for rl, text in labels]  # fmt: skip
     placed, levels = place_on_levels(rules, c.w, occupied)
     c.strip = [(x0, 0, *p) for x0, p in line] + [(x0, level, *p) for x0, level, p in placed]
     return max(levels, 1 if line else 0)
@@ -471,7 +472,7 @@ def _line(cv: Canvas, ax, ctx: Ctx, c: _Col, key, y_abs: float, head: float, vli
     labels = []
     for s, val in _cells(spec, key):
         if isinstance(val, Missing):
-            cv.text(c.x + 0.04, y_abs, val.words, kind="missing", size=ctx.sizes.tag, color=ctx.chrome("muted"))
+            _missing(cv, ctx, c, y_abs, val.words, vlines)
             continue
         extents += _dot(ax, ctx, s, val, y)
         if val.label:
@@ -479,6 +480,28 @@ def _line(cv: Canvas, ax, ctx: Ctx, c: _Col, key, y_abs: float, head: float, vli
     for val, role in labels:
         col = ctx.chrome("muted") if role == "control" else ctx.role_hex(role)
         _value_label(cv, ctx, c, y_abs, ctx.value(spec.unit, val.value, val.key), col, extents, vlines, val, role)
+
+
+def _missing(cv: Canvas, ctx: Ctx, c: _Col, y: float, words: str, vlines) -> None:
+    """Missing-cell words where they cross no vertical line: at the panel's left, else right-aligned at its right,
+    else in the widest gap between lines."""
+    w = ctx.measure(words, ctx.sizes.tag)[0]
+    clear = 4 * PT
+    xs = sorted(c.dx(v) for v in vlines)
+    candidates = [0.04, c.w - 0.04 - w]
+    edges = [0.0, *xs, c.w]
+    candidates += [a + clear for a, b in zip(edges, edges[1:]) if b - a - 2 * clear >= w]
+    best = next((x0 for x0 in candidates if not any(x0 - clear < xv < x0 + w + clear for xv in xs)), candidates[0])
+    cv.text(c.x + best, y, words, kind="missing", size=ctx.sizes.tag, color=ctx.chrome("muted"))
+
+
+def rule_label(ctx: Ctx, rl) -> str:
+    """A rule's label, its number (if any) printed in the rule's unit and logged under its key."""
+    if rl.unit is None:
+        return rl.label
+    if rl.label.count("{}") != 1:
+        raise BuildError(f"{ctx.figure_id}: rule label {rl.label!r} needs one {{}} for its number")
+    return rl.label.format(ctx.value(rl.unit, rl.x, rl.key))
 
 
 def _second_line_in(r: _Row, c: _Col, ctx: Ctx) -> bool:

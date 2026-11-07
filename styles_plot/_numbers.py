@@ -24,8 +24,9 @@ def decimal(value: float, decimals: int, suffix: str = "", sign: bool = False) -
     return s.replace("-", MINUS) + suffix
 
 
-def interval(lo: float, hi: float, decimals: int, suffix: str = "", sign: bool = False) -> str:
-    return f"[{decimal(lo, decimals, suffix, sign)}, {decimal(hi, decimals, suffix, sign)}]"
+def interval(lo: float, hi: float, decimals: int, suffix: str = "") -> str:
+    """An interval at the value's precision; its bounds are never signed ("+6.2 [3.2, 8.9]")."""
+    return f"[{decimal(lo, decimals, suffix)}, {decimal(hi, decimals, suffix)}]"
 
 
 def count(k: int, n: int) -> str:

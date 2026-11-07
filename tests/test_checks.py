@@ -360,4 +360,69 @@ def test_signed_format(vocab_dir):
     p.write_text(p.read_text() + '\n[formats.diff]\ndecimals = 1\nsign = true\n[units.diff]\ntitle = "difference (points)"\nquantity = "difference"\nformat = "diff"\n')
     v = sp.load(p)
     assert v.format(3.25, "diff") == "+3.2" and v.format(-1.0, "diff") == "−1.0" and v.format(0.01, "diff") == "0.0"
-    assert v.format_interval(-1, 2, "diff") == "[−1.0, +2.0]"
+    assert v.format_interval(-1, 2, "diff") == "[−1.0, 2.0]"  # bounds never signed
+
+
+# ---- v0.1.3 ----------------------------------------------------------------------------------------------------------
+BIG = """
+[project]
+name = "big"
+[controls]
+names = ["rotated", "logit lens", "PCA", "a random part", "energy-matched random", "a random vector",
+         "layout-only probe", "10 random heads", "no change"]
+[key]
+tick = "the largest same-size control"
+band = "within 0.10 of a random part"
+[units.drop]
+title = "accuracy drop (points)"
+quantity = "accuracy drop"
+format = "points"
+[terms]
+canonical = ["accuracy drop"]
+templates = ["read: on {entity}, recall drops {num} points"]
+[[entities.models]]
+key = "m"
+name = "Model"
+"""
+
+
+def test_key_figure_at_project_scale(tmp_path):
+    roles = "".join(f'[roles.r{i}]\nslot = "{s}"\nword = "role {i}"\nmeaning = "a fairly long meaning for role {i}, '
+                    f'one line"\n' for i, s in enumerate(("ink", "violet", "teal", "amber", "blue", "brick", "slate")))
+    (tmp_path / "status.csv").write_text("figure,cell,timing,claim,claim_reason,reason,source\nkey,c,fixed_in_advance,claimed,,,\n")
+    v = sp.loads(BIG + roles + '[registry]\npath = "status.csv"\n', root=tmp_path)
+    col = sp.DotColumn("accuracy drop", "drop", (0, 70), (0, 30, 60),
+                       [sp.Series("r0", {"m": sp.Est(46.6, 40, 50, cell="c")})], ticks={"m": 10})  # fmt: skip
+    fig = sp.key_figure(v, example=sp.DotTable(["m"], [col]), read_aloud="read: on Model, recall drops {x} points",
+                        numbers={"x": (46.6, "drop", "ko.m")})  # fmt: skip
+    mpl, problems = run(fig)
+    assert problems == [], [str(p) for p in problems]
+    w, h = mpl.get_size_inches()
+    assert w / h >= 1.0
+    assert ("ko.m", "46.6") in mpl._sp_info.numbers
+    with pytest.raises(sp.BuildError, match="field without a number"):
+        sp.key_figure(v, example=sp.DotTable(["m"], [col]), read_aloud="read: {y}").render("post")
+
+
+def test_series_word_rule_number_missing_and_unit_title(vocab):
+    col = sp.DotColumn("accuracy", "accuracy", (-20, 100), (0, 50, 100), [
+        sp.Series("second", {"m1": sp.Est(60, cell="acc.m1"), "m2": sp.Missing("no run")}, word="probe")],
+        rules=[sp.Rule(50, "bar fixed in advance: {}", unit="accuracy", key="bar")])  # fmt: skip
+    tc = sp.TextColumn("answers", "prompts", {"m1": sp.Count(3, 4, cell="acc.m1", key="n.m1")}, unit_title=False)
+    mpl, problems = run(sp.Figure("methods", vocab).add(sp.DotTable(["m1", "m2"], [col, tc])))
+    assert problems == [], [str(p) for p in problems]
+    words = {t.get_text(): tags(t) for t in mpl.findobj(lambda a: tags(a).get("kind") == "role_word")}
+    assert "probe" in words and words["probe"]["role"] == "second"
+    assert ("bar", "50") in mpl._sp_info.numbers
+    assert "prompts" not in {t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "axis_title")}
+
+
+def test_sheet_order(tmp_path, vocab):
+    from styles_plot._cli import main
+
+    for build in (example("stack").stack, example("dot_table").methods):
+        sp.save(build(vocab), tmp_path / f"{build.__name__}.png", "post")
+    (tmp_path / "order.txt").write_text("stack\nmethods.png\n")
+    assert main(["sheet", str(tmp_path), "--order", str(tmp_path / "order.txt")]) == 0
+    (tmp_path / "bad.txt").write_text("nope\n")
+    assert main(["sheet", str(tmp_path), "--order", str(tmp_path / "bad.txt")]) == 2

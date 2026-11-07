@@ -4,7 +4,7 @@
 
 ```
 # uv / pyproject.toml
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.2
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.3
 # pip / requirements.txt
 styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.2
 ```
@@ -77,6 +77,10 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
 
 - Every number comes from your data by code; `key=` names it so `styles-plot check` can tell when one key prints two
   strings across figures.
+- A rule label with a number is a template: `sp.Rule(15, "bar fixed in advance: {}", unit="points", key="bar")`.
+  The key figure's sentence likewise: `sp.key_figure(v, example=..., read_aloud="… drops {a} points …",
+  numbers={"a": (value, "points", "ko.q27.drop")})`.
+- A lane named by its condition rather than its role: `sp.Series("recall", cells, word="knock-out")`.
 - Start a migration with `mode="compat"`: it writes the figure, warns, and records each problem in the sidecar. Fix
   them, then drop `compat`.
 - `fig.render("notebook")` gives a matplotlib figure for a quick look; a notebook PNG is never publishable.
