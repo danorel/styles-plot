@@ -97,7 +97,9 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
 
     ytw = y_tick_width(ctx, yt)
     px0 = label_w + ytw
-    right = max([RIGHT, *(ctx.measure(t, sz.tag)[0] + 0.15 for _rl, t in hlabels if t)])
+    end_words = [ln.word for ln in s.lines if ln.word and ln.role != "control"]
+    right = max([RIGHT, *(ctx.measure(t, sz.tag)[0] + 0.15 for _rl, t in hlabels if t),
+                 *(ctx.measure(w, sz.role_word, "bold")[0] + 0.15 for w in end_words)])  # fmt: skip
     pw = width - px0 - right
     panel_h = s.panel_h or th.row_h * 2.4
     header = s.header or yu.quantity
@@ -111,7 +113,7 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
 
     items, seen = [], set()
     for ln in lines[s.rows[0]]:
-        word = None if ln.role == "control" else (ln.word or ctx.vocab.role(ln.role).word)
+        word = None if ln.role == "control" or ln.word else ctx.vocab.role(ln.role).word
         if word is None or word in seen:
             continue
         seen.add(word)
@@ -180,13 +182,21 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
             for rl in s.rules:
                 tag(ax.plot([rl.x, rl.x], ylim, color=ctx.chrome("rule"), lw=ctx.marks.rule_lw,
                             ls=(0, ctx.marks.rule_dash), zorder=1), kind="rule")  # fmt: skip
-            for rl, text in hlabels:
+            for rl, _text in hlabels:
                 tag(ax.plot(xlim, [rl.x, rl.x], color=ctx.chrome("rule"), lw=ctx.marks.rule_lw,
                             ls=(0, ctx.marks.rule_dash), zorder=1), kind="rule")  # fmt: skip
+            margin = []  # words in the right margin of this panel: (y, text, colour, weight, size, tags)
+            for rl, text in hlabels:
                 if text and row == s.rows[0]:  # labelled once, in the margin right of the first panel
                     yy = top + (1 - _frac(rl.x, ylim, yu.scale)) * panel_h
-                    cv.text(px0 + pw + 0.08, yy, text, kind="rule_label", size=sz.tag, color=muted,
-                            **({"key": rl.key} if rl.key else {}))  # fmt: skip
+                    margin.append((yy, text, muted, "normal", sz.tag, {"kind": "rule_label",
+                                                                       **({"key": rl.key} if rl.key else {})}))  # fmt: skip
+            for ln in lines[row]:  # a line with its own word is named at its last point
+                if ln.word and ln.role != "control":
+                    yy = top + (1 - _frac(float(ln.y[-1]), ylim, yu.scale)) * panel_h
+                    margin.append((yy, ln.word, ctx.role_hex(ln.role), "bold", sz.role_word,
+                                   {"kind": "role_word", "role": ln.role}))  # fmt: skip
+            _margin_words(cv, ctx, px0 + pw + 0.08, top, panel_h, margin)
             for ln in lines[row]:
                 _line(ax, ctx, ln)
             def to_in(xs, ys, top=top):
@@ -205,6 +215,25 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
         draw_x_bottom(cv, ctx, px0, pw, tops[s.rows[-1]] + panel_h, xlim, xt, xu, xtitle, xcue, pid=None)
 
     return Plan(height, enc, draw)
+
+
+def _margin_words(cv: Canvas, ctx: Ctx, x: float, top: float, height: float, items) -> None:
+    """Words in a panel's right margin at their y (a line's last value, a rule), pushed apart vertically so none
+    overlap, kept within the panel's height where they fit."""
+    if not items:
+        return
+    items = sorted(items, key=lambda it: it[0])
+    ys = [it[0] for it in items]
+    hs = [line_h(it[4]) for it in items]
+    for i in range(1, len(ys)):  # push down past the one above
+        ys[i] = max(ys[i], ys[i - 1] + (hs[i - 1] + hs[i]) / 2)
+    over = ys[-1] + hs[-1] / 2 - (top + height)
+    if over > 0:  # pull the stack back up, not above the panel's top
+        ys = [y - over for y in ys]
+        for i in range(len(ys) - 2, -1, -1):
+            ys[i] = min(ys[i], ys[i + 1] - (hs[i] + hs[i + 1]) / 2)
+    for y, (_y0, text, colour, weight, size, meta) in zip(ys, items):
+        cv.text(x, y, text, size=size, color=colour, weight=weight, **meta)
 
 
 def _cue_wraps(ctx: Ctx, parts, width: float) -> int:

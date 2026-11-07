@@ -3,6 +3,15 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.7
+
+From the bridge-jspace breadth port.
+
+- Sweep: a line with its own word (`Line(word=...)`) is named at its last point, in the panel's right margin, the
+  words pushed apart so two nearly overlapping lines of one role are told apart; lines without a word keep the role
+  word above the panel.
+- Dot table: a rule that repeats in several columns (same place, same words) is labelled over its first column only.
+
 ## 0.1.6
 
 Grammar decisions of 7 Nov.

@@ -666,3 +666,24 @@ def test_key_figure_with_many_controls_keeps_its_aspect(tmp_path):
     assert problems == [], [str(p) for p in problems]
     w, h = mpl.get_size_inches()
     assert w / h >= 1.0
+
+
+def test_two_lines_of_one_role_named_at_their_ends_and_one_label_per_rule(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text().replace('"chance", "layer 11",', '"chance", "layer 11", "early", "late",'))
+    v = sp.load(p)
+    xs = list(range(0, 25))
+    lines = [sp.Line("c1", "probe", xs, [1000 / (1 + x) + 100 for x in xs], cell="line.c1", word="early"),
+             sp.Line("c1", "probe", xs, [1000 / (1 + x) + 110 for x in xs], cell="line.c1", word="late")]  # nearly overlapping
+    mpl, problems = run(sp.Figure("sweep", v).add(sp.Sweep(["c1"], "layer", "rank", lines, kind="checkpoints",
+                                                              xticks=[0, 10, 20])))  # fmt: skip
+    assert problems == [], [str(p) for p in problems]
+    r = mpl.canvas.get_renderer()
+    words = {t.get_text(): t.get_window_extent(r) for t in mpl.findobj(lambda a: tags(a).get("kind") == "role_word")}
+    ax = mpl.axes[0]
+    assert set(words) == {"early", "late"} and all(b.x0 > ax.get_window_extent(r).x1 for b in words.values())
+    col = lambda h: sp.DotColumn(h, "accuracy", (0, 100), (0, 50, 100), [sp.Series("second", {"m1": sp.Est(30, cell="acc.m1")})],
+                                 rules=[sp.Rule(50, "chance")])  # noqa: E731
+    mpl, problems = run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [col("accuracy"), col("answers")])))
+    assert problems == []
+    assert len(mpl.findobj(lambda a: tags(a).get("kind") == "rule_label")) == 1

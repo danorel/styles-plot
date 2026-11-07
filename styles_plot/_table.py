@@ -323,7 +323,8 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
             if c.is_panel and u.cue:
                 c.cue = ctx.wrap(v.cue(u.name), c.w + ctx.theme.pad * 0.8, sz.cue)
     header_h = max((len(c.header) for c in lay.cols), default=0) * line_h(sz.header) + 0.08
-    levels = max((_strip(c, lay, ctx) for c in lay.cols if c.is_panel), default=0)
+    seen_rules: set = set()  # an identical rule (same place and words) is labelled over its first column only
+    levels = max((_strip(c, lay, ctx, seen_rules) for c in lay.cols if c.is_panel), default=0)
     lay.head = TOP + lay.note_h + lay.group_h + header_h
     lay.strip_h = levels * line_h(sz.role_word) + 0.1
     y = lay.head + lay.strip_h
@@ -338,7 +339,7 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
     lay.height = lay.body_end + lay.tick_h + lay.title_h + cue_h + 0.12
 
 
-def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
+def _strip(c: _Col, lay: _Layout, ctx: Ctx, seen_rules: set) -> int:
     """A panel's role words on one line above the first row, in the order their dots appear (left to right), and its
     rule labels on the line above them where they would collide. Returns the number of lines."""
     sz = ctx.sizes
@@ -366,6 +367,9 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
     levels = 1 if line else 0
     # rule labels: wrapped to the panel's width, each a block of consecutive levels clear of the words and each other
     for rl in sorted((rl for rl in c.spec.rules if rl.label), key=lambda rl: rl.x):
+        if (rl.x, rl.label, rl.unit) in seen_rules:
+            continue
+        seen_rules.add((rl.x, rl.label, rl.unit))
         text = rule_label(ctx, rl)
         lines = ctx.wrap(text, c.w, sz.tag)
         w = max(ctx.measure(t, sz.tag)[0] for t in lines)
