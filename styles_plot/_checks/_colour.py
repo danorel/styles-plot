@@ -53,7 +53,7 @@ def check(cx: CheckCtx) -> list[Problem]:
     for r in sorted(drawn_roles - named_roles):
         out.append(cx.problem("SP104", f"the {r!r} colour is drawn but no word in it names it"))
     for r in sorted(named_roles - drawn_roles):
-        if not cx.info.direct_labels:
+        if not (cx.info.direct_labels or cx.info.key_figure):
             out.append(cx.problem("SP104", f"a word names the {r!r} colour but nothing of that role is drawn"))
     return out
 

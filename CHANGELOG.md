@@ -3,6 +3,19 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.1
+
+- Key figure: adds the grey tick, the grey band and one example row from the data read aloud
+  (`key_figure(vocab, example=..., read_aloud=...)`); draws the post hoc and whisker samples in ink; no key line
+  repeated under it.
+- Cue word per unit: `cue_word = "larger"` gives "→ larger gap". Migration: a project that overrides `[phrases].cue`
+  or `cue_y` writes `{word}` and `{quantity}` instead of `{}` ("→ {word} {quantity}").
+- Colour words above a panel sit on one line, in the order their dots appear.
+- Slide target: 12.3 × 6.5 in. A figure that does not fit fails strict; split it.
+- Sweep: a whole line's status is a grey panel tag ("post hoc", "descriptive", joined with " · "); a post hoc line no
+  longer fails to build. Points keep hollow or filled.
+- `examples/build_gallery.py` takes `--out` and `--targets`.
+
 ## 0.1.0
 
 First release.

@@ -3,7 +3,7 @@
 SP401 a text that is not a vocabulary term, a template, a number, an entity name, a role word or a library phrase
 SP402 a banned variant
 SP403 something that looks like a run id or a UTC stamp
-SP404 a cue that does not start with the cue phrase ("→ more ", or "↑ more " beside a value axis)
+SP404 a cue that does not read "→ more <quantity>" (or "→ larger …"; "↑ …" beside a sweep's value axis)
 SP405 a left arrow anywhere
 SP406 a panel whose unit has a direction but no cue
 SP407 a panel without its axis title
@@ -71,9 +71,14 @@ def check(cx: CheckCtx) -> list[Problem]:
     return out
 
 
+def _cue_re(template: str, words: tuple[str, ...]) -> re.Pattern:
+    rx = re.escape(template).replace(re.escape("{word}"), f"(?:{'|'.join(map(re.escape, words))})")
+    return re.compile(rx.replace(re.escape("{quantity}"), r"\S.*"))
+
+
 def _cues(cx: CheckCtx) -> list[Problem]:
     w = cx.vocab.words
-    x_prefix, y_prefix = w.cue_prefixes
+    patterns = {"x": _cue_re(w.cue, w.cue_words), "y": _cue_re(w.cue_y, w.cue_words)}
     out: list[Problem] = []
     cues: dict[int, str] = {}
     titles: set[int] = set()
@@ -81,9 +86,10 @@ def _cues(cx: CheckCtx) -> list[Problem]:
         t = tags(t_)
         if t.get("kind") == "cue":
             s = full_text(t_)
-            prefix = y_prefix if t.get("axis") == "y" else x_prefix
-            if not s.startswith(prefix) or len(s) == len(prefix):
-                out.append(cx.problem("SP404", f"cue {s!r} does not read {prefix!r}<quantity>"))
+            axis = "y" if t.get("axis") == "y" else "x"
+            if not patterns[axis].fullmatch(s):
+                template = w.cue_y if axis == "y" else w.cue
+                out.append(cx.problem("SP404", f"cue {s!r} does not read {template!r} ({' or '.join(w.cue_words)})"))
             if "panel" in t:
                 cues[t["panel"]] = s
         elif t.get("kind") == "axis_title" and "panel" in t:

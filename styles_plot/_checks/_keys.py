@@ -30,6 +30,8 @@ def drawn_encodings(cx: CheckCtx) -> set[tuple]:
             enc.add(("median",))
         if t.get("role") == "control" and t.get("control"):
             enc.add(("control", t["control"]))
+        if t.get("role") == "control" and t.get("kind") == "swatch":
+            enc |= {("control", c) for c in t.get("controls", ())}
     return enc
 
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from matplotlib.patches import Rectangle
 
 from styles_plot._model import ColumnGroup, Count, DotColumn, DotTable, Est, Gutter, Missing, TextColumn
-from styles_plot._grid import place_on_levels
+from styles_plot._grid import place_in_line, place_on_levels
 from styles_plot._render import BuildError, Canvas, Ctx, Plan
 from styles_plot._tags import tag
 from styles_plot._text import PT, line_h
@@ -248,7 +248,7 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
             u = v.unit(c.spec.unit)
             c.title = ctx.wrap(u.title, c.w + ctx.theme.pad * 0.8, sz.axis)
             if c.is_panel and u.cue:
-                c.cue = ctx.wrap(ctx.words.cue.format(u.quantity), c.w + ctx.theme.pad * 0.8, sz.cue)
+                c.cue = ctx.wrap(v.cue(u.name), c.w + ctx.theme.pad * 0.8, sz.cue)
     header_h = max((len(c.header) for c in lay.cols), default=0) * line_h(sz.header) + 0.08
     levels = max((_strip(c, lay, ctx) for c in lay.cols if c.is_panel), default=0)
     lay.head = TOP + lay.group_h + header_h
@@ -266,10 +266,11 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
 
 
 def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
-    """Place a panel's role words (each over its first dot) and rule labels on levels; returns the level count."""
+    """A panel's role words on one line above the first row, in the order their dots appear (left to right), and its
+    rule labels on the line above them where they would collide. Returns the number of lines."""
     sz = ctx.sizes
     first = {r.key: i for i, r in enumerate(lay.rows)}
-    items, seen = [], set()
+    words, seen = [], set()
     for s in c.spec.series:
         if s.role == "control" or s.role in seen:
             continue
@@ -278,15 +279,16 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
             continue
         seen.add(s.role)
         word = ctx.vocab.role(s.role).word
-        items.append((c.dx(xs[0][1]), ctx.measure(word, sz.role_word, "bold")[0],
+        words.append((c.dx(xs[0][1]), ctx.measure(word, sz.role_word, "bold")[0],
                       (word, ctx.role_hex(s.role), "bold", sz.role_word, {"kind": "role_word", "role": s.role})))  # fmt: skip
-    for rl in c.spec.rules:
-        if rl.label:
-            items.append((c.dx(rl.x), ctx.measure(rl.label, sz.tag)[0],
-                          (rl.label, ctx.chrome("muted"), "normal", sz.tag, {"kind": "rule_label"})))  # fmt: skip
-    placed, levels = place_on_levels(items, c.w)
-    c.strip = [(x0, level, *payload) for x0, level, payload in placed]
-    return levels
+    line = place_in_line(words, c.w)
+    occupied = [(x0, x0 + ctx.measure(p[0], sz.role_word, "bold")[0], 0) for x0, p in line]
+    rules = [(c.dx(rl.x), ctx.measure(rl.label, sz.tag)[0],
+              (rl.label, ctx.chrome("muted"), "normal", sz.tag, {"kind": "rule_label"}))
+             for rl in c.spec.rules if rl.label]  # fmt: skip
+    placed, levels = place_on_levels(rules, c.w, occupied)
+    c.strip = [(x0, 0, *p) for x0, p in line] + [(x0, level, *p) for x0, level, p in placed]
+    return max(levels, 1 if line else 0)
 
 
 # ---- draw ------------------------------------------------------------------------------------------------------------
@@ -351,7 +353,7 @@ def _bottom(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
         for i, s in enumerate(c.title):
             cv.text(c.x + c.w / 2, y + (i + 0.5) * line_h(sz.axis), s, kind="axis_title", size=sz.axis, color=muted,
                     ha="center", panel=c.pid, unit=c.spec.unit, full=ctx.vocab.unit(c.spec.unit).title)  # fmt: skip
-        full = ctx.words.cue.format(ctx.vocab.unit(c.spec.unit).quantity)
+        full = ctx.vocab.cue(c.spec.unit)
         for i, s in enumerate(c.cue):
             cv.text(c.x + c.w / 2, y + lay.title_h + (i + 0.5) * line_h(sz.cue), s, kind="cue", size=sz.cue,
                     color=muted, ha="center", panel=c.pid, axis="x", full=full)  # fmt: skip

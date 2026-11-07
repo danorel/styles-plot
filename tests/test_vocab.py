@@ -47,7 +47,10 @@ def test_load_examples(vocab):
         ('[targets.poster]\ndpi = 300', "needs width_in and dpi"),
         ('[marks]\nshape = "x"', "unknown keys"),
         ('[phrases]\ntick = "tick"', "placeholder"),
-        ('[phrases]\ncue = "← more {}"', "never points left"),
+        ('[phrases]\ncue = "← {word} {quantity}"', "never points left"),
+        ('[phrases]\ncue = "→ more {quantity}"', "{word} then {quantity}"),
+        ('[phrases]\ncue_words = []', "at least one word"),
+        ('[units.v]\ntitle = "t"\nquantity = "q"\nformat = "z"\ncue_word = "bigger"', "cue_word"),
         ("[terms]\ncanonical = [1]", "list of strings"),
     ],
 )

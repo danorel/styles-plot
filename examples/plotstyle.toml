@@ -5,12 +5,12 @@ name = "styles-plot examples"
 
 [roles.first]
 slot = "ink"
-word = "method A"
+word = "alpha"
 meaning = "the first method under test"
 
 [roles.second]
 slot = "violet"
-word = "method B"
+word = "beta"
 meaning = "the second method under test"
 
 [roles.probe]
@@ -97,7 +97,11 @@ canonical = [
     "input", "model", "output", "The capital of France is",
     "chance", "layer 11",
 ]
-templates = ["{num} items", "bar fixed in advance: {num}"]
+templates = [
+    "{num} items",
+    "bar fixed in advance: {num}",
+    "read: on {entity}, the knock-out drops alpha {num} points and beta {num}; the gap is {num}, the largest same-size control's {num}",
+]
 missing = ["no run", "no interval", "below gate"]
 not_claimed = ["shared with a baseline", "gone under another score"]
 

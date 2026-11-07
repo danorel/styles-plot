@@ -82,10 +82,10 @@ def plan(sc: Scatter, ctx: Ctx, width: float, label_w: float) -> Plan:
                         kind="axis_title", size=sz.axis, color=muted, ha="center")  # fmt: skip
             else:
                 xu, yu = ctx.unit(p.units[0]), ctx.unit(p.units[1])
-                cue = f"   {ctx.words.cue_y.format(yu.quantity)}" if yu.cue else ""
+                cue = ctx.vocab.cue(yu.name, "y") if yu.cue else ""
                 cv.text(x0, y + line_h(sz.axis) / 2, yu.title, kind="axis_title", size=sz.axis, color=muted)
                 if cue:
-                    cv.text(x0 + ctx.measure(yu.title, sz.axis)[0] + 0.3, y + line_h(sz.axis) / 2, cue.strip(),
+                    cv.text(x0 + ctx.measure(yu.title, sz.axis)[0] + 0.3, y + line_h(sz.axis) / 2, cue,
                             kind="cue", axis="y", size=sz.cue, color=muted)  # fmt: skip
                 _, title, xcue = bottoms[j]
                 draw_x_bottom(cv, ctx, x0, pw, head_h + side, xlim, ticks(xlim), xu, title, xcue, pid=None)

@@ -15,7 +15,7 @@ def schematic(v: sp.Vocab) -> sp.Figure:
         sp.Words(4.9, 0.6, [("swap", "swap")]),
         sp.Box(5.6, 0.5, 1.6, 0.7, "output"),
         sp.Words(0.3, 0.25, [("input", None)]),
-        sp.Words(3.3, 1.45, [("method A", "first")], bold=True),
+        sp.Words(3.3, 1.45, [("alpha", "first")], bold=True),
     ]
     return sp.Figure("schematic", v, subtitle="synthetic data", direct_labels=True).add(sp.Schematic(1.8, el))
 

@@ -1,12 +1,13 @@
-"""Build the gallery: every example for every published target, strict, then the contact sheets and the key figure.
+"""Build the gallery: every example for every published target, strict, then the contact sheets.
 
-    python examples/build_gallery.py [OUT_DIR]      # default: gallery/
+    python examples/build_gallery.py [--out gallery] [--targets post slide readme]
 
 Exits 1 when any figure breaks the grammar (strict mode writes nothing for it).
 """
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import sys
 from pathlib import Path
@@ -16,8 +17,7 @@ import styles_plot as sp
 HERE = Path(__file__).resolve().parent
 EXAMPLES = ("dot_table", "sweep", "distribution", "stack", "scatter", "schematic")
 TARGETS = ("post", "slide", "readme")
-# a five-row table with two column groups needs more height than a 12.3 x 5.3 in slide offers
-ONLY = {"dot_table": ("post", "readme")}
+KEY_TARGETS = ("post", "readme")  # the key figure belongs to a reading page; on a slide it does not fit 6.5 in
 
 
 def _module(name: str):
@@ -27,15 +27,37 @@ def _module(name: str):
     return mod
 
 
-def main(argv: list[str]) -> int:
-    out = Path(argv[0]) if argv else HERE.parent / "gallery"
+def key(v: sp.Vocab) -> sp.Figure:
+    """The key figure, with one example row from the dot-table example's data, read aloud."""
+    dt = _module("dot_table")
+    m, (a, b, gap, ctrl) = "m2", dt.example_row()
+    col = sp.DotColumn("accuracy drop", "drop", (-4, 70), (0, 30, 60),
+                       series=[sp.Series("second", {m: sp.Est(b, cell="band.m2")}),
+                               sp.Series("first", {m: sp.Est(a, cell="band.m2")})],
+                       connect=("second", "first"), ticks={m: ctrl})  # fmt: skip
+    gap_col = sp.DotColumn("gap", "gap", (-4, 98), (0, 30, 60),
+                           series=[sp.Series("first", {m: sp.Est(gap, gap - 4, gap + 4, cell="band.m2",
+                                                                 key="gap.band.m2", label=True)})])  # fmt: skip
+    text = (f"read: on {v.entity('models', m).name}, the knock-out drops alpha {v.format(a, 'drop')} points and beta "
+            f"{v.format(b, 'drop')}; the gap is {v.format(gap, 'gap')}, the largest same-size control's "
+            f"{v.format(ctrl, 'gap')}")  # fmt: skip
+    return sp.key_figure(v, example=sp.DotTable([m], [col, gap_col]), read_aloud=text)
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="Build and check the gallery.")
+    ap.add_argument("--out", type=Path, default=HERE.parent / "gallery", help="output folder (default: gallery/)")
+    ap.add_argument("--targets", nargs="+", default=list(TARGETS), help="targets to build")
+    args = ap.parse_args(argv)
+    out = args.out
     v = sp.load(HERE / "plotstyle.toml")
     failed = 0
     figures = [build(v) for name in EXAMPLES for build in _module(name).FIGURES]
-    figures.append(sp.key_figure(v))
+    figures.append(key(v))
     for fig in figures:
         try:
-            sp.save_bundle(fig, out, ONLY.get(fig.id, TARGETS))
+            targets = [t for t in args.targets if fig.id != "key" or t in KEY_TARGETS]
+            sp.save_bundle(fig, out, targets)
             print(f"ok    {fig.id}")
         except sp.StyleError as e:
             failed += 1
@@ -43,7 +65,7 @@ def main(argv: list[str]) -> int:
         except sp.BuildError as e:
             failed += 1
             print(f"FAIL  {fig.id}: {e}")
-    for t in TARGETS:
+    for t in args.targets:
         pngs = sorted(p for p in (out / t).glob("*.png") if not p.name.startswith("contact_sheet"))
         if pngs:
             sp.contact_sheets(pngs, out / t, width=720)
@@ -51,4 +73,4 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main())

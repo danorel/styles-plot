@@ -17,13 +17,25 @@ import styles_plot as sp
 MODELS = ["m1", "m2", "m3", "m4", "m5"]
 
 
-def dot_table(v: sp.Vocab) -> sp.Figure:
+def _band_data():
     rng = np.random.default_rng(1)
-    b = {m: f"band.{m}" for m in MODELS}
-    lyr = {m: f"layer.{m}" for m in MODELS}
     a_drop = {m: 40 + 5 * i + rng.normal(0, 2) for i, m in enumerate(MODELS)}
     b_drop = {m: 3 + rng.normal(0, 1.5) for m in MODELS}
     gap = {m: a_drop[m] - b_drop[m] for m in MODELS}
+    ctrl = {m: 8 + 2 * i for i, m in enumerate(MODELS)}
+    return a_drop, b_drop, gap, ctrl
+
+
+def example_row(m: str = "m2") -> tuple[float, float, float, float]:
+    """One row of the band test (alpha's drop, beta's drop, the gap, the largest control): the key figure's example."""
+    a_drop, b_drop, gap, ctrl = _band_data()
+    return a_drop[m], b_drop[m], gap[m], ctrl[m]
+
+
+def dot_table(v: sp.Vocab) -> sp.Figure:
+    b = {m: f"band.{m}" for m in MODELS}
+    lyr = {m: f"layer.{m}" for m in MODELS}
+    a_drop, b_drop, gap, ctrl = _band_data()
     a_share = {m: 0.45 + 0.08 * i for i, m in enumerate(MODELS)}
     b_share = {m: 0.02 + 0.03 * i for i, m in enumerate(MODELS)}
 
@@ -37,7 +49,7 @@ def dot_table(v: sp.Vocab) -> sp.Figure:
         "gap", "gap", (-4, 98), (0, 30, 60),
         series=[sp.Series("first", {m: sp.Est(gap[m], gap[m] - 4, gap[m] + 4, cell=b[m], key=f"gap.band.{m}",
                                               label=True) for m in MODELS})],
-        ticks={m: 8 + 2 * i for i, m in enumerate(MODELS)},
+        ticks=ctrl,
     )  # fmt: skip
     blocked = sp.DotColumn(
         "switches blocked", "blocked", (-0.25, 1.0), (0, 0.5, 1),

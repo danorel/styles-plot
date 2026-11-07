@@ -60,8 +60,9 @@ source`), and every data mark carries its cell id.
 
 - **The dot** is an estimate; a same-colour whisker is its interval; a grey connector joins dots of one row.
 - **Bars** only in 100% stacks and histograms.
-- **Lines** only when x is depth (layers); points on a line are dots, filled or hollow by timing. A line itself is never
-  post hoc: mark the post hoc cells as points on it.
+- **Lines** only when x is depth (layers). A line is never hollow: a whole line's status is a grey tag above its panel
+  ("post hoc", "descriptive", "not claimed: <reason>", joined with " · "), like a dot table's tags. Points on a line
+  are dots that keep their timing: filled when fixed in advance, hollow when post hoc.
 - **An interval band** on a line is the line's colour at the theme's one shading alpha; it names an interval, never a
   variable.
 - **The largest same-size control** (or the project's definition) is a grey tick on the estimate's own axis.
@@ -79,7 +80,8 @@ source`), and every data mark carries its cell id.
 
 ## E. Keys: every encoding named in the figure
 
-1. Every role colour in a panel is named by a coloured word above its first row (or next to its cloud).
+1. Every role colour in a panel is named by a coloured word above its first row (or next to its cloud): one line, in
+   the order the dots appear from left to right. Words that do not fit one line fail the layout check.
 2. One key line under the figure, in this order, listing only what is drawn:
    `grey: <controls>` · `grey tick: <definition>` · `○ post hoc` · `whiskers: <interval>` · `shading: <interval>` ·
    `line: median` · `grey band: <definition>`. The interval phrase comes from the vocabulary ("95% interval",
@@ -93,7 +95,8 @@ or a library phrase. Prompt text in a schematic is marked verbatim. Banned varia
 
 - **Axis titles** name the unit and its denominator, from the vocabulary.
 - **Cues** describe the axis, never what is good: `→ more <quantity>` under an x axis, `↑ more <quantity>` beside a
-  sweep's value axis. "Lower is better" goes in the axis title. A log scale ends the title with "(log scale)". No left
+  sweep's value axis. A unit may say "larger" instead of "more" (`cue_word = "larger"`: "→ larger gap") for gaps,
+  differences and z. "Lower is better" goes in the axis title. A log scale ends the title with "(log scale)". No left
   arrows. Embedding axes ("UMAP 1", "UMAP 2") have no ticks and no cue.
 
 ## G. Numbers
@@ -109,7 +112,7 @@ A target fixes width, dpi, fonts, minimum text size and whether a title and capt
 | target | size | dpi | title, caption | checks |
 |---|---|---:|---|---|
 | post | 8.0 in wide, width : height 1.0–2.6 | 200 | no | strict |
-| slide | 12.3 × 5.3 in | 200 | no | strict |
+| slide | 12.3 × 6.5 in (a 7.5 in slide minus a one-line title) | 200 | no | strict; a figure that does not fit is split across slides |
 | readme | 11 in wide, width : height 1.0–3.0 | 160 | yes | strict |
 | notebook | 8.0 in wide | 100 | no | relaxed, never published |
 
@@ -117,8 +120,10 @@ Projects change these or add targets in `[targets.<name>]`.
 
 ## I. The key figure
 
-`styles-plot key --vocab plotstyle.toml` draws the project's grammar on one image: each role's colour with its word
-and meaning, the controls' grey, the hollow mark, the whisker, and the missing-cell words.
+`sp.key_figure(vocab, example=..., read_aloud=...)` (or `styles-plot key --vocab plotstyle.toml` without the example)
+draws the project's grammar on one image: each role's colour with its word and meaning, the controls' grey, the hollow
+mark and the whisker (in ink: grey means control), the grey tick, the grey band, the missing-cell words, and one
+example row from the data read aloud. Its marks' phrases are the key, so no key line repeats under it.
 
 ## The checks
 

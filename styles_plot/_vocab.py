@@ -9,7 +9,7 @@ written). The vocabulary owns every word that names a project concept, and every
     [key]              tick, band: definitions behind the key's fixed phrases
     [intervals]        <kind> = phrase ("95% interval", "± 1 SEM (bootstrap)")
     [formats.<name>]   decimals, suffix, style ("decimal" | "k of n")
-    [units.<name>]     title, quantity, format, scale ("linear" | "log"), cue
+    [units.<name>]     title, quantity, format, scale ("linear" | "log"), cue, cue_word ("more" | "larger")
     [terms]            canonical, templates, missing, not_claimed, [[terms.banned]] pattern/use/regex
     [[entities.<kind>]] key, name, id: ordered rows
     [registry]         path: the status CSV, relative to this file
@@ -82,6 +82,7 @@ class Unit:
     format: str
     scale: str = "linear"
     cue: bool = True
+    cue_word: str = "more"  # "→ more gap" or "→ larger gap"
 
 
 @dataclass(frozen=True)
@@ -184,6 +185,11 @@ class Vocab:
     def format_count(k: int, n: int) -> str:
         return _numbers.count(k, n)
 
+    def cue(self, unit: str, axis: str = "x") -> str:
+        """The direction cue of a unit's axis: "→ more <quantity>" (or the unit's cue word)."""
+        u = self.unit(unit)
+        return self.words.cue_text(u.quantity, u.cue_word, axis)
+
     # ---- words ---------------------------------------------------------------------------------------------------
     @cached_property
     def allowed_phrases(self) -> frozenset[str]:
@@ -191,6 +197,7 @@ class Vocab:
         words = set(self.canonical) | set(self.controls) | set(self.missing)
         words |= {r.word for r in self.roles.values()} | {r.meaning for r in self.roles.values()}
         words |= {u.title for u in self.units.values()} | {u.quantity for u in self.units.values()}
+        words |= {self.cue(u.name, axis) for u in self.units.values() if u.quantity for axis in ("x", "y")}
         words |= {e.name for es in self.entity_kinds.values() for e in es}
         return frozenset(w for w in words if w)
 
@@ -258,7 +265,7 @@ def from_dict(doc: dict, root: Path | None = None, source: Path | None = None) -
         key_band=key.get("band", ""),
         intervals={**DEFAULT_INTERVALS, **(doc.get("intervals") or {})},
         formats=formats,
-        units=_units(doc.get("units") or {}, formats, where),
+        units=_units(doc.get("units") or {}, formats, words.cue_words, where),
         canonical=canonical,
         templates=_strs(terms.get("templates", []), f"{where} [terms].templates"),
         missing=_strs(terms.get("missing", list(DEFAULT_MISSING)), f"{where} [terms].missing"),
@@ -320,7 +327,7 @@ def _formats(doc: dict, where: str) -> dict[str, Format]:
     return out
 
 
-def _units(doc: dict, formats: dict[str, Format], where: str) -> dict[str, Unit]:
+def _units(doc: dict, formats: dict[str, Format], cue_words: tuple[str, ...], where: str) -> dict[str, Unit]:
     out = {}
     for name, u in doc.items():
         w = f"{where} [units.{name}]"
@@ -336,7 +343,10 @@ def _units(doc: dict, formats: dict[str, Format], where: str) -> dict[str, Unit]
         cue, quantity = bool(u.get("cue", True)), u.get("quantity", "")
         if cue and not quantity:
             raise VocabError(f"{w}: a unit with a cue needs a quantity; set cue = false for an axis with no direction")
-        out[name] = Unit(name, title, quantity, fmt, scale, cue)
+        word = u.get("cue_word", cue_words[0])
+        if word not in cue_words:
+            raise VocabError(f"{w}: cue_word {word!r} is not one of {', '.join(cue_words)}")
+        out[name] = Unit(name, title, quantity, fmt, scale, cue, word)
     return out
 
 

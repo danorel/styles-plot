@@ -129,7 +129,7 @@ def test_key_drawn_but_not_named_and_named_but_not_drawn(vocab):
 def test_legend_box(vocab):
     mpl = simple(vocab).render("post")
     ax = mpl.axes[0]
-    tag(ax.plot([50], [0.5], marker="o", color="#6b5bd2", label="method B"), kind="dot", role="second", cell="acc.m1")
+    tag(ax.plot([50], [0.5], marker="o", color="#6b5bd2", label="beta"), kind="dot", role="second", cell="acc.m1")
     ax.legend()
     assert "SP303" in codes(_checks.run(mpl))
 
@@ -248,7 +248,7 @@ def test_uncomputable_distance(vocab, monkeypatch):
 
 
 def test_direct_labels(vocab):
-    lonely = sp.Schematic(1.5, [sp.Box(0.3, 0.3, 1.0, 0.6, role="first"), sp.Words(5.0, 1.2, [("method A", "first")])])
+    lonely = sp.Schematic(1.5, [sp.Box(0.3, 0.3, 1.0, 0.6, role="first"), sp.Words(5.0, 1.2, [("alpha", "first")])])
     assert "SP703" in codes(run(sp.Figure("s", vocab, direct_labels=True).add(lonely))[1])
     table = simple(vocab)
     table.direct_labels = True
@@ -270,3 +270,65 @@ def test_png_checks(tmp_path, vocab):
     assert {"SP801", "SP803", "SP804"} <= found
     found = codes(check_png(p, vocab.target("slide"), vocab.palette))
     assert "SP802" in found
+
+
+# ---- v0.1.1 ----------------------------------------------------------------------------------------------------------
+def test_cue_word_larger(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text().replace('title = "gap: A − B (points)"\nquantity = "gap"', 'title = "gap: A − B (points)"\nquantity = "gap"\ncue_word = "larger"'))
+    v = sp.load(p)
+    assert v.cue("gap") == "→ larger gap"
+    mpl, problems = run(example("dot_table").dot_table(v))
+    assert problems == []
+    cues = {t._styles_plot.get("full") for t in mpl.findobj(lambda a: tags(a).get("kind") == "cue")}
+    assert "→ larger gap" in cues and "→ more accuracy drop" in cues
+
+
+def test_role_words_in_one_line_in_dot_order(vocab):
+    mpl, problems = run(example("dot_table").dot_table(vocab))
+    assert problems == []
+    ax0 = mpl.axes[0]
+    words = [t for t in mpl.findobj(lambda a: tags(a).get("kind") == "role_word")]
+    first_panel = [t for t in words if t.get_window_extent().x0 < ax0.get_window_extent().x1]
+    ys = {round(t.get_window_extent().y0) for t in first_panel}
+    assert len(ys) == 1  # one line
+    order = [t.get_text() for t in sorted(first_panel, key=lambda t: t.get_window_extent().x0)]
+    assert order == ["beta", "alpha"]  # beta's dots are left of alpha's
+
+
+def test_whole_line_status_is_a_panel_tag(vocab_dir):
+    with (vocab_dir / "status.csv").open("a") as f:
+        f.write("sweep2,line.c1,post_hoc,descriptive,,,\nsweep2,line.c2,post_hoc,claimed,,,\n")
+    v = sp.load(vocab_dir / "plotstyle.toml")
+    lines = [sp.Line(r, "second", [0, 1, 2], [300, 200, 100], cell=f"line.{r}") for r in ("c1", "c2")]
+    fig = sp.Figure("sweep2", v).add(sp.Sweep(["c1", "c2"], "layer", "rank", lines, kind="checkpoints"))
+    mpl, problems = run(fig)
+    assert problems == []
+    texts = {t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "status_tag")}
+    assert texts == {"post hoc · descriptive", "post hoc"}
+    for t in mpl.findobj(lambda a: tags(a).get("kind") == "status_tag"):
+        t.set_visible(False)
+    assert "SP202" in codes(_checks.run(mpl))
+
+
+def test_key_figure_with_example_row(vocab):
+    gal = example("build_gallery")
+    mpl, problems = run(gal.key(vocab))
+    assert problems == []
+    kinds = {tags(a).get("kind") for a in mpl.findobj(lambda a: bool(tags(a)))}
+    assert {"tick", "band", "read_aloud", "dot"} <= kinds
+    assert not mpl.findobj(lambda a: tags(a).get("kind") == "key_mark")  # no key line repeated under it
+    hollow = [a for a in mpl.findobj(lambda a: tags(a).get("kind") == "swatch" and tags(a).get("hollow"))]
+    assert hollow and hollow[0].get_markeredgecolor() != vocab.palette.control
+
+
+def test_key_figure_arguments(vocab):
+    with pytest.raises(sp.BuildError, match="one row"):
+        sp.key_figure(vocab, example=sp.DotTable(["m1", "m2"], []))
+    with pytest.raises(sp.BuildError, match="example="):
+        sp.key_figure(vocab, read_aloud="read: …")
+
+
+def test_slide_fits_a_five_row_table(vocab):
+    assert run(example("dot_table").dot_table(vocab), "slide")[1] == []
+    assert vocab.target("slide").height_in == 6.5

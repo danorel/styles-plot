@@ -67,8 +67,7 @@ def test_sweep_errors(vocab):
             render(vocab, s, fid="sweep")
     post_hoc = sp.Sweep(["c1"], "layer", "rank", [sp.Line("c1", "second", [0, 1], [1, 2], cell="pick.c1")],
                         kind="checkpoints")  # fmt: skip
-    with pytest.raises(sp.BuildError, match="post hoc"):
-        render(vocab, post_hoc, fid="sweep")
+    render(vocab, post_hoc, fid="sweep")  # a post hoc line draws, with a panel tag (no hollow line)
 
 
 def test_figure_errors(vocab):

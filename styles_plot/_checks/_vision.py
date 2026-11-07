@@ -23,6 +23,8 @@ _SCHEMATIC_MARKS = {"box", "arrow", "swatch"}
 
 
 def check(cx: CheckCtx) -> list[Problem]:
+    if cx.info.key_figure:  # every role on its own row with its word beside it
+        return []
     if cx.info.direct_labels:
         return _direct_labels(cx)
     pal, v = cx.vocab.palette, cx.vocab

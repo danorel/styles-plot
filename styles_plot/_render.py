@@ -186,6 +186,7 @@ class RenderInfo:
     natural_height: float
     blocks: tuple[str, ...]
     encodings: frozenset
+    key_figure: bool = False
 
 
 def info(fig) -> RenderInfo:
@@ -270,10 +271,11 @@ def _lines_section(ctx: Ctx, text: str, width: float, size: float, kind: str, we
 
 
 def _planner(block) -> Callable:
-    from styles_plot import _dist, _scatter, _schematic, _stack, _sweep, _table
+    from styles_plot import _dist, _keyfig, _scatter, _schematic, _stack, _sweep, _table
 
     planners = {DotTable: _table.plan, Sweep: _sweep.plan, Distribution: _dist.plan, Stack: _stack.plan,
-                Scatter: _scatter.plan, Schematic: _schematic.plan}  # fmt: skip
+                Scatter: _scatter.plan, Schematic: _schematic.plan, _keyfig.KeyLegend: _keyfig.plan_legend,
+                _keyfig.ReadAloud: _keyfig.plan_read_aloud}  # fmt: skip
     for kind, plan in planners.items():
         if isinstance(block, kind):
             return plan
@@ -310,6 +312,7 @@ class Figure:
         self.direct_labels = direct_labels
         self.blocks: list = []
         self._registry = registry
+        self._key_figure = False  # set by key_figure(): its legend is the key, so no key line is drawn
 
     def add(self, *blocks) -> Figure:
         self.blocks.extend(blocks)
@@ -351,8 +354,9 @@ class Figure:
         if self.subtitle:
             sections.append(_lines_section(ctx, self.subtitle, inner, ctx.sizes.tag, "subtitle", "normal", muted))
         sections += [(p.height, p.draw) for p in plans]
-        key_h = len(k_lines) * line_h(ctx.sizes.key) + (0.2 if k_lines else 0.05)
-        sections.append((key_h, lambda cv: _draw_key(cv, k_lines, controls)))
+        if not self._key_figure:
+            key_h = len(k_lines) * line_h(ctx.sizes.key) + (0.2 if k_lines else 0.05)
+            sections.append((key_h, lambda cv: _draw_key(cv, k_lines, controls)))
         if theme.caption and self.caption:
             sections.append(_lines_section(ctx, self.caption, inner, theme.caption_size, "caption", "normal", muted))
 
@@ -375,6 +379,6 @@ class Figure:
         fig._sp_info = RenderInfo(
             figure=self.id, target=target, theme=theme, vocab=self.vocab, registry=self.registry,
             numbers=tuple(ctx.numbers), direct_labels=self.direct_labels, natural_height=natural,
-            blocks=tuple(type(b).__name__ for b in self.blocks), encodings=enc,
+            blocks=tuple(type(b).__name__ for b in self.blocks), encodings=enc, key_figure=self._key_figure,
         )  # fmt: skip
         return fig

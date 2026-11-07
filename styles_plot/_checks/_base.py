@@ -119,7 +119,7 @@ def library_phrases(vocab) -> set[str]:
         out.add(w.band.format(vocab.key_band))
     for phrase in vocab.intervals.values():
         out |= {w.whisker.format(phrase), w.shading.format(phrase)}
-    for u in vocab.units.values():
-        if u.quantity:
-            out |= {w.cue.format(u.quantity), w.cue_y.format(u.quantity)}
+    out.add(w.post_hoc_tag)
+    claims = [w.descriptive, *(w.not_claimed.format(r) for r in vocab.not_claimed)]
+    out |= {w.tag_join.join((w.post_hoc_tag, c)) for c in claims}  # a whole line's timing and claim
     return out

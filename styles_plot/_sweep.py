@@ -3,7 +3,8 @@
 Lines are drawn only when x is depth. The value axis is vertical: its quantity is named above the panels (a header,
 the unit's title, and the cue "↑ more <quantity>"); a log scale says so in the unit's title. An interval band on a
 line is the line's colour at the theme's shading alpha, named in the key ("shading: <interval>"). A point on a line
-is a dot whose fill comes from the registry.
+is a dot whose fill comes from the registry. A line is never hollow: a whole line's status is a grey tag above its
+panel ("post hoc", "descriptive", "not claimed: …"), like a dot table's tags (GRAMMAR.md, C).
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from styles_plot._grid import (
     draw_tags,
     draw_x_bottom,
     padded,
+    place_in_line,
     place_on_levels,
     ticks,
     x_bottom_height,
@@ -41,9 +43,6 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
         if len(ln.x) != len(ln.y) or len(ln.x) < 2:
             raise BuildError(f"{ctx.figure_id}: a line needs matching x and y with at least two points")
         ctx.role_hex(ln.role)
-        if ctx.status(ln.cell).hollow:
-            raise BuildError(f"{ctx.figure_id}: line {ln.cell!r} is post hoc; a line cannot be hollow, mark the post "
-                             "hoc cells as points on it")  # fmt: skip
         lines[ln.row].append(ln)
     xs = np.concatenate([np.asarray(ln.x, float) for ln in s.lines])
     ys = np.concatenate([np.asarray(v, float) for ln in s.lines for v in (ln.y, *(ln.band or ()))])
@@ -60,10 +59,11 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
     for p in s.points:
         ln = next((ln for ln in lines[p.row] if ln.role == p.role), None)
         if ln is None:
-            raise BuildError(f"{ctx.figure_id}: point at x={p.x} on {p.row!r} has no {p.role!r} line")
+            raise BuildError(f"{ctx.figure_id}: point at x={p.x} on {p.row!r} has no {p.role!r} line (a point marks a "
+                             "cell on a line; a whole line's status is a panel tag: GRAMMAR.md, C)")  # fmt: skip
         idx = [i for i, xv in enumerate(ln.x) if abs(xv - p.x) < 1e-9]
         if not idx:
-            raise BuildError(f"{ctx.figure_id}: point x={p.x} is not one of the line's x values")
+            raise BuildError(f"{ctx.figure_id}: point x={p.x} is not one of the line's x values (GRAMMAR.md, C)")
         st = ctx.status(p.cell)
         if st.hollow:
             enc.add(("post_hoc",))
@@ -78,7 +78,7 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
     panel_h = s.panel_h or th.row_h * 2.4
     header = s.header or yu.quantity
     head_lines = ctx.wrap(header, pw, sz.header, "bold") if header else []
-    title_parts = [(yu.title, "axis_title")] + ([(ctx.words.cue_y.format(yu.quantity), "cue")] if yu.cue else [])
+    title_parts = [(yu.title, "axis_title")] + ([(ctx.vocab.cue(yu.name, "y"), "cue")] if yu.cue else [])
     head_h = 0.08 + len(head_lines) * line_h(sz.header) + line_h(sz.axis) * (1 + _cue_wraps(ctx, title_parts, pw)) + 0.04
 
     # strip: role words at each line's end in the first panel, rule labels at their x
@@ -97,12 +97,18 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
         if rl.label:
             items.append((dx(rl.x), ctx.measure(rl.label, sz.tag)[0],
                           (rl.label, ctx.chrome("muted"), "normal", sz.tag, {"kind": "rule_label"})))  # fmt: skip
-    strip, levels = place_on_levels(items, pw)
+    role_items = [it for it in items if it[2][4]["kind"] == "role_word"]
+    line = place_in_line(role_items, pw)
+    occupied = [(x0, x0 + ctx.measure(p[0], sz.role_word, "bold")[0], 0) for x0, p in line]
+    placed, levels = place_on_levels([it for it in items if it not in role_items], pw, occupied)
+    strip = [(x0, 0, p) for x0, p in line] + placed
+    levels = max(levels, 1 if line else 0)
     strip_h = levels * line_h(sz.role_word) + 0.08
     bottom_h, xtitle, xcue = x_bottom_height(ctx, xu, pw)
     gap = 0.12
-    row_tags = {r: claim_tags(ctx, [ln.cell for ln in lines[r]] + [p.cell for p, _y, _st in points if p.row == r])
-                for r in s.rows}  # fmt: skip
+    line_cells = frozenset(ln.cell for ln in s.lines if ln.cell)
+    row_tags = {r: claim_tags(ctx, [ln.cell for ln in lines[r]] + [p.cell for p, _y, _st in points if p.row == r],
+                              line_cells) for r in s.rows}  # fmt: skip
     tag_h = {r: len(t) * line_h(sz.tag) + (0.04 if t else 0) for r, t in row_tags.items()}
     body_top = head_h + strip_h
     tops, y = {}, body_top

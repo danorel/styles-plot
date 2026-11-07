@@ -13,10 +13,25 @@ from styles_plot._text import line_h
 STRIP_GAP = 0.12  # inches between two words on one level
 
 
-def place_on_levels(items, width: float) -> tuple[list, int]:
-    """Place items (x_centre, w, payload) on levels so no two overlap, clamped inside [0, width].
-    Returns ([(x_left, level, payload)], number of levels)."""
-    placed: list[tuple[float, float, int]] = []
+def place_in_line(items, width: float) -> list:
+    """Place items (x_centre, w, payload) on one line, in the order of their x, each as near its x as the others
+    allow: no overlap, inside [0, width] when they fit. Returns [(x_left, payload)]."""
+    items = sorted(items, key=lambda it: it[0])
+    lefts: list[float] = []
+    for xc, w, _p in items:  # left to right: push right past the previous word
+        lefts.append(max(xc - w / 2, 0.0, (lefts[-1] + items[len(lefts) - 1][1] + STRIP_GAP) if lefts else 0.0))
+    right = width
+    for i in range(len(items) - 1, -1, -1):  # right to left: pull back inside the panel
+        w = items[i][1]
+        lefts[i] = max(min(lefts[i], right - w), 0.0) if i == 0 else min(lefts[i], right - w)
+        right = lefts[i] - STRIP_GAP
+    return [(x0, payload) for x0, (_xc, _w, payload) in zip(lefts, items)]
+
+
+def place_on_levels(items, width: float, occupied=()) -> tuple[list, int]:
+    """Place items (x_centre, w, payload) on levels so no two overlap, clamped inside [0, width]; `occupied` holds
+    (x0, x1, level) spans already taken. Returns ([(x_left, level, payload)], number of levels)."""
+    placed: list[tuple[float, float, int]] = list(occupied)
     out = []
     for xc, w, payload in sorted(items, key=lambda it: it[0]):
         x0 = min(max(xc - w / 2, 0.0), max(width - w, 0.0))
@@ -48,7 +63,7 @@ def x_bottom_height(ctx: Ctx, unit, width: float) -> tuple[float, list[str], lis
     """Height under an x axis, with the wrapped unit title and cue lines."""
     sz = ctx.sizes
     title = ctx.wrap(unit.title, width, sz.axis)
-    cue = ctx.wrap(ctx.words.cue.format(unit.quantity), width, sz.cue) if unit.cue else []
+    cue = ctx.wrap(ctx.vocab.cue(unit.name), width, sz.cue) if unit.cue else []
     h = line_h(sz.tick) + 0.06 + len(title) * line_h(sz.axis) + len(cue) * line_h(sz.cue) + 0.12
     return h, title, cue
 
@@ -64,7 +79,7 @@ def draw_x_bottom(cv: Canvas, ctx: Ctx, x0: float, w: float, y: float, xlim, xti
         cv.text(x0 + w / 2, y + (i + 0.5) * line_h(sz.axis), s, kind="axis_title", size=sz.axis, color=muted,
                 ha="center", panel=pid, unit=unit.name, full=unit.title)  # fmt: skip
     y += len(title) * line_h(sz.axis)
-    full = ctx.words.cue.format(unit.quantity)
+    full = ctx.vocab.cue(unit.name)
     for i, s in enumerate(cue):
         cv.text(x0 + w / 2, y + (i + 0.5) * line_h(sz.cue), s, kind="cue", size=sz.cue, color=muted, ha="center",
                 panel=pid, axis="x", full=full)  # fmt: skip
@@ -74,16 +89,24 @@ def y_tick_width(ctx: Ctx, values) -> float:
     return max((ctx.measure(ctx.tick(v), ctx.sizes.tick)[0] for v in values), default=0.0) + 0.1
 
 
-def claim_tags(ctx: Ctx, cells) -> list[tuple[tuple[str, ...], str, str]]:
-    """[(cells, claim, words)]: one grey tag per distinct wording, naming every cell it covers, in order."""
+def tag_words(st, words, line: bool = False) -> str:
+    """The grey words a cell carries: its claim's tag, and for a whole line (never hollow) also "post hoc"."""
+    parts = [words.post_hoc_tag] if line and st.timing == "post_hoc" else []
+    if st.claim == "descriptive":
+        parts.append(words.descriptive)
+    elif st.claim == "not_claimed":
+        parts.append(words.not_claimed.format(st.claim_reason))
+    return words.tag_join.join(parts)
+
+
+def claim_tags(ctx: Ctx, cells, lines=frozenset()) -> list[tuple[tuple[str, ...], str, str]]:
+    """[(cells, claim, words)]: one grey tag per distinct wording, naming every cell it covers, in order. Cells in
+    `lines` are whole lines, whose timing is a tag too."""
     groups: dict[str, list] = {}
     for cell in dict.fromkeys(c for c in cells if c):
         st = ctx.status(cell)
-        if st.claim == "descriptive":
-            words = ctx.words.descriptive
-        elif st.claim == "not_claimed":
-            words = ctx.words.not_claimed.format(st.claim_reason)
-        else:
+        words = tag_words(st, ctx.words, cell in lines)
+        if not words:
             continue
         groups.setdefault(words, [st.claim, []])[1].append(cell)
     return [(tuple(cs), claim, words) for words, (claim, cs) in groups.items()]

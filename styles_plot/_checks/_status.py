@@ -9,22 +9,17 @@ SP204 a data mark without a cell id
 from __future__ import annotations
 
 from styles_plot._checks._base import CheckCtx, Problem, full_text
+from styles_plot._grid import tag_words
 from styles_plot._tags import DATA_KINDS, tags
 
 
-def expected_tag(st, words) -> str:
-    """The grey words a cell must carry for its claim ("" for a claimed cell)."""
-    if st.claim == "descriptive":
-        return words.descriptive
-    if st.claim == "not_claimed":
-        return words.not_claimed.format(st.claim_reason)
-    return ""
 
 
 def check(cx: CheckCtx) -> list[Problem]:
     reg, fid, words = cx.info.registry, cx.name, cx.vocab.words
     out: list[Problem] = []
     drawn: set[str] = set()
+    line_cells: set[str] = set()
     for a in cx.marks:
         t = tags(a)
         if t.get("kind") not in DATA_KINDS:
@@ -34,6 +29,8 @@ def check(cx: CheckCtx) -> list[Problem]:
             out.append(cx.problem("SP204", f"a {t['kind']} of role {t.get('role')!r} has no cell id"))
             continue
         drawn.add(cell)
+        if t["kind"] == "line":
+            line_cells.add(cell)
         if reg is None:
             continue
         st = reg.get(fid, cell)
@@ -57,7 +54,7 @@ def check(cx: CheckCtx) -> list[Problem]:
         st = reg.get(fid, cell) if reg is not None else None
         if st is None:
             continue
-        want = expected_tag(st, words)
+        want = tag_words(st, words, cell in line_cells)
         have = tagged.get(cell, "")
         if have != want:
             out.append(cx.problem("SP202", f"cell {cell!r} carries {have!r}, the registry says {want!r}"))

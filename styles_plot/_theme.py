@@ -53,8 +53,9 @@ class Theme:
 TARGETS: dict[str, Theme] = {
     # a reading column shown at ~720 px: 8.0 in at 200 dpi, nothing under 11 pt; the post carries title and caption
     "post": Theme("post", 8.0, 200, (1.0, 2.6)),
-    # a slide's figure area, 12.3 x 5.3 in at 200 dpi; the slide title carries the claim, the notes the caption
-    "slide": Theme("slide", 12.3, 200, None, height_in=5.3, min_pt=12.0,
+    # a slide's figure area: 12.3 x 6.5 in (a 7.5 in slide minus a one-line title) at 200 dpi; the slide title carries
+    # the claim, the notes the caption. A figure that does not fit fails; split it across slides
+    "slide": Theme("slide", 12.3, 200, None, height_in=6.5, min_pt=12.0,
                    sizes=Sizes(14, 13, 13, 12, 12, 13, 12, 12, 12), row_h=0.4, sub_h=0.26, pad=0.3),  # fmt: skip
     # a README's figure, 11 in at 160 dpi (shown at the 880 px column): a bold claim above, a caption under
     "readme": Theme("readme", 11.0, 160, (1.0, 3.0), sizes=Sizes(13, 12, 12, 11, 12, 13, 11, 11, 11),
@@ -94,16 +95,18 @@ class Phrases:
     median: str = "line: median"
     descriptive: str = "descriptive"
     not_claimed: str = "not claimed: {}"
-    cue: str = "→ more {}"  # under an x-axis
-    cue_y: str = "↑ more {}"  # beside a sweep's value axis
+    post_hoc_tag: str = "post hoc"  # a grey panel tag for a whole line that is post hoc (a line is never hollow)
+    tag_join: str = " · "  # between two tags of one cell ("post hoc · descriptive")
+    cue: str = "→ {word} {quantity}"  # under an x-axis
+    cue_y: str = "↑ {word} {quantity}"  # beside a sweep's value axis
+    cue_words: tuple[str, ...] = ("more", "larger")  # a unit picks one with cue_word
     control_mark: str = "●"  # the grey mark before the key's control phrase
     key_roles: str = "colour = role"  # the key figure's two section headers
     key_marks: str = "marks"
     key_missing: str = "a missing cell says why: {}"
 
-    @property
-    def cue_prefixes(self) -> tuple[str, str]:
-        return self.cue.split("{}")[0], self.cue_y.split("{}")[0]
+    def cue_text(self, quantity: str, word: str = "more", axis: str = "x") -> str:
+        return (self.cue_y if axis == "y" else self.cue).format(word=word, quantity=quantity)
 
 
 def _merge(obj, doc: dict, where: str):
@@ -150,9 +153,15 @@ def marks_from(doc: dict | None) -> MarkStyle:
 
 def phrases_from(doc: dict | None) -> Phrases:
     p = _merge(Phrases(), doc or {}, "[phrases]")
-    for k in ("control", "tick", "whisker", "shading", "band", "not_claimed", "cue", "cue_y", "key_missing"):
+    for k in ("control", "tick", "whisker", "shading", "band", "not_claimed", "key_missing"):
         if getattr(p, k).count("{}") != 1:
             raise ValueError(f"[phrases].{k}: needs exactly one {{}} placeholder")
-    if "←" in p.cue or "←" in p.cue_y:
-        raise ValueError("[phrases]: a cue never points left")
+    for k in ("cue", "cue_y"):
+        s = getattr(p, k)
+        if s.count("{word}") != 1 or s.count("{quantity}") != 1 or s.index("{word}") > s.index("{quantity}"):
+            raise ValueError(f"[phrases].{k}: needs {{word}} then {{quantity}}, once each")
+        if "←" in s:
+            raise ValueError("[phrases]: a cue never points left")
+    if not p.cue_words:
+        raise ValueError("[phrases].cue_words: at least one word")
     return p

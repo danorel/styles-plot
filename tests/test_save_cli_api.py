@@ -69,11 +69,14 @@ def test_save_and_sidecar(tmp_path, vocab):
 
 def test_bundle_is_all_or_nothing(tmp_path, vocab):
     fig = example("dot_table").dot_table(vocab)
+    tall = example("dot_table").dot_table(vocab)
+    tall.add(*tall.blocks * 2)  # three tables: more than a slide's 6.5 in
+    out = tmp_path / "out"
     with pytest.raises(sp.StyleError, match=r"\[slide\]"):
-        sp.save_bundle(fig, tmp_path, ("post", "slide"))
-    assert not any(tmp_path.rglob("*.png"))
-    reps = sp.save_bundle(fig, tmp_path, ("post", "readme"))
-    assert (tmp_path / "readme" / "dot_table.png").exists() and set(reps) == {"post", "readme"}
+        sp.save_bundle(tall, out, ("post", "slide"))
+    assert not out.exists() or not any(out.rglob("*.png"))
+    reps = sp.save_bundle(fig, out, ("post", "slide", "readme"))
+    assert (out / "slide" / "dot_table.png").exists() and set(reps) == {"post", "slide", "readme"}
 
 
 def test_targets_differ_in_title_and_caption(vocab):

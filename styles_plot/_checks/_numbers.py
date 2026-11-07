@@ -15,7 +15,7 @@ from styles_plot._tags import tags
 
 _HAS_NUMBER = re.compile(rf"(?<![\w.]){NUM}(?![\w.])")
 _PRINTED = {"value", "tick_label"}  # texts the library formats
-_FREE_TEXT = {None, "text", "schematic_word", "rule_label"}  # texts a caller writes; others come from the vocabulary
+_FREE_TEXT = {None, "text", "schematic_word", "rule_label", "read_aloud"}  # texts a caller writes; others come from the vocabulary
 
 
 def conflicts(numbers) -> dict[str, set[str]]:
