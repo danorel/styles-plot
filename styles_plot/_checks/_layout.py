@@ -8,6 +8,7 @@ SP605 rotated text
 SP606 two texts overlapping
 SP607 a matplotlib title or suptitle (titles are the target's business, drawn as the figure's title section)
 SP608 a marker other than the theme's, or hatching
+SP609 colour words that do not fit one line above their panel
 """
 
 from __future__ import annotations
@@ -58,6 +59,10 @@ def check(cx: CheckCtx) -> list[Problem]:
     for ax in cx.fig.axes:
         if any(ax.get_title(loc=loc) for loc in ("left", "center", "right")):
             out.append(cx.problem("SP607", "an axes title"))
+    full = {tags(t)["line_full"] for t in cx.texts if tags(t).get("line_full")}
+    for need, have in sorted(full):
+        out.append(cx.problem("SP609", f"colour words need {need:g} in on one line above a panel {have:g} in wide: "
+                                       "widen the panel, use shorter words, or name the conditions as lanes"))  # fmt: skip
     marker = cx.vocab.marks.marker
     for a in cx.marks:
         if isinstance(a, Line2D) and a.get_marker() not in (None, "None", "none", "", " ", marker):

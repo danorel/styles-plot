@@ -583,3 +583,43 @@ def test_sweep_point_with_its_own_value_and_interval(vocab):
     with pytest.raises(sp.BuildError, match="value, lo and hi"):
         run(sp.Figure("sweep", vocab).add(sp.Sweep(["c1"], "layer", "rank", [ln], kind="checkpoints",
                                                    points=[sp.Point("c1", "second", 11, lo=1, hi=2)])))  # fmt: skip
+
+
+# ---- 0.1.6: layout bugs from the bridge port -------------------------------------------------------------------------
+def test_left_fallback_starts_at_its_own_dot(vocab):
+    # fig10: a labelled value near the right edge with a control dot just left of it
+    col = sp.DotColumn("accuracy", "accuracy", (0, 100), (0, 50, 100), [
+        sp.Series("control", {"m1": sp.Est(40, cell="acc.m1")}, control="shuffled labels"),
+        sp.Series("second", {"m1": sp.Est(95, cell="acc.m1", key="v", label=True)})])  # fmt: skip
+    mpl, problems = run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [col])))
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]
+    label = next(t for t in mpl.findobj(lambda a: tags(a).get("kind") == "value"))
+    dots = {tags(d)["role"]: d for d in mpl.findobj(lambda a: tags(a).get("kind") == "dot")}
+    r = mpl.canvas.get_renderer()
+    ctrl_x = dots["control"].get_transform().transform([[40, dots["control"].get_ydata()[0]]])[0][0]
+    assert label.get_window_extent(r).x0 > ctrl_x  # between the control and its own dot, not left of everything
+
+
+def test_tag_and_note_on_one_row_and_tags_under_their_lane(vocab_dir):
+    with (vocab_dir / "status.csv").open("a") as f:
+        f.write("lanes,x.m1,fixed_in_advance,descriptive,,,\nlanes,y.m1,fixed_in_advance,claimed,,,\n")
+    v = sp.load(vocab_dir / "plotstyle.toml")
+    note = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100),
+                        [sp.Series("second", {"m1": sp.Est(60, cell="x.m1", note="no interval")})])  # fmt: skip
+    mpl, problems = run(sp.Figure("lanes", v).add(sp.DotTable(["m1"], [note])))
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]
+    lanes = sp.DotTable(["m1"], [sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [
+        sp.Series("second", {("m1", "a"): sp.Est(60, cell="y.m1"), ("m1", "b"): sp.Est(70, cell="x.m1")})])],
+        lanes=[sp.Lane("a", "set one"), sp.Lane("b", "set two")])  # fmt: skip
+    mpl, problems = run(sp.Figure("lanes", v).add(lanes))
+    assert problems == [], [str(p) for p in problems]
+    r = mpl.canvas.get_renderer()
+    y = {t.get_text(): t.get_window_extent(r).y0 for t in mpl.findobj(lambda a: tags(a).get("kind") in ("lane_label", "status_tag"))}
+    assert y["set one"] > y["set two"] > y["descriptive"]  # the tag sits under lane b, the descriptive one
+
+
+def test_colour_words_that_do_not_fit_one_line(vocab):
+    col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [
+        sp.Series("first", {"m1": sp.Est(50, cell="acc.m1")}, word="a linear probe of the same signal"),
+        sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")}, word="anything measured under a swap")], width=1.2)  # fmt: skip
+    assert "SP609" in codes(run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [col])))[1])

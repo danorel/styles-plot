@@ -14,6 +14,10 @@ Grammar decisions of 7 Nov.
 - Stacks carry no whiskers: `Stack(columns=[TextColumn(...)])` prints a segment's interval beside the bars.
 - Sweep points measured on their own: `Point(value=..., lo=..., hi=...)` with a vertical whisker; the line itself
   carries no status.
+- Layout fixes from the bridge port: a value label's left fallback starts at its own dot (it used to jump left of
+  every mark, onto a near control); a status tag and a note on one row no longer overlap (the note moves to the next
+  line); on a row with lanes a tag sits right under its cell's lane; colour words that do not fit one line above a
+  panel fail with SP609 and say why.
 - Figure sets in folders: `[output] sidecar_dir = "_meta"` puts sidecars under the set's root keeping each PNG's path
   (`save(..., root=<set>)`: main/fig01.png -> _meta/main/fig01.styles.json); `styles-plot check` and `sheet` take PNGs
   in subfolders, skip folders starting with "_" (_meta, _sheets), find sidecars beside a PNG or under _meta, and an

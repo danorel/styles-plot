@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from matplotlib.patches import Rectangle
 
 from styles_plot._model import ColumnGroup, Count, DotColumn, DotTable, Est, Gutter, Missing, TextColumn
-from styles_plot._grid import place_in_line, place_on_levels
+from styles_plot._grid import STRIP_GAP, place_in_line, place_on_levels
 from styles_plot._render import LANE_INDENT, BuildError, Canvas, Ctx, Plan
 from styles_plot._tags import tag
 from styles_plot._text import PT, line_h
@@ -59,10 +59,10 @@ class _Row:
     name: str
     top: float = 0.0
     h: float = 0.0
-    sub: float = 0.0  # height of the second line; 0 when the row has none
-    tags: list = field(default_factory=list)  # [(x0, lines, cell, claim, full text)]
-    notes: list = field(default_factory=list)  # [(column, words)]
+    tags: list = field(default_factory=list)  # [(x0, lines, cell, claim, full text, line key)]
+    notes: list = field(default_factory=list)  # [(column, words, line key)]
     lines: list = field(default_factory=list)  # [(cell key, lane label, y offset from top)]: one per lane, or the row
+    bands: list = field(default_factory=list)  # word bands under a line: [(y offset, height, items)]
     name_dy: float = 0.0
 
     @property
@@ -72,14 +72,6 @@ class _Row:
     @property
     def keys(self) -> list:
         return [k for k, _label, _dy in self.lines]
-
-    @property
-    def sub_top(self) -> float:
-        return self.top + self.h - self.sub
-
-    @property
-    def sub_mid(self) -> float:
-        return self.top + self.h - self.sub / 2
 
 
 @dataclass
@@ -220,8 +212,8 @@ def _statuses(lay: _Layout, ctx: Ctx) -> set:
         members = [m for m in lay.cols if c.group is not None and m.group is c.group] or [c]
         gx0, gx1 = min(m.x for m in members), max(m.x + m.w for m in members)
         for r in lay.rows:
-            vals = [v for k in r.keys for v in (_cells(c.spec, k) if c.is_panel else [(None, c.spec.cells.get(k))])]
-            for s, val in vals:
+            vals = [(k, v) for k in r.keys for v in (_cells(c.spec, k) if c.is_panel else [(None, c.spec.cells.get(k))])]
+            for k, (s, val) in vals:
                 if not isinstance(val, (Est, Count)):
                     continue
                 st = ctx.status(val.cell)
@@ -233,48 +225,81 @@ def _statuses(lay: _Layout, ctx: Ctx) -> set:
                     if s.role == "control":
                         enc.add(("control", s.control))
                 if st.claim != "claimed" and val.cell:
-                    sp = spans.setdefault((r.key, val.cell), [gx0, gx1, st])
+                    sp = spans.setdefault((r.key, val.cell), [gx0, gx1, st, k])
                     sp[0], sp[1] = min(sp[0], gx0), max(sp[1], gx1)
                 if isinstance(val, Est) and val.note:
-                    r.notes.append((c, val.note))
+                    r.notes.append((c, val.note, k))
         if c.is_panel and c.spec.ticks:
             enc.add(("tick",))
         if c.is_panel and c.spec.band:
             enc.add(("band", c.spec.band_name))
     sz = ctx.sizes
     for r in lay.rows:
-        n_lines = 0
-        for (rk, cell), (x0, x1, st) in spans.items():
+        for (rk, cell), (x0, x1, st, k) in spans.items():
             if rk != r.key:
                 continue
             full = ctx.words.descriptive if st.claim == "descriptive" else ctx.words.not_claimed.format(st.claim_reason)
-            lines = ctx.wrap(full, x1 - x0, sz.tag)
-            r.tags.append((x0, lines, cell, st.claim, full))
-            n_lines = max(n_lines, len(lines))
-        if not n_lines and (r.notes or lay.table.row_sub.get(r.key)):
-            n_lines = 1
-        r.sub = max(ctx.theme.sub_h, n_lines * line_h(sz.tag) + SUB_GAP) if n_lines else 0.0
-        main = _lanes(r, ctx)
-        r.h = main + r.sub
+            r.tags.append((x0, ctx.wrap(full, x1 - x0, sz.tag), cell, st.claim, full, k))
+        r.h = _lanes(r, ctx, lay.table.row_sub.get(r.key, ""))
     return enc
 
 
-def _lanes(r: _Row, ctx: Ctx) -> float:
-    """Lay out a row's lines; returns the row's height above its second line. Labelled lanes sit under the row's
-    name, each on its own line; unlabelled lanes share the row's height, named by colour words above the table."""
+def _band(ctx: Ctx, tags, notes, row_sub: str) -> tuple[float, list]:
+    """A word band under a line: its tags left-aligned in their cells' span, its notes right-aligned at their column's
+    end (on the next line when they would touch a tag), the row's grey sub-line in the label column."""
+    sz = ctx.sizes
+    lh = line_h(sz.tag)
+    items = [("tag", x0, lines, cell, claim, full) for x0, lines, cell, claim, full, _k in tags]
+    n = max((len(lines) for _x0, lines, *_r in tags), default=0)
+    spans = [(x0, x0 + max(ctx.measure(t, sz.tag)[0] for t in lines)) for x0, lines, *_r in tags]
+    extra = 0
+    for c, words, _k in notes:
+        a, b = c.x + c.w - ctx.measure(words, sz.tag)[0], c.x + c.w
+        line = n if any(a < y1 + 0.1 and y0 - 0.1 < b for y0, y1 in spans) else 0
+        extra = max(extra, line + 1)
+        items.append(("note", c, words, line))
+    if row_sub:
+        items.append(("row_sub", row_sub))
+    lines = max(n, extra, 1 if row_sub else 0)
+    if not lines:
+        return 0.0, []
+    return max(ctx.theme.sub_h, lines * lh + SUB_GAP), items
+
+
+def _lanes(r: _Row, ctx: Ctx, row_sub: str) -> float:
+    """Lay out a row's lines and word bands; returns the row's height. A row without lanes has one line and its band
+    under it. Labelled lanes sit under the row's name, each on its own line; unlabelled lanes share the row's height,
+    named by colour words above the table. A lane's tags and notes go in a band right under that lane."""
     rh = ctx.theme.row_h
+    keyed = lambda k: ([t for t in r.tags if t[5] == k], [n for n in r.notes if n[2] == k])  # noqa: E731
     if len(r.lines) == 1 and not r.lines[0][1]:
-        r.lines = [(r.lines[0][0], "", rh / 2)]
+        k = r.lines[0][0]
+        r.lines = [(k, "", rh / 2)]
         r.name_dy = rh / 2
-        return rh
+        h, items = _band(ctx, r.tags, r.notes, row_sub)
+        r.bands = [(rh, h, items)] if items else []
+        return rh + h
     labelled = any(label for _k, label, _dy in r.lines)
     lane_h = rh * (0.8 if labelled else 0.62)
     head = rh * 0.85 if labelled else 0.0
-    main = max(head + len(r.lines) * lane_h, rh)
-    start = head if labelled else (main - len(r.lines) * lane_h) / 2
-    r.lines = [(k, label, start + (i + 0.5) * lane_h) for i, (k, label, _dy) in enumerate(r.lines)]
-    r.name_dy = head / 2 if labelled else main / 2
-    return main
+    bands = [_band(ctx, *keyed(k), "") for k, _l, _dy in r.lines]
+    plain = not any(items for _h, items in bands)
+    y = head if labelled or not plain else max(0.0, (rh - len(r.lines) * lane_h) / 2)
+    out, r.bands = [], []
+    for (k, label, _dy), (h, items) in zip(r.lines, bands):
+        out.append((k, label, y + lane_h / 2))
+        y += lane_h
+        if items:
+            r.bands.append((y, h, items))
+            y += h
+    r.lines = out
+    h, items = _band(ctx, [], [], row_sub)
+    if items:
+        r.bands.append((y, h, items))
+        y += h
+    total = max(y, rh)
+    r.name_dy = head / 2 if labelled else (out[0][2] + out[-1][2]) / 2
+    return total
 
 
 def _vertical(lay: _Layout, ctx: Ctx) -> None:
@@ -325,6 +350,9 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx) -> int:
         seen.add(word)
         words.append((c.dx(xs[0][1]), ctx.measure(word, sz.role_word, "bold")[0],
                       (word, ctx.role_hex(s.role), "bold", sz.role_word, {"kind": "role_word", "role": s.role})))  # fmt: skip
+    need = sum(w for _xc, w, _p in words) + STRIP_GAP * max(len(words) - 1, 0)
+    if words and need > c.w + ctx.theme.pad * 0.7:  # one line is the rule: say so instead of overlapping silently
+        words = [(xc, w, (*p[:4], {**p[4], "line_full": (round(need, 2), round(c.w, 2))})) for xc, w, p in words]
     line = place_in_line(words, c.w)
     occupied = [(x0, x0 + ctx.measure(p[0], sz.role_word, "bold")[0], 0) for x0, p in line]
     labels = [(rl, rule_label(ctx, rl)) for rl in c.spec.rules if rl.label]
@@ -357,9 +385,7 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
         for _k, label, dy in r.lines:
             if label:
                 cv.text(0.08 + LANE_INDENT, r.top + dy, label, kind="lane_label", size=sz.tag, color=muted)
-        sub = lay.table.row_sub.get(r.key)
-        if sub:
-            cv.text(0.08, r.sub_mid, sub, kind="row_sub", size=sz.tag, color=muted)
+
 
     if lay.table.note:
         cv.text(0.08, TOP + lay.note_h / 2, lay.table.note, kind="subtitle", size=sz.tag, color=muted)
@@ -383,12 +409,20 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
                     cv.rich(c.x, r.top + dy, c.texts[k], size=sz.value)
 
     for r in lay.rows:
-        for x0, lines, cell, claim, full in r.tags:
-            for i, s in enumerate(lines):
-                cv.text(x0, r.sub_top + SUB_GAP / 2 + (i + 0.5) * line_h(sz.tag), s, kind="status_tag", size=sz.tag,
-                        color=muted, cell=cell, claim=claim, full=full)  # fmt: skip
-        for c, words in r.notes:
-            cv.text(c.x + c.w, r.sub_mid, words, kind="note", size=sz.tag, color=muted, ha="right")
+        for dy, _h, items in r.bands:
+            y0 = r.top + dy + SUB_GAP / 2
+            for item in items:
+                if item[0] == "tag":
+                    _k, x0, lines, cell, claim, full = item
+                    for i, s in enumerate(lines):
+                        cv.text(x0, y0 + (i + 0.5) * line_h(sz.tag), s, kind="status_tag", size=sz.tag, color=muted,
+                                cell=cell, claim=claim, full=full)  # fmt: skip
+                elif item[0] == "note":
+                    _k, c, words, line = item
+                    cv.text(c.x + c.w, y0 + (line + 0.5) * line_h(sz.tag), words, kind="note", size=sz.tag,
+                            color=muted, ha="right")  # fmt: skip
+                else:
+                    cv.text(0.08, y0 + 0.5 * line_h(sz.tag), item[1], kind="row_sub", size=sz.tag, color=muted)
 
     _bottom(cv, ctx, lay)
 
@@ -440,7 +474,8 @@ def _panel(cv: Canvas, ctx: Ctx, lay: _Layout, c: _Col) -> None:
     tag(ax, kind="panel", pid=c.pid, unit=spec.unit, cue=ctx.vocab.unit(spec.unit).cue)
 
     # vertical lines stop at a row's second line where a tag spans this panel
-    cuts = [(r.sub_top - lay.head, r.top + r.h - lay.head) for r in lay.rows if _second_line_in(r, c, ctx)]
+    cuts = [(r.top + dy - lay.head, r.top + dy + h - lay.head) for r in lay.rows for dy, h, items in r.bands
+            if _band_in(items, c, ctx)]  # fmt: skip
     b0, b1 = lay.strip_h, total
     for tv in spec.xticks:
         for a, b in _segments(b0, b1, cuts):
@@ -526,10 +561,15 @@ def rule_label(ctx: Ctx, rl) -> str:
     return rl.label.format(ctx.value(rl.unit, rl.x, rl.key))
 
 
-def _second_line_in(r: _Row, c: _Col, ctx: Ctx) -> bool:
-    """Whether a row's second line holds words inside this panel's span (lines stop there)."""
-    spans = [(x0, x0 + max(ctx.measure(s, ctx.sizes.tag)[0] for s in lines)) for x0, lines, *_rest in r.tags]
-    spans += [(n.x + n.w - ctx.measure(words, ctx.sizes.tag)[0], n.x + n.w) for n, words in r.notes]
+def _band_in(items, c: _Col, ctx: Ctx) -> bool:
+    """Whether a word band holds words inside this panel's span (the panel's lines stop there)."""
+    spans = []
+    for item in items:
+        if item[0] == "tag":
+            spans.append((item[1], item[1] + max(ctx.measure(t, ctx.sizes.tag)[0] for t in item[2])))
+        elif item[0] == "note":
+            n = item[1]
+            spans.append((n.x + n.w - ctx.measure(item[2], ctx.sizes.tag)[0], n.x + n.w))
     return any(a < c.x + c.w and c.x < b for a, b in spans)
 
 
@@ -553,8 +593,8 @@ def _dot(ax, ctx: Ctx, s, val: Est, y: float) -> list[float]:
 
 def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines) -> None:
     """The printed values of one line, placed together, nearest first: right of their own dot in the first gap that
-    touches no mark, connector, whisker, tick, vertical line or other label; else left of the line's marks (never
-    past the panel's left edge)."""
+    touches no mark, connector, whisker, tick, vertical line or other label; else left of their own dot under the same
+    rule (never past the panel's left edge)."""
     per = c.per_inch()
     lo, hi = c.spec.xlim
     clear = 3 * PT * per
@@ -584,7 +624,6 @@ def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines
             x = min(min(s0 for s0, _e in h) - clear, x - clear)
         return None
 
-    left_of_all = min((s0 for s0, _e in spans), default=lo)
     for val, role in sorted(labels, key=lambda lr: lr[0].value):
         text = ctx.value(c.spec.unit, val.value, val.key)
         col = ctx.chrome("muted") if role == "control" else ctx.role_hex(role)
@@ -595,7 +634,7 @@ def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines
             blocked.append((x, x + wd))
             cv.text(c.x + c.dx(x), y, text, size=ctx.sizes.value, color=col, **meta)
             continue
-        right = leftward(left_of_all, wd)
-        right = right if right is not None else max(lo + wd, left_of_all)
+        right = leftward(val.value, wd)  # left of its own dot, past the other marks only as far as it must
+        right = right if right is not None else lo + wd
         blocked.append((right - wd, right))
         cv.text(c.x + c.dx(right), y, text, size=ctx.sizes.value, color=col, ha="right", **meta)
