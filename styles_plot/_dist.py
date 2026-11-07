@@ -71,7 +71,7 @@ def plan(d: Distribution, ctx: Ctx, width: float, label_w: float) -> Plan:
     col_head = max((len(ctx.wrap(c, pw, sz.header, "bold")) for c in cols if c), default=0)
     head_h = 0.08 + col_head * line_h(sz.header) + (line_h(sz.axis) if cu else 0) + line_h(sz.role_word) + 0.08
     bottom_h, xtitle, xcue = x_bottom_height(ctx, xu, pw)
-    gap = 0.12
+    gap = line_h(sz.tick) + 0.04  # stacked panels: the top tick of one never touches the bottom tick of the next
     row_tags = {r: [claim_tags(ctx, [d.cells.get(_key(d, r, c))]) for c in cols] for r in d.rows}
     tag_h = {r: max(len(t) for t in ts) * line_h(sz.tag) + (0.04 if any(ts) else 0) for r, ts in row_tags.items()}
     tops, y = {}, head_h

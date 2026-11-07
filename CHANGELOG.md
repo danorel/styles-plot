@@ -3,6 +3,21 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.10
+
+From the bridge-jspace depth sweeps.
+
+- `Sweep(windows={row: [(x0, x1, band)]})`: grey windows per row (each model's gated layers); a plain list still
+  applies to every row.
+- Stacked sweep and distribution panels keep a tick label's height between them, so the top tick of one panel never
+  touches the bottom tick of the next.
+- A sweep line's word pushed more than 1.5 lines from its line's end (several lines ending at one value) fails SP611:
+  it cannot be matched to its line; split the panel.
+- A dot-table panel on a log-scale unit fails to build (the panel is linear), instead of drawing a linear axis.
+- Lane keys type-check: `Series.cells`, `DotColumn.ticks` and `TextColumn.cells` are `Mapping[Hashable, ...]`.
+- SP601 counts only the drawn part of a clipped line: an interval reaching past the axis no longer "crosses" the
+  tick labels outside the panel.
+
 ## 0.1.9
 
 - All post hoc, said once: when every estimate of a figure is post hoc in the registry, its marks are drawn filled and

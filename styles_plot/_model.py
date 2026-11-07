@@ -6,7 +6,7 @@ Every data mark carries a `cell`: its id in the status registry, from which the 
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Union
 
@@ -71,7 +71,7 @@ class Rule:
 @dataclass(frozen=True)
 class Series:
     role: str  # a vocabulary role, or "control"
-    cells: Mapping[str, Est | Missing]
+    cells: Mapping[Hashable, Est | Missing]  # row, or (row, lane) in a table with lanes
     control: str | None = None  # for role "control": which control ([controls].names)
     word: str | None = None  # the colour word above the first row (a vocabulary term); default: the role's word
 
@@ -84,7 +84,7 @@ class DotColumn:
     xticks: Sequence[float]
     series: Sequence[Series]
     connect: tuple[str, str] | None = None  # two series' roles joined by a grey connector in each row
-    ticks: Mapping[str, float] = field(default_factory=dict)  # grey tick per row
+    ticks: Mapping[Hashable, float] = field(default_factory=dict)  # grey tick per row (or (row, lane))
     band: tuple[float, float] | None = None  # the grey band
     rules: Sequence[Rule] = ()
     width: float | None = None  # inches; None shares the remaining width
@@ -95,7 +95,7 @@ class DotColumn:
 class TextColumn:
     header: str
     unit: str
-    cells: Mapping[str, Value]
+    cells: Mapping[Hashable, Value]
     role: str | None = None  # colour of the printed values; None = ink
     unit_title: bool = True  # False: no unit title under the column (its header already names the quantity)
 
@@ -182,7 +182,8 @@ class Sweep:
     points: Sequence[Point] = ()
     rules: Sequence[Rule] = ()  # vertical, at x (a chosen layer)
     hrules: Sequence[Rule] = ()  # horizontal, at a value of the y unit (chance); Rule.x holds the value
-    windows: Sequence[tuple[float, float, str]] = ()  # grey x-ranges (x0, x1, band name; "" = [key].band)
+    # grey x-ranges (x0, x1, band name; "" = [key].band): one list for every row, or {row: [...]} per row
+    windows: Sequence[tuple[float, float, str]] | Mapping[str, Sequence[tuple[float, float, str]]] = ()
     xlim: tuple[float, float] | None = None
     ylim: tuple[float, float] | None = None
     xticks: Sequence[float] | None = None

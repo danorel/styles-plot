@@ -10,6 +10,7 @@ SP607 a matplotlib title or suptitle (titles are the target's business, drawn as
 SP608 a marker other than the theme's, or hatching
 SP609 colour words that do not fit one line above their panel
 SP610 missing-cell words wider than the free span of their line
+SP611 a line's word pushed so far from the line's end that it cannot be matched to its line
 """
 
 from __future__ import annotations
@@ -65,6 +66,10 @@ def check(cx: CheckCtx) -> list[Problem]:
         out.append(cx.problem("SP609", f"colour words need {need:g} in on one line above a panel {have:g} in wide: "
                                        "widen the panel, use shorter words, or name the conditions as lanes"))  # fmt: skip
     for t in cx.texts:
+        if tags(t).get("far_from_line"):
+            out.append(cx.problem("SP611", f"the word {t.get_text()!r} sits {tags(t)['far_from_line']:g} in from its "
+                                           "line's end (lines end too close together): split the panel, or name the "
+                                           "lines as rows"))  # fmt: skip
         if tags(t).get("no_room"):
             need, have = tags(t)["no_room"]
             out.append(cx.problem("SP610", f"missing words {t.get_text()!r} need {need:g} in; the widest free span of "
@@ -100,16 +105,19 @@ def _obstacles(cx: CheckCtx):
     for ax in cx.fig.axes:
         for s in ax.spines.values():
             if s.get_visible():
-                paths.append((s.get_transform().transform_path(s.get_path()), (s.get_linewidth() / 2 + LINE_CLEAR) * px))
+                paths.append((s.get_transform().transform_path(s.get_path()), (s.get_linewidth() / 2 + LINE_CLEAR) * px,
+                              None))  # fmt: skip
         for ln in ax.lines:
             if not ln.get_visible() or tags(ln).get("kind") in _EXEMPT_LINES:
                 continue
+            clip = ax.bbox if ln.get_clip_on() else None  # what lies outside the axes is not drawn
             if ln.get_linestyle() not in ("None", "none", "", " ") and len(ln.get_xydata()) > 1:
                 half = (ln.get_linewidth() / 2 + LINE_CLEAR) * px
-                paths.append((ln.get_transform().transform_path(ln.get_path()), half))
+                paths.append((ln.get_transform().transform_path(ln.get_path()), half, clip))
             if ln.get_marker() not in (None, "None", "none", "", " "):
                 rad = (ln.get_markersize() + ln.get_markeredgewidth()) * px / 2 + MARK_CLEAR * px
-                marks += [(p, rad) for p in ln.get_transform().transform(ln.get_xydata())]
+                pts = ln.get_transform().transform(ln.get_xydata())
+                marks += [(p, rad) for p in pts if clip is None or clip.contains(*p)]
         for col in ax.collections:
             k = tags(col).get("kind")
             if k == "point":
@@ -123,7 +131,7 @@ def _obstacles(cx: CheckCtx):
             t = tags(a)
             if t.get("kind") == "arrow" and "seg" in t:
                 pts = t["trans"].transform(t["seg"])
-                paths.append((Path(pts), (a.get_linewidth() / 2 + LINE_CLEAR) * px))
+                paths.append((Path(pts), (a.get_linewidth() / 2 + LINE_CLEAR) * px, None))
     return paths, marks
 
 
@@ -136,8 +144,12 @@ def _hit(bb, obstacles) -> str:
         dy = max(bb.y0 + 1 - c[1], 0, c[1] - bb.y1 + 1)
         if np.hypot(dx, dy) < rad:
             return "on a mark"
-    for path, half in paths:
+    for path, half, clip in paths:
         box = Bbox.from_extents(bb.x0 + 1 - half, bb.y0 + 1 - half, bb.x1 - 1 + half, bb.y1 - 1 + half)
+        if clip is not None:  # only the drawn part of a clipped line counts
+            box = Bbox.intersection(box, clip)
+            if box is None:
+                continue
         if path.intersects_bbox(box, filled=False):
             return "crosses a line"
     return ""

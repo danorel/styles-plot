@@ -735,3 +735,37 @@ def test_all_estimates_post_hoc_said_once(vocab_dir):
     assert "SP201" in codes(_checks.run(mpl))
     mpl, problems = run(fig("allmix"))  # one fixed in advance: the usual hollow marks
     assert problems == [] and any(tags(d)["hollow"] for d in mpl.findobj(lambda a: tags(a).get("kind") == "dot"))
+
+
+# ---- 0.1.10 ----------------------------------------------------------------------------------------------------------
+def test_sweep_windows_per_row_panel_gap_and_clipped_lines(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    p.write_text(p.read_text().replace('[key]\n', '[key.bands]\ngate = "layers that pass the gate"\n[key]\n', 1)
+                 .replace('[units.layer]', '[units.unitshare]\ntitle = "share of answers (0-1)"\nquantity = "share"\nformat = "share"\n\n[units.layer]'))
+    v = sp.load(p)
+    xs = list(range(0, 25))
+    lines = [sp.Line(r, "second", xs, [0.5 + 0.02 * ((x * (k + 3)) % 7) for x in xs], cell=f"line.{r}",
+                     band=([-3.0] * 25, [0.95] * 25)) for k, r in enumerate(("c1", "c2"))]  # band clipped at ylim
+    s = sp.Sweep(["c1", "c2"], "layer", "unitshare", lines, kind="checkpoints", ylim=(0, 1), yticks=[0, 0.5, 1],
+                 windows={"c1": [(5, 9, "gate")], "c2": [(12, 20, "gate")]}, xticks=[0, 10, 20],
+                 points=[sp.Point("c2", "second", 10, cell="pick.c2", value=0.5, lo=-3.0, hi=0.9)])  # fmt: skip
+    # the point's interval runs to -3 under ylim 0: its clipped part passes the x tick label "10" and must not count
+    mpl, problems = run(sp.Figure("sweep", v).add(s))
+    assert problems == [], [str(p) for p in problems]
+    with pytest.raises(sp.BuildError, match="not rows"):
+        run(sp.Figure("sweep", v).add(dataclasses.replace(s, windows={"zz": [(1, 2, "gate")]})))
+
+
+def test_margin_words_too_far_and_log_dot_table(vocab_dir):
+    p = vocab_dir / "plotstyle.toml"
+    names = ["one", "two", "three", "four", "five"]
+    p.write_text(p.read_text().replace('"chance", "layer 11",', '"chance", "layer 11", ' + ", ".join(f'"{n}"' for n in names) + ","))
+    v = sp.load(p)
+    xs = list(range(0, 25))
+    lines = [sp.Line("c1", "probe", xs, [(k + 1) * 900 / (1 + x) + 100 for x in xs[:-1]] + [100], cell="line.c1",
+                     word=n) for k, n in enumerate(names)]  # five lines ending at one value
+    assert "SP611" in codes(run(sp.Figure("sweep", v).add(sp.Sweep(["c1"], "layer", "rank", lines, kind="checkpoints",
+                                                                   xticks=[0, 10, 20])))[1])  # fmt: skip
+    col = sp.DotColumn("rank", "rank", (10, 1000), (10, 100, 1000), [sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")})])
+    with pytest.raises(sp.BuildError, match="log scale"):
+        run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [col])))

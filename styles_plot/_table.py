@@ -118,6 +118,9 @@ def _validate(t: DotTable, ctx: Ctx) -> None:
             ctx.role_hex(c.role)
         if not isinstance(c, DotColumn):
             continue
+        if ctx.unit(c.unit).scale == "log":
+            raise BuildError(f"{ctx.figure_id}: column {c.header!r}: a dot-table panel is linear; unit {c.unit!r} is "
+                             "log scale. Use a Sweep for a log axis, or a unit of the log values")  # fmt: skip
         if c.xlim[1] <= c.xlim[0]:
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} has xlim {c.xlim}")
         for s in c.series:

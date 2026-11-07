@@ -10,6 +10,7 @@ panel ("post hoc", "descriptive", "not claimed: …"), like a dot table's tags (
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Mapping
 
 import numpy as np
 
@@ -88,8 +89,13 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
             enc.add(("median",))
         if ln.role == "control":
             enc.add(("control", ln.control))
-    for _x0, _x1, name in s.windows:
-        enc.add(("band", name))
+    windows = s.windows if isinstance(s.windows, Mapping) else {r: s.windows for r in s.rows}
+    unknown = [r for r in windows if r not in s.rows]
+    if unknown:
+        raise BuildError(f"{ctx.figure_id}: windows for {unknown}, which are not rows")
+    for ws in windows.values():
+        for _x0, _x1, name in ws:
+            enc.add(("band", name))
     hlabels = [(rl, rule_label(ctx, rl) if rl.label else "") for rl in s.hrules]
     for rl, _t in hlabels:
         if yu.scale == "log" and rl.x <= 0:
@@ -132,7 +138,7 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
     levels = max(levels, 1 if line else 0)
     strip_h = levels * line_h(sz.role_word) + 0.08
     bottom_h, xtitle, xcue = x_bottom_height(ctx, xu, pw)
-    gap = 0.12
+    gap = line_h(sz.tick) + 0.04  # stacked panels: the top tick of one never touches the bottom tick of the next
     line_cells = frozenset(ln.cell for ln in s.lines if ln.cell)
     row_tags = {r: claim_tags(ctx, [ln.cell for ln in lines[r]] + [p.cell for p, _y, _st in points if p.row == r],
                               line_cells) for r in s.rows}  # fmt: skip
@@ -170,7 +176,7 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
             ax.set_xticks([])
             ax.spines["bottom"].set_visible(True)
             ax.spines["bottom"].set_color(ctx.chrome("faint"))
-            for x0w, x1w, name in s.windows:
+            for x0w, x1w, name in windows.get(row, ()):
                 win = ax.axvspan(x0w, x1w, facecolor=ctx.chrome("band"), edgecolor="none", lw=0, zorder=0.5)
                 tag(win, kind="band", band=name)
             for tv in xt:
@@ -234,6 +240,8 @@ def _margin_words(cv: Canvas, ctx: Ctx, x: float, top: float, height: float, ite
         for i in range(len(ys) - 2, -1, -1):
             ys[i] = min(ys[i], ys[i + 1] - (hs[i] + hs[i + 1]) / 2)
     for y, (y0, text, colour, weight, size, meta) in zip(ys, items):
+        if meta.get("kind") == "role_word" and abs(y - y0) > 1.5 * line_h(size):
+            meta = {**meta, "far_from_line": round(abs(y - y0), 2)}  # SP611: a leader this long names nothing
         if meta.get("kind") == "role_word" and abs(y - y0) > line_h(size) / 4:
             from matplotlib.lines import Line2D
 
