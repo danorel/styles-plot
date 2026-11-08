@@ -169,7 +169,7 @@ A figure set can keep its folder clean for GitHub: `[output] sidecar_dir = "_met
 
 
 ```
-styles-plot check figures/post --vocab plotstyle.toml    # size, palette, staleness, one key one string
+styles-plot check figures/post --vocab plotstyle.toml    # size, palette, staleness (pixels, registry, vocabulary), one key one string
 styles-plot sheet figures/post                            # contact_sheet.png and contact_sheet_gray.png
 styles-plot key --vocab plotstyle.toml -o figures/post/key.png
 styles-plot palette --vocab plotstyle.toml                # which of your roles may not share a figure

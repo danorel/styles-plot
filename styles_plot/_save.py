@@ -287,8 +287,9 @@ def _write(mpl, problems: list[Problem], waived: list[dict], path: Path, mode: s
     return SaveReport(path, side, i.target, problems, waived)
 
 
-def _vocab_sha(vocab) -> str | None:
-    """The vocabulary file's hash; with [include], of it and its included files in order."""
+def bytes_sha(vocab) -> str | None:
+    """The vocabulary files' bytes hash (with [include], of it and its included files in order): what sidecars recorded
+    up to 0.2.1. `check` reads it in sidecars without `"hash": "meaning"` until 0.3."""
     if not vocab.includes:
         return _sha(vocab.source)
     if vocab.source is None:
@@ -329,7 +330,7 @@ def _sidecar(mpl, i: RenderInfo, png: Path, mode: str, problems: list[Problem]) 
             shown = Path(reg).name
     return {
         "styles_plot": __version__,
-        "vocab": {"project": i.vocab.project, "sha256": _vocab_sha(i.vocab)},
+        "vocab": {"project": i.vocab.project, "sha256": i.vocab.meaning_sha256, "hash": "meaning"},
         "registry": {"path": shown, "sha256": _sha(reg)},
         "figure": i.figure,
         "target": i.target,

@@ -26,6 +26,8 @@ written). The vocabulary owns every word that names a project concept, and every
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import json
 import re
 import sys
 from dataclasses import dataclass, field
@@ -135,6 +137,7 @@ class Vocab:
     sidecar_dir: str = ""  # [output] sidecar_dir: sidecars under <figure set root>/<this>/, keeping the PNG's path
     source: Path | None = None
     includes: tuple[Path, ...] = ()  # files merged in by [include] files = [...]
+    meaning_sha256: str = ""  # of the parsed vocabulary, includes merged: comments, spacing and key order do not count
 
     # ---- lookups -------------------------------------------------------------------------------------------------
     def role(self, name: str) -> Role:
@@ -310,9 +313,16 @@ def _merge_doc(doc: dict, extra: dict, owners: dict, name: str) -> None:
                 into[k], owners[(table, k)] = v, name
 
 
+def meaning_sha256(doc: dict) -> str:
+    """The hash of a vocabulary's meaning: its parsed tables, canonical JSON (keys sorted)."""
+    text = json.dumps(doc, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def from_dict(doc: dict, root: Path | None = None, source: Path | None = None) -> Vocab:
     """Build a vocabulary from a dict shaped like plotstyle.toml (for projects that configure in Python)."""
     where = str(source or "plotstyle.toml")
+    meaning = meaning_sha256(doc)
     unknown = set(doc) - _TOP_LEVEL
     if unknown:
         raise VocabError(f"{where}: unknown tables {sorted(unknown)}")
@@ -357,6 +367,7 @@ def from_dict(doc: dict, root: Path | None = None, source: Path | None = None) -
         words=words,
         sidecar_dir=_sidecar_dir((doc.get("output") or {}).get("sidecar_dir", ""), where),
         source=source,
+        meaning_sha256=meaning,
     )
 
 

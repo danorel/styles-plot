@@ -62,6 +62,7 @@ def _matches(w, p: Problem) -> bool:
 ERROR_FROM = {
     "SP613": "0.3",  # a header past the target's max_header_lines (0.2)
     "SP906": "0.3",  # styles-plot check: a PNG without a sidecar (0.1.15)
+    "SP907": "0.3",  # styles-plot check: the vocabulary's meaning changed since the save (0.2.2)
 }
 
 

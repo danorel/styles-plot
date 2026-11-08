@@ -65,6 +65,9 @@ def _check(args) -> int:
             lines.append(f"{rel}: SP902 the PNG's pixels changed after its sidecar was written")
         if not meta.get("publishable", True):
             lines.append(f"{rel}: SP903 a {target} figure is never published")
+        stale = _vocab_changed(meta, vocab) if vocab is not None else None
+        if stale is not None:
+            (warnings if is_warning("SP907") else lines).append(f"{rel}: SP907 {stale}")
         if meta.get("waived"):  # not a problem: a person looked and accepted it; said per figure and in the summary
             waived += len(meta["waived"])
             codes = ", ".join(sorted({w["code"] for w in meta["waived"]}))
@@ -102,11 +105,34 @@ def _check(args) -> int:
     for line in lines + warnings + notes:
         print(line)
     n_side = sum(": SP906 " in w for w in warnings)
+    n_vocab = sum(": SP907 " in w for w in warnings)
     no_side = f", {n_side} without a sidecar (SP906, a warning)" if n_side else ""
-    no_side += f", {len(warnings) - n_side} warning(s)" if len(warnings) > n_side else ""
+    no_side += f", {n_vocab} saved with another vocabulary (SP907, a warning)" if n_vocab else ""
+    rest = len(warnings) - n_side - n_vocab
+    no_side += f", {rest} warning(s)" if rest else ""
     print(f"styles-plot check: {len(pngs)} figure(s), {len(lines)} problem(s){no_side}"
           + (f", {waived} waived" if waived else ""))  # fmt: skip
     return 1 if lines else 0
+
+
+def _vocab_changed(meta: dict, vocab) -> str | None:
+    """SP907's message when the sidecar's vocabulary hash is not the given vocabulary's, else None. A sidecar from
+    0.2.1 or earlier hashed the files' bytes: it matches either hash (until 0.3), and a comment edit since then shows
+    as a change, since a byte hash cannot tell a comment from a term."""
+    rec = meta.get("vocab") or {}
+    sha = rec.get("sha256")
+    if not sha:
+        return None
+    if rec.get("hash") == "meaning":
+        if sha == vocab.meaning_sha256:
+            return None
+        return "vocabulary changed since save: meaning checks ran against the current vocabulary"
+    from styles_plot._save import bytes_sha
+
+    if sha in (vocab.meaning_sha256, bytes_sha(vocab)):
+        return None
+    return ("vocabulary changed since save: meaning checks ran against the current vocabulary (this sidecar hashed "
+            "the file's bytes, so a comment edit counts too: save again to record its meaning)")
 
 
 def _sheet(args) -> int:
