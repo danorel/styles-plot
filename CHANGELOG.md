@@ -6,7 +6,7 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
-## Unreleased (0.2.1)
+## 0.2.1
 
 - **A value label on a tie goes right.** A label takes the free side nearest its dot, and the right side on a tie; the
   tie was compared exactly, so with symmetric whiskers, or a dot without an interval, float noise (~1e-14 pt) could
