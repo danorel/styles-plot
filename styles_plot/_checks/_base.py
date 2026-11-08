@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from matplotlib.collections import Collection
 from matplotlib.colors import to_hex, to_rgba
@@ -16,14 +16,30 @@ from styles_plot._tags import tags
 
 @dataclass(frozen=True)
 class Problem:
-    """One violation: a stable code, a message, and the figure it was found in."""
+    """One violation: a stable code, a message, the figure it was found in, and, when known, what is at fault
+    (`subject`), where (`where`: target, block, row, column), its box and its obstacle's box (inches from the figure's
+    bottom-left), and one line that fixes it (`fix`)."""
 
     code: str
     message: str
     figure: str = ""
+    subject: str = ""
+    where: dict | None = field(default=None, compare=False, hash=False)
+    bbox_in: tuple | None = None
+    obstacle_in: tuple | None = None
+    fix: str = ""
 
     def __str__(self) -> str:
-        return f"{self.figure}: {self.code} {self.message}" if self.figure else f"{self.code} {self.message}"
+        head = f"{self.figure}: {self.code} {self.message}" if self.figure else f"{self.code} {self.message}"
+        return f"{head} → {self.fix}" if self.fix else head
+
+    def as_dict(self) -> dict:
+        d = {"code": self.code, "message": self.message, "figure": self.figure}
+        for k in ("subject", "where", "bbox_in", "obstacle_in", "fix"):
+            v = getattr(self, k)
+            if v:
+                d[k] = list(v) if isinstance(v, tuple) else v
+        return d
 
 
 @dataclass
@@ -39,13 +55,7 @@ class CheckCtx:
         i = info(fig)
         fig.canvas.draw()
         texts = [t for t in fig.findobj(Text) if t.get_visible() and t.get_text().strip()]
-        own = {id(fig.patch), *(id(s.patch) for s in fig.subfigs), *(id(ax.patch) for ax in fig.axes)}
-        for ax in fig.axes:  # an axis's tick marks are chrome drawn by matplotlib, not marks
-            for axis in (ax.xaxis, ax.yaxis):
-                own |= {id(t) for t in (*axis.get_ticklines(), *axis.get_ticklines(minor=True))}
-        marks = [a for a in fig.findobj(lambda a: isinstance(a, (Line2D, Patch, Collection)))
-                 if id(a) not in own and a.get_visible()]  # fmt: skip
-        return cls(fig, i, texts, marks, fig.canvas.get_renderer())
+        return cls(fig, i, texts, marks_of(fig), fig.canvas.get_renderer())
 
     @property
     def name(self) -> str:
@@ -59,11 +69,29 @@ class CheckCtx:
     def theme(self):
         return self.info.theme
 
-    def problem(self, code: str, message: str) -> Problem:
-        return Problem(code, message, self.name)
+    def problem(self, code: str, message: str, **detail) -> Problem:
+        if "where" in detail or detail:
+            detail.setdefault("where", {"target": self.info.target})
+        return Problem(code, message, self.name, **detail)
+
+    def inches(self, bb) -> tuple[float, float, float, float]:
+        """A display box (pixels) in inches from the figure's bottom-left."""
+        d = self.fig.dpi
+        return tuple(round(float(v) / d, 3) for v in (bb.x0, bb.y0, bb.x1, bb.y1))
 
     def tagged(self, *kinds: str) -> list:
         return [a for a in [*self.marks, *self.texts] if tags(a).get("kind") in kinds]
+
+
+def marks_of(fig) -> list:
+    """Every visible Line2D, Patch and Collection of a figure, minus the figure, subfigure and axes backgrounds and the
+    axes' own tick marks (chrome drawn by matplotlib)."""
+    own = {id(fig.patch), *(id(s.patch) for s in fig.subfigs), *(id(ax.patch) for ax in fig.axes)}
+    for ax in fig.axes:
+        for axis in (ax.xaxis, ax.yaxis):
+            own |= {id(t) for t in (*axis.get_ticklines(), *axis.get_ticklines(minor=True))}
+    return [a for a in fig.findobj(lambda a: isinstance(a, (Line2D, Patch, Collection)))
+            if id(a) not in own and a.get_visible()]  # fmt: skip
 
 
 def full_text(t) -> str:

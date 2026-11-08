@@ -46,9 +46,21 @@ from styles_plot._keyfig import key_figure
 from styles_plot._palette import Palette
 from styles_plot._registry import Registry, RegistryError, Status
 from styles_plot._registry import load as load_registry
-from styles_plot._render import BuildError, Figure
+from styles_plot._build import BuildReport, FigureSet
+from styles_plot._custom import BlockContext, Canvas, Custom, Panel
+from styles_plot._render import BuildError, Figure, Plan, Waive
 from styles_plot._sheet import contact_sheets
-from styles_plot._save import Problem, SaveReport, StyleError, StyleWarning, check_figure, save, save_bundle
+from styles_plot._save import (
+    Preview,
+    Problem,
+    SaveReport,
+    StyleError,
+    StyleWarning,
+    check_figure,
+    debug,
+    save,
+    save_bundle,
+)
 from styles_plot._theme import MarkStyle, Phrases, Sizes, Theme
 from styles_plot._vocab import Entity, Format, Role, Unit, Vocab, VocabError, from_dict, load, loads
 
@@ -80,7 +92,10 @@ __all__ = [
     "Status",
     # figure
     "Figure",
+    "FigureSet",
+    "BuildReport",
     "BuildError",
+    "Waive",
     "key_figure",
     # blocks
     "DotTable",
@@ -107,6 +122,12 @@ __all__ = [
     "Mark",
     "Card",
     "CardRow",
+    # project blocks (experimental)
+    "BlockContext",
+    "Plan",
+    "Canvas",
+    "Panel",
+    "Custom",
     # values
     "Est",
     "Missing",
@@ -115,6 +136,8 @@ __all__ = [
     "save",
     "save_bundle",
     "check_figure",
+    "debug",
+    "Preview",
     "SaveReport",
     "Problem",
     "StyleError",

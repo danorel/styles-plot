@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import tempfile
+from dataclasses import replace
 import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -29,10 +30,11 @@ SIDECAR_SUFFIX = ".styles.json"
 class StyleError(ValueError):
     """A figure that breaks the grammar; nothing was written."""
 
-    def __init__(self, problems: list[Problem]):
+    def __init__(self, problems: list[Problem], target: str | None = None):
         self.problems = list(problems)
         lines = "\n".join(f"  {p}" for p in self.problems)
-        super().__init__(f"{len(self.problems)} problem(s), nothing written:\n{lines}")
+        hint = f'\nsee them drawn: sp.debug(fig, "{target}")' if target else "\nsee them drawn: sp.debug(fig, target)"
+        super().__init__(f"{len(self.problems)} problem(s), nothing written:\n{lines}{hint}")
 
 
 class StyleWarning(UserWarning):
@@ -45,6 +47,7 @@ class SaveReport:
     sidecar: Path
     target: str
     problems: list[Problem] = field(default_factory=list)
+    waived: list[dict] = field(default_factory=list)  # {code, subject, reason} per waived problem
 
 
 def sidecar_path(png: str | Path, root: str | Path | None = None, sidecar_dir: str = "") -> Path:
@@ -75,8 +78,91 @@ def find_sidecar(png: Path, top: Path, sidecar_dirs=("_meta",)) -> Path | None:
         folder = folder.parent
 
 
+DEBUG_DIR = "_debug"
+DEBUG_RED = "#d62728"  # the debug picture's own colour: never published, so outside the palette by design
+
+
+def debug(fig: Figure, target: str = "post", out: str | Path = ".") -> list[Problem]:
+    """Render a figure for a target, run every check, and write <out>/_debug/<id>.<target>.png: the figure with each
+    problem's subject boxed in red, its obstacle boxed in dashed red, and the code beside it. Never publishable: no
+    sidecar, and `styles-plot check` and `sheet` skip _debug/. Returns the problems."""
+    mpl = fig.render(target)
+    problems = _checks.run(mpl)  # waived problems are not drawn
+    overlay(mpl, problems)
+    path = Path(out) / DEBUG_DIR / f"{fig.id}.{target}.png"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    mpl.savefig(path, dpi=info(mpl).theme.dpi, facecolor=info(mpl).vocab.palette.chrome["background"])
+    return problems
+
+
+def overlay(mpl, problems: list[Problem]) -> None:
+    """Box each problem's subject in red and its obstacle in dashed red, with the code beside it."""
+    from matplotlib.gridspec import GridSpec
+    from matplotlib.patches import Rectangle
+
+    w, h = mpl.get_size_inches()
+    # a last subfigure over the whole figure: matplotlib 3.8 draws subfigures after the figure's own artists whatever
+    # their zorder, so anything added to the figure itself would sit under the sections
+    top = mpl.add_subfigure(GridSpec(1, 1, figure=mpl)[0], zorder=1000)
+    top.set_facecolor("none")
+    ov = top.add_axes((0, 0, 1, 1))
+    ov.set_axis_off()
+    ov.set_xlim(0, w)
+    ov.set_ylim(0, h)
+    ov.patch.set_alpha(0)
+    for p in problems:
+        for box, style in ((p.bbox_in, "-"), (p.obstacle_in, "--")):
+            if not box:
+                continue
+            x0, y0, x1, y1 = box
+            ov.add_patch(Rectangle((x0, y0), x1 - x0, y1 - y0, fill=False, edgecolor=DEBUG_RED, lw=1.4, ls=style))
+        if p.bbox_in:
+            ov.text(p.bbox_in[2] + 0.02, p.bbox_in[3], p.code, color=DEBUG_RED, fontsize=8, va="bottom")
+
+
+@dataclass
+class Preview:
+    """A figure as a target would publish it, for a notebook: the PNG (with each problem boxed in red, as `debug`
+    draws it) and the problems. Shows itself in Jupyter; writes nothing."""
+
+    figure: str
+    target: str
+    png: bytes
+    problems: list[Problem] = field(default_factory=list)
+
+    def _repr_png_(self) -> bytes:
+        return self.png
+
+    def _repr_html_(self) -> str:
+        import base64
+        import html
+
+        img = f'<img src="data:image/png;base64,{base64.b64encode(self.png).decode()}" style="max-width:100%">'
+        if not self.problems:
+            return f"{img}<p>{html.escape(self.figure)} [{html.escape(self.target)}]: no problems</p>"
+        items = "".join(f"<li><code>{html.escape(p.code)}</code> {html.escape(p.message)}"
+                        + (f" → {html.escape(p.fix)}" if p.fix else "") + "</li>" for p in self.problems)  # fmt: skip
+        return f"{img}<p>{len(self.problems)} problem(s):</p><ul>{items}</ul>"
+
+    def __repr__(self) -> str:
+        return f"Preview({self.figure!r}, {self.target!r}, {len(self.problems)} problem(s))"
+
+
+def preview(fig: Figure, target: str = "post") -> Preview:
+    """Render for a target, run every check, and return the picture (problems boxed in red) and the problems."""
+    import io
+
+    mpl = fig.render(target)
+    problems = _checks.run(mpl)
+    if problems:
+        overlay(mpl, problems)
+    buf = io.BytesIO()
+    mpl.savefig(buf, format="png", dpi=info(mpl).theme.dpi, facecolor=info(mpl).vocab.palette.chrome["background"])
+    return Preview(fig.id, target, buf.getvalue(), problems)
+
+
 def check_figure(fig: Figure, target: str) -> list[Problem]:
-    """Render a figure for a target and return every problem, writing nothing."""
+    """Render a figure for a target and return every problem not waived, writing nothing."""
     return _checks.run(fig.render(target))
 
 
@@ -86,22 +172,70 @@ def save(fig: Figure, path: str | Path, target: str, *, mode: str = "strict",
     nothing; compat mode (and the notebook target) warns and writes, recording the problems in the sidecar. `root` is
     the figure set's folder: with [output].sidecar_dir the sidecar goes under it (default: the PNG's folder)."""
     _mode(mode)
-    mpl, problems = _prepare(fig, target)
-    return _write(mpl, problems, Path(path), mode, root)
+    mpl, problems, waived = _prepare(fig, target)
+    out = Path(root) if root is not None else Path(path).parent
+    try:
+        report = _write(mpl, problems, waived, Path(path), mode, root)
+    except StyleError as e:
+        record_problems(out, fig.id, {target: problems + [p for p in e.problems if p not in problems]})
+        raise
+    record_problems(out, fig.id, {target: report.problems})
+    return report
 
 
 def save_bundle(fig: Figure, out_dir: str | Path, targets: Iterable[str] = ("post", "slide", "readme"), *,
                 mode: str = "strict") -> dict[str, SaveReport]:  # fmt: skip
     """One figure for several targets, at <out_dir>/<target>/<figure id>.png. In strict mode every target is checked
-    before anything is written, so a bundle is never half-saved."""
+    before anything is written, so a bundle is never half-saved. Each target's problems (none when clean) go to
+    <out_dir>/_meta/problems.json, read by `styles-plot todo`."""
+    return bundle(fig, out_dir, targets, mode)
+
+
+def bundle(fig: Figure, out_dir, targets, mode: str, record: bool = True) -> dict[str, SaveReport]:
+    """save_bundle; `record=False` leaves problems.json to the caller (a parallel build writes it once)."""
     _mode(mode)
+    out_dir = Path(out_dir)
     prepared = {t: _prepare(fig, t) for t in targets}
     if mode == "strict":
-        blocking = [p for t, (mpl, ps) in prepared.items() if info(mpl).theme.publishable for p in _tagged(ps, t)]
+        blocking = [p for t, (mpl, ps, _) in prepared.items() if info(mpl).theme.publishable
+                    for p in _tagged(ps, t) if not _checks.is_warning(p.code)]  # fmt: skip
         if blocking:
+            if record:
+                record_problems(out_dir, fig.id, {t: ps for t, (_m, ps, _w) in prepared.items()})
             raise StyleError(blocking)
-    return {t: _write(mpl, ps, Path(out_dir) / t / f"{fig.id}.png", mode, Path(out_dir) / t)
-            for t, (mpl, ps) in prepared.items()}  # fmt: skip
+    reports: dict[str, SaveReport] = {}
+    try:
+        for t, (mpl, ps, wv) in prepared.items():
+            reports[t] = _write(mpl, ps, wv, out_dir / t / f"{fig.id}.png", mode, out_dir / t)
+    except StyleError as e:  # the saved PNG failed its check
+        if record:
+            failed = next(t for t in prepared if t not in reports)
+            record_problems(out_dir, fig.id, {**{t: r.problems for t, r in reports.items()}, failed: e.problems})
+        raise
+    if record:
+        record_problems(out_dir, fig.id, {t: r.problems for t, r in reports.items()})
+    return reports
+
+
+PROBLEMS = "problems.json"
+
+
+def record_problems(out: Path, figure: str, by_target: dict[str, list[Problem]]) -> Path:
+    """Update <out>/_meta/problems.json ({figure: {target: [problem, ...]}}) with a figure's last problems."""
+    path = Path(out) / "_meta" / PROBLEMS
+    data = {}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            data = {}
+    data.setdefault(figure, {}).update({t: [p.as_dict() for p in ps] for t, ps in by_target.items()})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(suffix=".json", dir=path.parent)
+    with os.fdopen(fd, "w") as f:
+        f.write(json.dumps(dict(sorted(data.items())), indent=1, ensure_ascii=False) + "\n")
+    os.replace(tmp, path)
+    return path
 
 
 def _mode(mode: str) -> None:
@@ -110,19 +244,21 @@ def _mode(mode: str) -> None:
 
 
 def _tagged(problems: list[Problem], target: str) -> list[Problem]:
-    return [Problem(p.code, p.message, f"{p.figure} [{target}]") for p in problems]
+    return [replace(p, figure=f"{p.figure} [{target}]") for p in problems]
 
 
 def _prepare(fig: Figure, target: str):
     mpl = fig.render(target)
-    return mpl, _checks.run(mpl)
+    return (mpl, *_checks.evaluate(mpl))
 
 
-def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path | None = None) -> SaveReport:
+def _write(mpl, problems: list[Problem], waived: list[dict], path: Path, mode: str,
+           root: str | Path | None = None) -> SaveReport:  # fmt: skip
     i = info(mpl)
     strict = mode == "strict" and i.theme.publishable
-    if problems and strict:
-        raise StyleError(problems)
+    blocking = [p for p in problems if not _checks.is_warning(p.code)]  # a new check warns for one minor version
+    if blocking and strict:
+        raise StyleError(blocking, i.target)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(suffix=".png", dir=path.parent)
     os.close(fd)
@@ -132,7 +268,7 @@ def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path
         png_problems = check_png(tmp, i.theme, i.vocab.palette, i.text_only) if i.theme.strict_layout else []
         png_problems = [Problem(p.code, p.message, i.figure) for p in png_problems]
         if png_problems and strict:
-            raise StyleError(png_problems)
+            raise StyleError(png_problems, i.target)
         os.replace(tmp, path)
     finally:
         if os.path.exists(tmp):
@@ -142,8 +278,23 @@ def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path
         warnings.warn(str(p), StyleWarning, stacklevel=3)
     side = sidecar_path(path, root, i.vocab.sidecar_dir)
     side.parent.mkdir(parents=True, exist_ok=True)
-    side.write_text(json.dumps(_sidecar(mpl, i, path, mode, problems), indent=1, ensure_ascii=False) + "\n")
-    return SaveReport(path, side, i.target, problems)
+    meta = _sidecar(mpl, i, path, mode, problems)
+    if waived:
+        meta["waived"] = waived
+    side.write_text(json.dumps(meta, indent=1, ensure_ascii=False) + "\n")
+    return SaveReport(path, side, i.target, problems, waived)
+
+
+def _vocab_sha(vocab) -> str | None:
+    """The vocabulary file's hash; with [include], of it and its included files in order."""
+    if not vocab.includes:
+        return _sha(vocab.source)
+    if vocab.source is None:
+        return None
+    h = hashlib.sha256()
+    for p in (vocab.source, *vocab.includes):
+        h.update(Path(p).read_bytes())
+    return h.hexdigest()
 
 
 def _sha(path: Path | None) -> str | None:
@@ -176,7 +327,7 @@ def _sidecar(mpl, i: RenderInfo, png: Path, mode: str, problems: list[Problem]) 
             shown = Path(reg).name
     return {
         "styles_plot": __version__,
-        "vocab": {"project": i.vocab.project, "sha256": _sha(i.vocab.source)},
+        "vocab": {"project": i.vocab.project, "sha256": _vocab_sha(i.vocab)},
         "registry": {"path": shown, "sha256": _sha(reg)},
         "figure": i.figure,
         "target": i.target,
@@ -190,5 +341,5 @@ def _sidecar(mpl, i: RenderInfo, png: Path, mode: str, problems: list[Problem]) 
         "marks": marks,
         "key": key,
         "numbers": dict(i.numbers),
-        "problems": [{"code": p.code, "message": p.message} for p in problems],
+        "problems": [p.as_dict() for p in problems],
     }

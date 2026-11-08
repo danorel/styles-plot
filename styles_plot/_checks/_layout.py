@@ -50,12 +50,21 @@ def check(cx: CheckCtx) -> list[Problem]:
         for j in range(i + 1, len(boxes)):
             (ta, a), (tb, b) = boxes[i], boxes[j]
             if a.x0 < b.x1 - 1 and b.x0 < a.x1 - 1 and a.y0 < b.y1 - 1 and b.y0 < a.y1 - 1:
-                out.append(cx.problem("SP606", f"texts overlap {full_text(ta)[:20]!r} / {full_text(tb)[:20]!r}"))
+                ax, where = _locate(cx, a)
+                fix = _panel_fix(cx, ax, a) if ax is not None else "move or shorten one of them, or waive it"
+                where["other"] = full_text(tb)
+                out.append(cx.problem("SP606", f"texts overlap {full_text(ta)[:20]!r} / {full_text(tb)[:20]!r}",
+                                      subject=full_text(ta), where=where, bbox_in=cx.inches(a),
+                                      obstacle_in=cx.inches(b), fix=fix))  # fmt: skip
     obstacles = _obstacles(cx)
     for t, bb in boxes:
-        what = _hit(bb, obstacles)
+        what, obstacle = _hit(bb, obstacles)
         if what:
-            out.append(cx.problem("SP601", f"text {what}: {full_text(t)[:30]!r}"))
+            ax, where = _locate(cx, bb)
+            fix = _panel_fix(cx, ax, bb) if ax is not None else "move the text or the line, or waive it"
+            out.append(cx.problem("SP601", f"text {what}: {full_text(t)[:30]!r}", subject=full_text(t), where=where,
+                                  bbox_in=cx.inches(bb), obstacle_in=cx.inches(obstacle) if obstacle is not None else None,
+                                  fix=fix))  # fmt: skip
     if cx.fig._suptitle is not None and cx.fig._suptitle.get_text():
         out.append(cx.problem("SP607", "a suptitle"))
     for ax in cx.fig.axes:
@@ -63,17 +72,19 @@ def check(cx: CheckCtx) -> list[Problem]:
             out.append(cx.problem("SP607", "an axes title"))
     full = {tags(t)["line_full"] for t in cx.texts if tags(t).get("line_full")}
     for need, have in sorted(full):
-        out.append(cx.problem("SP609", f"colour words need {need:g} in on one line above a panel {have:g} in wide: "
-                                       "widen the panel, use shorter words, or name the conditions as lanes"))  # fmt: skip
+        out.append(cx.problem("SP609", f"colour words need {need:g} in on one line above a panel {have:g} in wide",
+                              fix=f"a panel ≥ {need:g} in wide, shorter words, or the conditions as lanes"))  # fmt: skip
     for t in cx.texts:
         if tags(t).get("far_from_line"):
             out.append(cx.problem("SP611", f"the word {t.get_text()!r} sits {tags(t)['far_from_line']:g} in from its "
-                                           "line's end (lines end too close together): split the panel, or name the "
-                                           "lines as rows"))  # fmt: skip
+                                           "line's end (lines end too close together)", subject=t.get_text(),
+                                  fix="split the panel, or name the lines as rows"))  # fmt: skip
         if tags(t).get("no_room"):
             need, have = tags(t)["no_room"]
+            ax, where = _locate(cx, t.get_window_extent(cx.renderer))
             out.append(cx.problem("SP610", f"missing words {t.get_text()!r} need {need:g} in; the widest free span of "
-                                           f"their line is {have:g} in: widen the panel or shorten the words"))  # fmt: skip
+                                           f"their line is {have:g} in", subject=full_text(t), where=where,
+                                  fix=f"a panel about {need - have:.2f} in wider, or shorter missing words"))  # fmt: skip
     marker = cx.vocab.marks.marker
     for a in cx.marks:
         if isinstance(a, Line2D) and a.get_marker() not in (None, "None", "none", "", " ", marker):
@@ -136,15 +147,16 @@ def _obstacles(cx: CheckCtx):
     return paths, marks
 
 
-def _hit(bb, obstacles) -> str:
+def _hit(bb, obstacles) -> tuple[str, Bbox | None]:
+    """('on a mark' | 'crosses a line' | '', the obstacle's box in pixels)."""
     if bb.width <= 2 or bb.height <= 2:
-        return ""
+        return "", None
     paths, marks = obstacles
     for c, rad in marks:
         dx = max(bb.x0 + 1 - c[0], 0, c[0] - bb.x1 + 1)
         dy = max(bb.y0 + 1 - c[1], 0, c[1] - bb.y1 + 1)
         if np.hypot(dx, dy) < rad:
-            return "on a mark"
+            return "on a mark", Bbox.from_extents(c[0] - rad, c[1] - rad, c[0] + rad, c[1] + rad)
     for path, half, clip in paths:
         box = Bbox.from_extents(bb.x0 + 1 - half, bb.y0 + 1 - half, bb.x1 - 1 + half, bb.y1 - 1 + half)
         if clip is not None:  # only the drawn part of a clipped line counts
@@ -152,5 +164,58 @@ def _hit(bb, obstacles) -> str:
             if box is None:
                 continue
         if path.intersects_bbox(box, filled=False):
-            return "crosses a line"
-    return ""
+            ext = path.get_extents()
+            if clip is not None:
+                ext = Bbox.intersection(ext, clip) or ext
+            return "crosses a line", ext
+    return "", None
+
+
+def _locate(cx: CheckCtx, bb) -> tuple[object, dict]:
+    """The dot-table or sweep panel a text box sits in or beside (its column's pad counts), and `where`."""
+    where: dict = {"target": cx.info.target}
+    cy, best = (bb.y0 + bb.y1) / 2, None
+    for ax in cx.fig.axes:
+        p = tags(ax)
+        if p.get("kind") not in ("panel", "sweep_panel"):
+            continue
+        a = ax.bbox
+        pad = cx.theme.pad * cx.fig.dpi
+        if a.x0 - pad <= (bb.x0 + bb.x1) / 2 <= a.x1 + pad and a.y0 <= cy <= a.y1:
+            best = ax
+            if p.get("header"):
+                where["column"] = p["header"]
+            break
+    rows = [t for t in cx.texts if tags(t).get("kind") == "row_label"]
+    near = min(rows, key=lambda t: abs((t.get_window_extent(cx.renderer).y0 + t.get_window_extent(cx.renderer).y1) / 2
+                                        - cy), default=None)  # fmt: skip
+    if near is not None and best is not None:
+        where["row"] = near.get_text()
+    return best, where
+
+
+def _panel_fix(cx: CheckCtx, ax, bb) -> str:
+    """The range that gives a text in a panel room: the text's width added to the panel's upper limit."""
+    lo, hi = ax.get_xlim()
+    inv = ax.transData.inverted()
+    y = (bb.y0 + bb.y1) / 2
+    d0, d1 = inv.transform([(bb.x0, y), (bb.x1, y)])[:, 0]
+    clear = abs(inv.transform([(bb.x0 + 8 * cx.fig.dpi / 72, y)])[0][0] - d0)  # about 8 pt of air, in data units
+    need = hi + (d1 - d0) + 2 * clear
+    width_in = ax.bbox.width / cx.fig.dpi
+    wider = width_in * need_ratio(lo, hi, need)
+    return f"xlim upper ≥ {_nice(need)}, or a panel ≥ {wider:.2f} in wide, or waive it (text placement is waivable)"
+
+
+def need_ratio(lo: float, hi: float, need: float) -> float:
+    return (need - lo) / (hi - lo)
+
+
+def _nice(v: float) -> str:
+    """A value rounded up to two significant figures, for a suggested limit."""
+    if v == 0:
+        return "0"
+    import math
+
+    mag = 10 ** (math.floor(math.log10(abs(v))) - 1)
+    return f"{math.ceil(v / mag) * mag:g}"

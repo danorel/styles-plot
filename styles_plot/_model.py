@@ -6,8 +6,8 @@ Every data mark carries a `cell`: its id in the status registry, from which the 
 
 from __future__ import annotations
 
-from collections.abc import Hashable, Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Callable, Hashable, Mapping, Sequence
+from dataclasses import KW_ONLY, dataclass, field
 from typing import Union
 
 import numpy as np
@@ -70,34 +70,55 @@ class Rule:
 # ---- dot table ---------------------------------------------------------------------------------------------------------
 @dataclass(frozen=True)
 class Series:
+    """One role's estimates in a dot column. `cells` maps a row (or (row, lane) in a table with lanes) to a value, or
+    is a callable called for every row (`(row, lane)` with lanes). A value is an `Est` or `Missing`, or a number,
+    `(value, lo, hi)` or a mapping with value/lo/hi, read as an `Est`. `cell` and `key` are templates for values that
+    do not set their own (`{row}`, `{id}`, `{lane}`, `{role}`); `label` and `interval` apply to values read from
+    numbers, tuples and mappings."""
+
     role: str  # a vocabulary role, or "control"
-    cells: Mapping[Hashable, Est | Missing]  # row, or (row, lane) in a table with lanes
+    cells: Mapping[Hashable, object] | Callable  # row, or (row, lane) in a table with lanes -> value
     control: str | None = None  # for role "control": which control ([controls].names)
     word: str | None = None  # the colour word above the first row (a vocabulary term); default: the role's word
+    _: KW_ONLY
+    cell: str | None = None  # template: "layer.{id}"
+    key: str | None = None  # template: "acc.{row}"
+    label: bool | None = None
+    interval: str | None = None
 
 
 @dataclass(frozen=True)
 class DotColumn:
+    """One panel of a dot table. `xlim` and `xticks` come, in this order, from the column, from the unit's `lim` and
+    `ticks` in the vocabulary, or from the data (values, intervals, grey ticks, band, rules), padded, snapped to the
+    ticks' step, and widened so the rightmost value label clears the right spine."""
+
     header: str
     unit: str
-    xlim: tuple[float, float]
-    xticks: Sequence[float]
-    series: Sequence[Series]
+    xlim: tuple[float, float] | None = None
+    xticks: Sequence[float] | None = None
+    series: Sequence[Series] = ()
     connect: tuple[str, str] | None = None  # two series' roles joined by a grey connector in each row
     ticks: Mapping[Hashable, float] = field(default_factory=dict)  # grey tick per row (or (row, lane))
     band: tuple[float, float] | None = None  # the grey band
     rules: Sequence[Rule] = ()
     width: float | None = None  # inches; None shares the remaining width
     band_name: str = ""  # which [key.bands] definition the band has; "" = [key].band
+    weight: float = 1.0  # this panel's share of the free width (panels without `width`), relative to the others
 
 
 @dataclass(frozen=True)
 class TextColumn:
+    """Numbers beside a table: `cells` as in `Series` (a `Count` too); `cell` and `key` templates likewise."""
+
     header: str
     unit: str
-    cells: Mapping[Hashable, Value]
+    cells: Mapping[Hashable, object] | Callable
     role: str | None = None  # colour of the printed values; None = ink
     unit_title: bool = True  # False: no unit title under the column (its header already names the quantity)
+    _: KW_ONLY
+    cell: str | None = None
+    key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -214,9 +235,14 @@ class Distribution:
 # ---- stack -------------------------------------------------------------------------------------------------------------
 @dataclass(frozen=True)
 class Segment:
+    """One part of a 100% stack: `shares` as `Series.cells` (row -> share, or a callable); `cell`/`key` templates."""
+
     name: str  # a vocabulary term
     role: str  # a role, or "other"
-    shares: Mapping[str, Est]
+    shares: Mapping[str, object] | Callable
+    _: KW_ONLY
+    cell: str | None = None
+    key: str | None = None
 
 
 @dataclass(frozen=True)

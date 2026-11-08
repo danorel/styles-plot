@@ -26,6 +26,8 @@ names = ["shuffled labels"]  # CHANGE: your baselines
 title = "accuracy (%)"  # CHANGE
 quantity = "accuracy"
 format = "accuracy"
+lim = [30, 100]  # the range every panel on this unit takes (leave out: computed from the data)
+ticks = [50, 75, 100]
 
 [units.prompts]
 title = "prompts"

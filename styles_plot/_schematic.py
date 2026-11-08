@@ -35,7 +35,7 @@ def plan(s: Schematic, ctx: Ctx, width: float, label_w: float) -> Plan:
                 enc.add(("whisker", "ci95"))
         if isinstance(e, Box) and (e.x + e.w > width + 1e-9 or e.y + e.h > s.height + 1e-9):
             raise BuildError(f"{ctx.figure_id}: a box runs outside the schematic ({width} x {s.height} in)")
-    return Plan(s.height, enc, lambda cv: _draw(cv, ctx, s))
+    return Plan(s.height, lambda cv: _draw(cv, ctx, s), enc)
 
 
 def _draw(cv: Canvas, ctx: Ctx, s: Schematic) -> None:

@@ -33,6 +33,33 @@ class BuildError(ValueError):
     """A figure declaration that cannot be drawn: an unknown role, unit, row or target; a table that does not fit."""
 
 
+WAIVABLE = frozenset({"SP601", "SP606", "SP610", "SP613"})  # text placement only: never a meaning check
+
+
+@dataclass(frozen=True)
+class Waive:
+    """Accept one layout problem a person has looked at: `code` (text placement only: SP601, SP606, SP610, SP613),
+    `text` the whole text at fault (a wrapped text by its full text; for SP606 either of the two), and why. `targets`
+    limits it to some targets (default: all). A waiver that matches nothing on a target it applies to is SP905."""
+
+    code: str
+    text: str
+    reason: str
+    targets: tuple[str, ...] = ()
+
+    def __post_init__(self):
+        if self.code not in WAIVABLE:
+            raise BuildError(f"{self.code} cannot be waived (only text placement: {', '.join(sorted(WAIVABLE))})")
+        if not self.text.strip():
+            raise BuildError(f"a {self.code} waiver needs the text it waives")
+        if not self.reason.strip():
+            raise BuildError(f"the waiver of {self.code} {self.text!r} needs a reason")
+        object.__setattr__(self, "targets", (self.targets,) if isinstance(self.targets, str) else tuple(self.targets))
+
+    def applies_to(self, target: str) -> bool:
+        return not self.targets or target in self.targets
+
+
 # ---- per-render state ------------------------------------------------------------------------------------------------
 @dataclass
 class Ctx:
@@ -42,7 +69,8 @@ class Ctx:
     registry: R.Registry | None
     numbers: list[tuple[str, str]] = field(default_factory=list)  # (data key, printed string)
     all_post_hoc: bool = False  # every estimate is post hoc: marks drawn filled, the key says so once
-    findings: list[tuple[str, str]] = field(default_factory=list)  # (code, message) a block reports while laid out
+    findings: list[tuple] = field(default_factory=list)  # (code, message[, detail]) a block reports while laid out
+    next_pid: int = 1000  # panel ids for project blocks' panels (a table numbers its own from 0)
 
     @property
     def palette(self):
@@ -172,11 +200,16 @@ class Canvas:
 
 @dataclass
 class Plan:
-    """A block laid out: its height, the encodings it draws (for the key), and how to draw it."""
+    """A block laid out: its height in inches, how to draw it, and the encodings it draws (for the key line).
+    *Experimental* as public API (`sp.Plan`): may change in a minor release.
+
+    A project's block returns one from `plan(ctx, width)`; leave `encodings` as None and the renderer finds them by
+    drawing the block once on a throwaway figure and reading what its primitives tagged, with the same function the
+    key check uses, so the key and what is drawn cannot drift apart."""
 
     height: float
-    encodings: set
-    draw: Callable[[Canvas], None]
+    draw: Callable
+    encodings: set | None = None
 
 
 @dataclass(frozen=True)
@@ -196,7 +229,8 @@ class RenderInfo:
     key_figure: bool = False
     all_post_hoc: bool = False
     text_only: bool = False  # cards only: exempt from the target's widest proportion
-    findings: tuple[tuple[str, str], ...] = ()
+    findings: tuple[tuple, ...] = ()  # (code, message[, detail]) a block reported while laid out
+    waivers: tuple[Waive, ...] = ()  # those that apply to this target
 
 
 def info(fig) -> RenderInfo:
@@ -293,7 +327,11 @@ def _planner(block) -> Callable:
     for kind, plan in planners.items():
         if isinstance(block, kind):
             return plan
-    raise BuildError(f"not a figure block: {type(block).__name__}")
+    from styles_plot import _custom
+
+    if _custom.is_block(block):
+        return _custom.plan
+    raise BuildError(f"not a figure block: {type(block).__name__} (a block has plan(ctx, width) -> sp.Plan)")
 
 
 def _estimate_cells(block) -> list:
@@ -314,9 +352,13 @@ def _estimate_cells(block) -> list:
     return []
 
 
-def _all_post_hoc(fig, registry) -> bool:
+def _all_post_hoc(fig, registry, blocks) -> bool:
     """Whether every estimate of a figure is post hoc in the registry (then hollow marks would say nothing)."""
-    cells = [c for b in fig.blocks for c in _estimate_cells(b)]
+    from styles_plot import _custom
+
+    if any(_custom.is_block(b) for b in blocks):  # a project block's cells are unknown before it draws: stay hollow
+        return False
+    cells = [c for b in blocks for c in _estimate_cells(b)]
     if not cells or registry is None or any(c is None for c in cells):
         return False
     return all((st := registry.get(fig.id, c)) is not None and st.timing == "post_hoc" for c in cells)
@@ -340,13 +382,18 @@ class Figure:
     explanation) are drawn only by targets whose theme asks for them; `subtitle` is one grey vocabulary term above the
     blocks ("synthetic data"); `read` is one sentence under the blocks that walks through one value, its numbers given
     as `numbers={name: (value, unit, data key)}` and printed in the unit's format. `direct_labels` exempts a figure of
-    schematics and cards from the colour-vision floors; every coloured element then needs its word right next to it."""
+    schematics and cards from the colour-vision floors; every coloured element then needs its word right next to it.
+    `waive` lists `Waive`s: layout problems a person has looked at and accepted."""
 
     def __init__(self, id: str, vocab: Vocab, *, title: str = "", caption: str = "", subtitle: str = "",
                  direct_labels: bool = False, registry: R.Registry | None = None, read: str = "",
-                 numbers: dict | None = None):  # fmt: skip
+                 numbers: dict | None = None, waive=()):  # fmt: skip
         if not id or "/" in id:
             raise BuildError(f"bad figure id {id!r}")
+        self.waive = tuple(waive)
+        for w in self.waive:
+            if not isinstance(w, Waive):
+                raise BuildError(f"waive= takes sp.Waive(code, text, reason), got {w!r}")
         self.id = id
         self.vocab = vocab
         self.title = title
@@ -381,6 +428,22 @@ class Figure:
         reg = self.registry
         return None if reg is None else reg.get(self.id, cell)
 
+    def preview(self, target: str = "post"):
+        """This figure as `target` would publish it, checked: shows the PNG (problems boxed in red) and the problem
+        list in a notebook. Writes nothing."""
+        from styles_plot._save import preview
+
+        return preview(self, target)
+
+    def _repr_png_(self) -> bytes:
+        """A notebook shows a Figure as its notebook render (never publishable; `preview` checks a real target)."""
+        import io
+
+        mpl = self.render("notebook")
+        buf = io.BytesIO()
+        mpl.savefig(buf, format="png", dpi=mpl.dpi, facecolor=self.vocab.palette.chrome["background"])
+        return buf.getvalue()
+
     def render(self, target: str = "notebook") -> MplFigure:
         """Lay out and draw for a target. The returned matplotlib figure carries a RenderInfo for the checks."""
         try:
@@ -389,12 +452,15 @@ class Figure:
             raise BuildError(str(e)) from None
         if not self.blocks:
             raise BuildError(f"figure {self.id!r} has no blocks")
-        ctx = Ctx(self.vocab, theme, self.id, self.registry, all_post_hoc=_all_post_hoc(self, self.registry))
+        from styles_plot._bind import resolve
+
+        bound = [resolve(b, self.vocab, self.id) for b in self.blocks]  # callables and loose values read as Est
+        ctx = Ctx(self.vocab, theme, self.id, self.registry, all_post_hoc=_all_post_hoc(self, self.registry, bound))
         W, inner = theme.width_in, theme.width_in - 2 * MARGIN
         muted = ctx.chrome("muted")
 
-        label_w = max(_label_width(ctx, b) for b in self.blocks)
-        blocks = list(self.blocks)
+        label_w = max(_label_width(ctx, b) for b in bound)
+        blocks = list(bound)
         if self.read:
             from styles_plot._keyfig import ReadAloud
 
@@ -438,5 +504,6 @@ class Figure:
             numbers=tuple(ctx.numbers), direct_labels=self.direct_labels, natural_height=natural,
             blocks=tuple(type(b).__name__ for b in self.blocks), encodings=enc, key_figure=self._key_figure,
             all_post_hoc=ctx.all_post_hoc, findings=tuple(ctx.findings), text_only=self._text_only(),
+            waivers=tuple(w for w in self.waive if w.applies_to(target)),
         )  # fmt: skip
         return fig

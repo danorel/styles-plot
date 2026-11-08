@@ -11,3 +11,7 @@ gallery/
 .claude/settings.local.json.autonomy-bak
 .claude/autonomy/state.json
 .claude/autonomy/log.txt
+# what the last saves left to fix (styles-plot todo): local state, not a figure
+problems.json
+# a build's index of the README images: local state
+examples/figures/_meta/

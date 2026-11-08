@@ -6,6 +6,10 @@ Columns: figure, cell, timing, claim, claim_reason, reason, source.
 - claim: claimed | descriptive | not_claimed. Decides the grey tag: none, "descriptive", "not claimed: <claim_reason>".
 - claim_reason: printed in the tag; required for not_claimed and must be one of the vocabulary's [terms].not_claimed.
 - reason, source: why and where from; never printed.
+
+A row whose figure is `*` gives a cell's status in every figure: when an analysis was fixed is a fact about the
+analysis, not the picture. A row for an exact (figure, cell) may then override `claim` and `claim_reason` only (how one
+text uses the number); a different `timing` for the same cell is an error naming both lines.
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 
+ANY = "*"  # the figure column of a row that holds in every figure
 TIMINGS = ("fixed_in_advance", "post_hoc")
 CLAIMS = ("claimed", "descriptive", "not_claimed")
 COLUMNS = ("figure", "cell", "timing", "claim", "claim_reason", "reason", "source")
@@ -46,7 +51,8 @@ class Registry:
         self.path = path
 
     def get(self, figure: str, cell: str) -> Status | None:
-        return self.rows.get((figure, cell))
+        """The cell's status in this figure: its own row, else the cell's `*` row."""
+        return self.rows.get((figure, cell)) or self.rows.get((ANY, cell))
 
     def __contains__(self, key) -> bool:
         return key in self.rows
@@ -77,12 +83,20 @@ def load(path: str | Path) -> Registry:
         if missing:
             raise RegistryError(f"{path}: missing columns {missing}; the registry's columns are {', '.join(COLUMNS)}")
         rows: dict[tuple[str, str], Status] = {}
+        lines: dict[tuple[str, str], int] = {}
         for i, row in enumerate(reader, start=2):
             where = f"{path}:{i}"
             key = (row["figure"].strip(), row["cell"].strip())
             if not all(key):
                 raise RegistryError(f"{where}: figure and cell must not be empty")
             if key in rows:
-                raise RegistryError(f"{where}: duplicate row for figure {key[0]!r}, cell {key[1]!r}")
-            rows[key] = parse_row(row, where)
+                raise RegistryError(f"{where}: duplicate row for figure {key[0]!r}, cell {key[1]!r} "
+                                    f"(first at line {lines[key]})")  # fmt: skip
+            rows[key], lines[key] = parse_row(row, where), i
+    for (fig, cell), st in rows.items():
+        base = rows.get((ANY, cell))
+        if fig != ANY and base is not None and base.timing != st.timing:
+            raise RegistryError(f"{path}:{lines[(fig, cell)]}: cell {cell!r} is {st.timing} in figure {fig!r} but "
+                                f"{base.timing} for every figure at line {lines[(ANY, cell)]}; a figure's row may "
+                                "change only claim and claim_reason")  # fmt: skip
     return Registry(rows, path)

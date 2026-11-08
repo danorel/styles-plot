@@ -8,9 +8,17 @@ with yours. The sections below are the hand-written route and explain every tabl
 
 ```
 # uv / pyproject.toml
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.15
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.0
 # pip / requirements.txt
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.15
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.0
+```
+
+While the project and the library change together (a new block, a fix the project needs), install the library
+editable from a local checkout of its branch, and pin the tag again before the project's branch is merged:
+
+```
+uv pip install -e ../styles-plot          # while both change; every edit is live
+styles-plot @ git+https://github.com/danorel/styles-plot@vX.Y.Z   # back to a tag before merging
 ```
 
 Add the `[check]` extra (`styles-plot[check] @ git+…`) only if you change palette hexes: the colour-vision distances of
@@ -29,15 +37,16 @@ Everything that names a concept of your project, and every style choice you chan
 | `[key]` | `tick`, `band`: what the grey tick and the grey band mean | if you draw them |
 | `[intervals]` | `<kind> = "<phrase>"`: what a whisker or shading means ("95% interval" is built in as `ci95`) | for other kinds |
 | `[formats.<name>]` | `decimals`, `suffix`, `style`; defaults: accuracy 0, points 1, share 2, ratio 2, z 0, count "k of n" | to override |
-| `[units.<name>]` | `title` (axis title with the unit), `quantity` (for the cue), `format`, `scale`, `cue` | for every axis |
+| `[units.<name>]` | `title` (axis title with the unit), `quantity` (for the cue), `format`, `scale`, `cue`; `lim`, `ticks` (a dot-table panel's default range) | for every axis |
 | `[terms]` | `canonical` words, `templates` (`{num}`, `{entity}`, `{count}`), `missing` words, `not_claimed` reasons, `[[terms.banned]]` | yes |
 | `[[entities.<kind>]]` | ordered rows: `key`, `name`, optional `id` | for every row kind |
 | `[registry]` | `path` to the status CSV, relative to the toml | for publishable figures |
 | `[palette]` | `slots` (change or add hexes), `chrome`, `colour_vision` floors | optional |
 | `[style]` | `font` | optional |
-| `[targets.<name>]` | any target field (`width_in`, `dpi`, `height_in`, `aspect`, `min_pt`, `sizes`, `title`, `caption`…); a new name is a new target | optional |
+| `[targets.<name>]` | any target field (`width_in`, `dpi`, `height_in`, `aspect`, `min_pt`, `sizes`, `title`, `caption`, `max_header_lines`…); a new name is a new target | optional |
 | `[marks]` | marker, dot size, line widths, shading alpha | optional |
 | `[phrases]` | the key's wording, status tags, cues (for another language) | optional |
+| `[include]` | `files`: more vocabulary files beside this one; `[terms]` lists add up, any other key once | optional |
 
 `sp.load` fails on a mistake with the table and key at fault. Configuring in Python instead: `sp.from_dict({...})`,
 or `dataclasses.replace(vocab, ...)` on a loaded one.
@@ -54,6 +63,17 @@ fig04,keep.q9,fixed_in_advance,descriptive,,a description under a fixed label,RE
 ```
 
 `timing` decides hollow vs filled; `claim` decides the grey tag; `claim_reason` must be one of `[terms].not_claimed`.
+
+A cell drawn in several figures (a write-up figure and its README copy) needs one row with figure `*`:
+
+```
+figure,cell,timing,claim,claim_reason,reason,source
+*,layer.q9,post_hoc,claimed,,layer picked after the sweep,notes/plan.md
+fig07,layer.q9,post_hoc,not_claimed,shared with the logit lens,,
+```
+
+A figure's own row may change only `claim` and `claim_reason` (how that text uses the number); a different `timing`
+is an error naming both lines, since when an analysis was fixed does not depend on the picture.
 
 ## 4. Port a script
 
@@ -81,15 +101,63 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
 
 - Every number comes from your data by code; `key=` names it so `styles-plot check` can tell when one key prints two
   strings across figures.
+- A series may be a function of the row, with its cell and key as templates; a number, `(value, lo, hi)` or a mapping
+  with `value`/`lo`/`hi` reads as an `Est`, and a missing cell returns `sp.Missing("no run")`:
+  `sp.Series("method", lambda m: (avg[m], lo[m], hi[m]), cell="direct.{row}", key="direct.{row}.avg", label=True)`.
+  Templates: `{row}` (the entity key), `{id}` (its `id`, else the key), `{lane}`, `{role}`. The same works for
+  `TextColumn` cells and a stack's `Segment` shares.
+- Size panels by `weight=` (a share of the free width), not `width=` (inches): one figure goes to targets 8, 11 and
+  12.3 in wide. A header that wraps past the target's `max_header_lines` (2) warns SP613 with the weight that fits it.
+- `xlim` and `xticks` are optional: a column without them takes its unit's `lim`/`ticks`, else a range computed from
+  its data that leaves room for the value labels.
 - A rule label with a number is a template: `sp.Rule(15, "bar fixed in advance: {}", unit="points", key="bar")`.
   The key figure's sentence likewise: `sp.key_figure(v, example=..., read_aloud="… drops {a} points …",
   numbers={"a": (value, "points", "ko.q27.drop")})`.
 - A lane named by its condition rather than its role: `sp.Series("recall", cells, word="knock-out")`.
 - Start a migration with `mode="compat"`: it writes the figure, warns, and records each problem in the sidecar. Fix
   them, then drop `compat`.
-- `fig.render("notebook")` gives a matplotlib figure for a quick look; a notebook PNG is never publishable.
+- In a notebook a `Figure` shows itself (the notebook target, never publishable); `fig.preview("post")` shows the
+  post PNG with every problem boxed in red and listed with its fix. Neither writes a file.
+
+## A figure set
+
+Name a project's figures once, and build them all (or some) with one command:
+
+```python
+WRITEUP = sp.FigureSet("writeup", vocab, out="figures/writeup", targets=("post", "readme"))
+
+@WRITEUP.figure("fig01_main_split", order=1, title="…one claim…", caption="…what was done…")
+def fig01(fig: sp.Figure) -> None:
+    fig.add(sp.DotTable(rows, [col]))
+```
+
+```
+styles-plot build figures.py:WRITEUP --jobs 8           # every figure, all its targets or nothing
+styles-plot build figures.py:WRITEUP --only "fig01*"    # the edit loop
+```
+
+Captions kept in a file of their own are passed to `@WRITEUP.figure(..., caption=...)`. A figure that fails (a strict
+refusal, or the builder's own error) does not stop the others; `figures/writeup/_meta/index.json` lists every figure
+with its PNGs, problems and waivers, and `styles-plot todo figures/writeup` what is left to fix. There is no cache: a
+build always draws from the data.
 
 ## 5. Check and review
+
+Every problem names what is at fault and, where it can, how to fix it: `print(problem)` ends with `→ <fix>` (an `xlim`
+upper limit, a panel width, the `[terms]` line to add, the registry row to fill in). `styles-plot check DIR --json`
+prints one JSON object per problem for tools. To see them, `sp.debug(fig, "post")` writes `_debug/<id>.post.png` with
+each problem boxed in red; it is never published.
+
+A text placement a person has looked at and accepts (a value label touching its own connector, two words that meet)
+can be waived, with a reason, by its whole text; nothing else can:
+
+```python
+fig = sp.Figure("fig01", v, waive=[sp.Waive("SP601", "0.97", "the label sits on its own connector; read as one",
+                                            targets=("readme",))])
+```
+
+A waiver that no longer matches anything is SP905 (stale): remove it. The sidecar lists what was waived and why.
+
 
 A figure set can keep its folder clean for GitHub: `[output] sidecar_dir = "_meta"` in plotstyle.toml and
 `sp.save(fig, "figures/writeup/main/fig01.png", "post", root="figures/writeup")` put the sidecar at
@@ -101,7 +169,41 @@ styles-plot check figures/post --vocab plotstyle.toml    # size, palette, stalen
 styles-plot sheet figures/post                            # contact_sheet.png and contact_sheet_gray.png
 styles-plot key --vocab plotstyle.toml -o figures/post/key.png
 styles-plot palette --vocab plotstyle.toml                # which of your roles may not share a figure
+styles-plot todo figures                                  # what the last saves left to fix, grouped
+styles-plot todo figures --vocab plotstyle.toml --write-vocab   # the missing words into plotstyle.added.toml
+styles-plot vocab lint --vocab plotstyle.toml             # canonical terms written two ways
 ```
+
+After a run of saves, `styles-plot todo figures` lists the words to add to `[terms]` (`--write-vocab` writes them to
+`plotstyle.added.toml`, dated, for review in the diff; include it with `[include] files = ["plotstyle.added.toml"]`),
+the registry rows to fill in (it never writes a status: that is a decision), and every other problem with its fix.
+
+## A figure the library can't draw
+
+*Experimental: `BlockContext`, `Canvas`, `Panel`, `Plan` and `Custom` may change in a minor release.*
+
+Write the block in your project. A block is any object with `plan(ctx, width) -> sp.Plan`; for a fixed height,
+`sp.Custom(height, draw)` is enough:
+
+```python
+def draw(cv: sp.Canvas) -> None:          # inches from the block's top-left
+    cv.word(1.0, 0.15, "beta", role="second", size="role_word", weight="bold")   # names the role's colour
+    p = cv.panel(1.0, 0.35, 5.5, 0.3, "accuracy", (40, 100), (50, 75, 100))       # axis title and cue from the unit
+    p.rule(50, "chance")
+    p.dot(0.15, sp.Est(80, 77, 83, cell="score.acc", key="score.acc", label=True), "second")  # hollow if post hoc
+
+fig.add(sp.Custom(1.4, draw))
+```
+
+- The primitives tag what they draw as the library's blocks do, so every check reads them; a dot's fill comes from
+  the registry, a number from its unit's format, a panel's title and cue from its unit.
+- The key line is read from what `draw` draws (a dry run on a throwaway figure): never list encodings by hand.
+- Raw matplotlib (`cv.axes(...)`, `cv.subfigure`) is allowed and checked: an untagged mark in a role colour, a word not
+  in the vocabulary or a number typed by hand fails as anywhere else.
+- `BlockContext` gives the vocabulary, the target, the row-label width (`label_width`, to align with tables), text
+  measuring and wrapping, `axis_height(unit, width)` for a panel's title and cue, and registry lookups.
+- [`examples/blocks/custom.py`](../examples/blocks/custom.py) is a whole block: a scorecard, one panel per quantity.
+- When the same block appears in three figures, propose it upstream.
 
 ## Figure types
 
@@ -114,3 +216,4 @@ styles-plot palette --vocab plotstyle.toml                # which of your roles 
 | `Scatter` | embeddings, or two quantities | panels side by side | clouds named next to them; controls grey |
 | `Schematic` | boxes, arrows, coloured words | — | `direct_labels=True` for a figure of schematics and cards |
 | `Card` | a real item: prompt, answers per condition, a note | readers | `direct_labels=True`; words verbatim |
+| your own | anything else that follows the grammar | yours | see "A figure the library can't draw" above |

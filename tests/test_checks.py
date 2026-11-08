@@ -272,7 +272,7 @@ def test_png_checks(tmp_path, vocab):
     assert "SP802" in found
 
 
-# ---- v0.1.1 ----------------------------------------------------------------------------------------------------------
+# ---- key figure, cue words, one-line colour words, slide size, line status -------------------------------------------
 def test_cue_word_larger(vocab_dir):
     p = vocab_dir / "plotstyle.toml"
     p.write_text(p.read_text().replace('title = "gap: A − B (points)"\nquantity = "gap"', 'title = "gap: A − B (points)"\nquantity = "gap"\ncue_word = "larger"'))
@@ -312,7 +312,7 @@ def test_whole_line_status_is_a_panel_tag(vocab_dir):
 
 
 def test_key_figure_with_example_row(vocab):
-    gal = example("build_gallery")
+    gal = example("gallery")
     mpl, problems = run(gal.key(vocab))
     assert problems == []
     kinds = {tags(a).get("kind") for a in mpl.findobj(lambda a: bool(tags(a)))}
@@ -334,7 +334,7 @@ def test_slide_fits_a_five_row_table(vocab):
     assert vocab.target("slide").height_in == 6.5
 
 
-# ---- v0.1.2: lanes, table notes, signed formats ----------------------------------------------------------------------
+# ---- lanes, table notes, signed formats ------------------------------------------------------------------------------
 def test_lanes_labelled_and_unlabelled(vocab):
     lanes = [sp.Lane("a", "set one"), sp.Lane("b", "set two")]
     col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [
@@ -363,7 +363,7 @@ def test_signed_format(vocab_dir):
     assert v.format_interval(-1, 2, "diff") == "[−1.0, 2.0]"  # bounds never signed
 
 
-# ---- v0.1.3 ----------------------------------------------------------------------------------------------------------
+# ---- key legend, series words, keyed numbers, missing words ----------------------------------------------------------
 BIG = """
 [project]
 name = "big"
@@ -428,7 +428,7 @@ def test_sheet_order(tmp_path, vocab):
     assert main(["sheet", str(tmp_path), "--order", str(tmp_path / "bad.txt")]) == 2
 
 
-# ---- v0.1.4 ----------------------------------------------------------------------------------------------------------
+# ---- label placement, sweep rules and windows, named bands, control distributions ------------------------------------
 def test_control_distribution_needs_its_name(vocab):
     data = {"c1": [0.1, 0.2, 0.3], "c2": [0.2, 0.3]}
     cells = {"c1": "strip.c1", "c2": "strip.c2"}
@@ -537,7 +537,7 @@ def test_diagonal_arrow_label_is_off_its_line(vocab):
     assert "SP601" in codes(_checks.run(mpl))
 
 
-# ---- v0.1.6 (grammar decisions) --------------------------------------------------------------------------------------
+# ---- grammar decisions: one estimate per line, header words, stack columns, own intervals ----------------------------
 def test_one_estimate_per_colour_per_line(vocab):
     two = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [
         sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")}),
@@ -585,7 +585,7 @@ def test_sweep_point_with_its_own_value_and_interval(vocab):
                                                    points=[sp.Point("c1", "second", 11, lo=1, hi=2)])))  # fmt: skip
 
 
-# ---- 0.1.6: layout bugs from the bridge port -------------------------------------------------------------------------
+# ---- layout: label fallback, word bands, colour words that do not fit ------------------------------------------------
 def test_left_fallback_starts_at_its_own_dot(vocab):
     # fig10: a labelled value near the right edge with a control dot just left of it
     col = sp.DotColumn("accuracy", "accuracy", (0, 100), (0, 50, 100), [
@@ -737,7 +737,7 @@ def test_all_estimates_post_hoc_said_once(vocab_dir):
     assert problems == [] and any(tags(d)["hollow"] for d in mpl.findobj(lambda a: tags(a).get("kind") == "dot"))
 
 
-# ---- 0.1.10 ----------------------------------------------------------------------------------------------------------
+# ---- sweep windows per row, panel gaps, far line words, log in dot tables, clipped lines -----------------------------
 def test_sweep_windows_per_row_panel_gap_and_clipped_lines(vocab_dir):
     p = vocab_dir / "plotstyle.toml"
     p.write_text(p.read_text().replace('[key]\n', '[key.bands]\ngate = "layers that pass the gate"\n[key]\n', 1)
@@ -776,7 +776,7 @@ def test_a_table_of_numbers_only(vocab):
     assert "SP612" in codes(run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [tc])))[1])
 
 
-# ---- 0.1.12: cards, read lines, shared titles, five segments ---------------------------------------------------------
+# ---- cards, read lines, shared titles, five segments -----------------------------------------------------------------
 def test_card_alone_and_with_a_schematic(vocab):
     mpl, problems = run(example("card").card(vocab))
     assert problems == [], [str(p) for p in problems]

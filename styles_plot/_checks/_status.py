@@ -37,7 +37,8 @@ def check(cx: CheckCtx) -> list[Problem]:
             continue
         st = reg.get(fid, cell)
         if st is None:
-            out.append(cx.problem("SP203", f"cell {cell!r} is not in the registry for figure {fid!r}"))
+            out.append(cx.problem("SP203", f"cell {cell!r} is not in the registry for figure {fid!r}", subject=cell,
+                                  fix=f"add a row to the registry: {fid},{cell},<timing>,<claim>,,,"))  # fmt: skip
             continue
         if cx.info.all_post_hoc:
             st = dataclasses.replace(st, drawn_filled=True)

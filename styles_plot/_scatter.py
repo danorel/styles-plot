@@ -98,7 +98,7 @@ def plan(sc: Scatter, ctx: Ctx, width: float, label_w: float) -> Plan:
                 labels += _cloud(ax, ctx, c)
             _direct_labels(cv, ax, ctx, p, labels, x0, head_h, pw, side, xlim, ylim, pts)
 
-    return Plan(height, enc, draw)
+    return Plan(height, draw, enc)
 
 
 def _header(ctx: Ctx, p) -> str:

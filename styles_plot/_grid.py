@@ -71,8 +71,10 @@ def x_bottom_height(ctx: Ctx, unit, width: float) -> tuple[float, list[str], lis
 def draw_x_bottom(cv: Canvas, ctx: Ctx, x0: float, w: float, y: float, xlim, xticks, unit, title, cue, pid) -> None:
     sz, muted = ctx.sizes, ctx.chrome("muted")
     lo, hi = xlim
+    log = getattr(unit, "scale", "linear") == "log"
     for tv in xticks:
-        cv.text(x0 + (tv - lo) / (hi - lo) * w, y + 0.06 + line_h(sz.tick) / 2, ctx.tick(tv), kind="tick_label",
+        f = math.log(tv / lo) / math.log(hi / lo) if log else (tv - lo) / (hi - lo)
+        cv.text(x0 + f * w, y + 0.06 + line_h(sz.tick) / 2, ctx.tick(tv), kind="tick_label",
                 size=sz.tick, color=muted, ha="center", panel=pid)  # fmt: skip
     y += line_h(sz.tick) + 0.06
     for i, s in enumerate(title):

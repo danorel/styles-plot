@@ -1,7 +1,108 @@
 # Changelog
 
-Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
-figures that passed strict checks fail them is a major version. Projects pin a tag.
+Versions follow semver; projects pin a tag. A grammar or palette change is a minor version with a migration note here.
+A new check that can fail a figure that passed before ships as a warning for one minor version (the figure is written,
+the problem recorded and listed by `check`), then becomes an error in the next minor; the table `ERROR_FROM` in
+`styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
+is an error at once.
+
+## 0.2.0
+
+Every change is backward compatible: a 0.1.14 builder runs unchanged and draws the same pixels. Each item says what a
+project may change (nothing is required unless it says so).
+
+- **A1 Problems that explain themselves.** `Problem` gains `subject`, `where` ({target, column, row}), `bbox_in`,
+  `obstacle_in` (inches from the figure's bottom-left) and `fix`; `str(problem)` ends with `→ <fix>`. Text-placement
+  problems in a panel (SP601, SP606, SP610) name the column and row and give the `xlim` upper limit (or panel width)
+  that makes room; SP401 gives the `[terms]` line, SP203 the registry row with `<timing>,<claim>` placeholders,
+  SP609/SP611 their fixes. Sidecars record whole problems; `styles-plot check --json` prints one object per problem.
+  *Migration:* nothing to change. Code that builds `Problem(code, message, figure)` keeps working.
+- **A2 Debug picture.** `sp.debug(fig, target="post", out=".")` renders, checks, and writes
+  `<out>/_debug/<id>.<target>.png` with each problem's text boxed in red and its obstacle in dashed red; no sidecar,
+  never published; `check` and `sheet` skip `_debug/`. A `StyleError` ends with the `sp.debug(...)` call that draws it.
+  *Migration:* nothing to change; keep `_debug/` out of git if you like.
+- **A3 Waivers, for text placement only.** `sp.Waive(code, text, reason, targets=())` and `Figure(..., waive=[...])`.
+  Waivable: SP601, SP606, SP610, SP613; any other code raises `BuildError("SP603 cannot be waived ...")` when the
+  waiver is made, and a reason is required. A waiver matches a problem with its code whose subject's whole text is
+  `text` (for SP606, either text). A waiver that matches nothing on a target it applies to is **SP905 stale waiver**,
+  an error at once; `targets=` limits a waiver to the targets that need it. The sidecar gains `waived:
+  [{code, subject, reason}]` (only when something was waived), `SaveReport.waived` the same, and `check` prints
+  `N waived` per figure and in its summary. `save_bundle`'s problems now keep their subject, boxes and fix.
+  *Migration:* nothing to change; SP606 problems carry the second text in `where["other"]`.
+- **B1 Project blocks (experimental).** A block is any object with `plan(ctx, width) -> sp.Plan`. `sp.BlockContext`
+  (vocabulary, target, `label_width`, `measure`, `wrap`, `line_height`, `unit`, `role`, `status`, `axis_height`),
+  `sp.Canvas` (`word`, `number`, `panel`, raw `axes` and `subfigure`), `sp.Panel` (`dot`, `tick`, `rule`, `band`,
+  `connector`, `x`), `sp.Plan(height, draw, encodings=None)`, `sp.Custom(height, draw)`. Primitives tag what they draw
+  as the built-in blocks do; with `encodings=None` the key line is read from a dry run of `draw`, so it cannot drift;
+  raw matplotlib is checked like the rest (SP103, SP401, SP501). `examples/blocks/custom.py` draws a scorecard (one
+  model, one panel per quantity) none of the built-in types can. A figure with a project block never takes the
+  "all estimates post hoc" shortcut (its cells are unknown before it draws). The tick labels under a log-scale x axis
+  sit at their ticks (no built-in block draws one, so no figure changes).
+  *Migration:* nothing to change. `sp.Plan`'s fields are now `(height, draw, encodings)`; it was internal before.
+- **C1 Status belongs to the measurement.** A registry row with figure `*` gives a cell's status in every figure. A
+  row for an exact (figure, cell) overrides `claim` and `claim_reason` only; a different `timing` is a
+  `RegistryError` naming both lines. `Registry.get`, the status checks, SP904 and the sidecar use the resolved status.
+  Two `*` rows for one cell are duplicates.
+  *Migration:* nothing to change. To drop repeated rows, keep one `*` row per cell and only the figure rows that
+  change its claim.
+- **C2 Data binding without dict comprehensions.** `Series.cells`, `TextColumn.cells` and `Segment.shares` may be a
+  callable `row -> value` (`(row, lane) -> value` with lanes), called for every row. Values are read as `Est`: a
+  number, `(value, lo, hi)`, a mapping with `value`/`lo`/`hi`; `Est`, `Missing`, `Count` as they are; `None` is a
+  `BuildError` naming the row. New keyword-only fields: `Series(..., cell=, key=, label=, interval=)`,
+  `TextColumn(..., cell=, key=)`, `Segment(..., cell=, key=)`; `cell` and `key` are templates (`{row}`, `{id}`,
+  `{lane}`, `{role}`) for values that do not set their own; `label` and `interval` apply to values read from numbers,
+  tuples and mappings. `examples/blocks/dot_table.py` and the `init` starter use it; their pixels are unchanged.
+  *Migration:* nothing to change. An `Est(..., label=True)` still needs its own `key` (it is checked when made).
+- **C3 Axis ranges belong to the unit.** `DotColumn(header, unit, xlim=None, xticks=None, series=())`: positional
+  calls keep working; a column with no series is a `BuildError`. The range comes from the column, else from
+  `[units.<name>] lim = [lo, hi]` and `ticks = [...]` (new, validated), else from the data (values, intervals, grey
+  ticks, band, rules): padded by at least 0.4 of a tick step, ends snapped out to a quarter step, widened until the
+  rightmost value label clears the spine. Ticks a project does not give are round values inside the range, never at
+  its ends (a label there meets the next panel's), as many as the panel's width holds.
+  *Migration:* nothing to change. To drop a range repeated in every builder, put it under its unit and remove
+  `xlim`/`xticks` from the columns.
+- **C4 Geometry that scales across targets.** `DotColumn(weight=1.0)`: a panel's share of the free width, so one
+  figure keeps its proportions on post, readme and slide; `width=` (inches) stays, and both together are a
+  `BuildError`. `Theme.max_header_lines = 2` (a target field): a column header that wraps past it is **SP613**, with
+  the weight or width that fits it; a *warning* in 0.2 (the figure is written, the problem recorded in its sidecar and
+  listed by `check`), an error from 0.3. SP613 may be waived (text placement).
+  *Migration:* nothing to change. A figure that now warns SP613: widen the column (`weight=`), shorten the header, or
+  move the qualifier into the unit's title.
+- **C5 `styles-plot todo` and vocabulary upkeep.** `save` and `save_bundle` write each figure's last problems per
+  target to `<out>/_meta/problems.json` (empty lists when clean; a strict refusal is recorded too, and is then the only
+  file written). `styles-plot todo <out>` reads every such file under a folder and groups: words to add (a TOML line),
+  cells to register (CSV stubs with `<timing>,<claim>`), the rest with their fixes. `--vocab plotstyle.toml
+  --write-vocab [FILE]` writes the missing words to FILE beside the vocabulary (default `plotstyle.added.toml`), each
+  dated, refuses banned ones (exit 1), prints the `[include]` line to add, and never writes the registry.
+  `[include] files = [...]` in plotstyle.toml, relative to it, one level deep: the `[terms]` lists concatenate (base
+  first, repeats dropped); any other key defined in two files is a `VocabError` naming both; the sidecar's vocabulary
+  hash covers the included files. `styles-plot vocab lint --vocab plotstyle.toml` reports canonical terms that differ
+  only by case, a plural -s, a hyphen, or two letters in a word of six or more (a report: it never fails).
+  *Migration:* nothing to change. A strict refusal now leaves `_meta/problems.json` in the output folder; ignore it
+  in git (`problems.json`) if you like.
+- **C6 Figure sets and a build command.** `sp.FigureSet(name, vocab, out, targets=("post",), mode="strict")` and
+  `@SET.figure(id, order=None, title="", caption="", targets=None, **figure)`: the builder receives a ready
+  `Figure` (or returns one of the same id). `SET.build(only=, targets=, jobs=, mode=, out=) -> sp.BuildReport` and
+  `styles-plot build module:SET` (or `path/to/file.py:SET`) `[--only GLOB ...] [--target T ...] [--jobs N]
+  [--mode M]`: each figure all its targets or nothing; with `--jobs N` worker processes (`spawn`) import the set's
+  module themselves and get figure ids; one failing figure (a refusal or a builder's exception) does not stop the
+  others; exit 1 if any failed. `<out>/_meta/index.json` lists id, order, title, caption, targets, PNG paths,
+  problems, waivers, ok and error (a build with `--only` updates its figures and keeps the others). No cache.
+  The gallery builds through a set (`examples/gallery.py`; `build_gallery.py` adds the contact sheets), and the
+  `init` starter is a set of one figure.
+  *Migration:* nothing to change. To adopt: move each builder into a function decorated with `@SET.figure`, pass
+  titles and captions there, and run `styles-plot build`.
+- **C7 Notebook loop.** A `Figure` shows itself in a notebook (`_repr_png_`, the notebook target). `fig.preview(
+  target="post") -> sp.Preview` renders that target, runs the checks, and shows the PNG with each problem boxed in red
+  (as `sp.debug` draws it) and the problem list with fixes (`_repr_html_`). Neither writes a file.
+  *Migration:* nothing to change.
+- **E1 New checks warn first.** The policy above, with one table (`ERROR_FROM`): SP613 and SP906 are warnings until
+  0.3. SP905 (a stale waiver) belongs to a new feature and is an error at once. Not retroactive: 0.1.10 (SP611, the
+  log-scale refusal) and 0.1.11 (SP612) stay errors.
+  *Migration:* nothing to change.
+- **E2 Co-development.** ADOPTING.md says how to change a project and the library together: install the library
+  editable from a local checkout, pin the tag again before the project's branch is merged.
+  *Migration:* nothing to change.
 
 ## 0.1.15
 

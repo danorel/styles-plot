@@ -141,7 +141,7 @@ def plan(d: Distribution, ctx: Ctx, width: float, label_w: float) -> Plan:
         for j in range(len(cols)):
             draw_x_bottom(cv, ctx, px(j), pw, last, xlim, xt, xu, xtitle, xcue, pid=None)
 
-    return Plan(height, enc, draw)
+    return Plan(height, draw, enc)
 
 
 def _hist(ax, ctx: Ctx, edges, counts, colour: str, meta: dict) -> None:

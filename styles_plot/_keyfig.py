@@ -155,7 +155,7 @@ def plan_legend(_b: KeyLegend, ctx: Ctx, width: float, label_w: float) -> Plan:
         if controls_item:
             controls_item[1](cv, 0.0, 0.1 + body)
 
-    return Plan(height, enc, draw)
+    return Plan(height, draw, enc)
 
 
 def plan_read_aloud(b: ReadAloud, ctx: Ctx, width: float, label_w: float) -> Plan:
@@ -171,7 +171,7 @@ def plan_read_aloud(b: ReadAloud, ctx: Ctx, width: float, label_w: float) -> Pla
             cv.text(0.12, 0.1 + (i + 0.5) * line_h(ctx.sizes.value), s, kind="read_aloud", size=ctx.sizes.value,
                     full=text)  # fmt: skip
 
-    return Plan(height, set(), draw)
+    return Plan(height, draw, set())
 
 
 # ---- swatches ----------------------------------------------------------------------------------------------------------

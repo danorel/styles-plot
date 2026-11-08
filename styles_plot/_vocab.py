@@ -86,6 +86,8 @@ class Unit:
     scale: str = "linear"
     cue: bool = True
     cue_word: str = "more"  # "→ more gap" or "→ larger gap"
+    lim: tuple[float, float] | None = None  # the axis range a dot-table panel on this unit takes by default
+    ticks: tuple[float, ...] | None = None  # its ticks by default
 
 
 @dataclass(frozen=True)
@@ -132,6 +134,7 @@ class Vocab:
     words: Phrases = field(default_factory=Phrases)
     sidecar_dir: str = ""  # [output] sidecar_dir: sidecars under <figure set root>/<this>/, keeping the PNG's path
     source: Path | None = None
+    includes: tuple[Path, ...] = ()  # files merged in by [include] files = [...]
 
     # ---- lookups -------------------------------------------------------------------------------------------------
     def role(self, name: str) -> Role:
@@ -247,12 +250,64 @@ def load(path: str | Path) -> Vocab:
 
 
 def loads(text: str, root: Path | None = None, source: Path | None = None) -> Vocab:
-    """Parse a vocabulary from TOML text; `root` resolves the registry path."""
+    """Parse a vocabulary from TOML text; `root` resolves the registry path and the [include] files."""
+    doc = _toml(text, source or "<string>")
+    includes: list[Path] = []
+    inc = doc.pop("include", None)
+    if inc is not None:
+        where = f"{source or '<string>'} [include]"
+        if root is None:
+            raise VocabError(f"{where}: included files are relative to the vocabulary's file; load it with sp.load")
+        names = _strs(inc.get("files", []) if isinstance(inc, dict) else inc, f"{where} files")
+        owners = _owners(doc, str(source or "plotstyle.toml"))
+        for name in names:
+            path = root / name
+            if not path.exists():
+                raise VocabError(f"{where}: {name} does not exist (relative to {root})")
+            extra = _toml(path.read_text(encoding="utf-8"), path)
+            if "include" in extra:
+                raise VocabError(f"{path}: [include] is one level deep; include {name}'s files from {source}")
+            _merge_doc(doc, extra, owners, str(path))
+            includes.append(path)
+    v = from_dict(doc, root=root, source=source)
+    return dataclasses.replace(v, includes=tuple(includes)) if includes else v
+
+
+_TERM_LISTS = ("canonical", "templates", "missing", "not_claimed", "banned")  # concatenate across included files
+
+
+def _toml(text: str, where) -> dict:
     try:
-        doc = tomllib.loads(text)
+        return tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
-        raise VocabError(f"{source or '<string>'}: {e}") from None
-    return from_dict(doc, root=root, source=source)
+        raise VocabError(f"{where}: {e}") from None
+
+
+def _owners(doc: dict, name: str) -> dict:
+    """(table, key) -> the file that defines it."""
+    return {(t, k): name for t, v in doc.items() for k in (v if isinstance(v, dict) else [None])}
+
+
+def _merge_doc(doc: dict, extra: dict, owners: dict, name: str) -> None:
+    """Merge an included file: [terms] lists concatenate (base first, exact repeats dropped); any other key defined in
+    two files is an error naming both."""
+    for table, value in extra.items():
+        if not isinstance(value, dict):
+            if (table, None) in owners:
+                raise VocabError(f"{name}: {table!r} is also defined in {owners[(table, None)]}")
+            doc[table], owners[(table, None)] = value, name
+            continue
+        into = doc.setdefault(table, {})
+        if not isinstance(into, dict):
+            raise VocabError(f"{name}: [{table}] is also defined in {owners.get((table, None), 'the vocabulary')}")
+        for k, v in value.items():
+            if table == "terms" and k in _TERM_LISTS:
+                have = list(into.get(k, []))
+                into[k] = have + [x for x in v if x not in have]
+            elif k in into:
+                raise VocabError(f"{name}: [{table}] {k!r} is also defined in {owners.get((table, k), 'another file')}")
+            else:
+                into[k], owners[(table, k)] = v, name
 
 
 def from_dict(doc: dict, root: Path | None = None, source: Path | None = None) -> Vocab:
@@ -377,8 +432,25 @@ def _units(doc: dict, formats: dict[str, Format], cue_words: tuple[str, ...], wh
         word = u.get("cue_word", cue_words[0])
         if word not in cue_words:
             raise VocabError(f"{w}: cue_word {word!r} is not one of {', '.join(cue_words)}")
-        out[name] = Unit(name, title, quantity, fmt, scale, cue, word)
+        lim, ticks = u.get("lim"), u.get("ticks")
+        if lim is not None:
+            if not (isinstance(lim, list) and len(lim) == 2 and all(_num(x) for x in lim) and lim[0] < lim[1]):
+                raise VocabError(f"{w}: lim = [lo, hi] with lo < hi, got {lim!r}")
+            if scale == "log" and lim[0] <= 0:
+                raise VocabError(f"{w}: a log-scale lim starts above 0")
+            lim = (float(lim[0]), float(lim[1]))
+        if ticks is not None:
+            if not (isinstance(ticks, list) and ticks and all(_num(x) for x in ticks)):
+                raise VocabError(f"{w}: ticks = [a list of numbers], got {ticks!r}")
+            if lim is not None and not all(lim[0] <= t <= lim[1] for t in ticks):
+                raise VocabError(f"{w}: ticks {ticks} fall outside lim {list(lim)}")
+            ticks = tuple(float(t) for t in ticks)
+        out[name] = Unit(name, title, quantity, fmt, scale, cue, word, lim, ticks)
     return out
+
+
+def _num(x) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
 
 
 def _banned(items: list, where: str) -> tuple[Banned, ...]:

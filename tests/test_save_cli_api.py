@@ -14,7 +14,7 @@ PUBLIC = {
     "Sizes", "MarkStyle", "Phrases", "load_registry", "Registry", "RegistryError", "Status", "Figure", "BuildError",
     "key_figure", "DotTable", "DotColumn", "TextColumn", "ColumnGroup", "Gutter", "Lane", "Series", "Rule", "Sweep", "Line",
     "Point", "Distribution", "Stack", "Segment", "Scatter", "ScatterPanel", "Cloud", "Schematic", "Box", "Arrow",
-    "Words", "Mark", "Card", "CardRow", "Est", "Missing", "Count", "save", "save_bundle", "check_figure", "SaveReport", "Problem",
+    "Words", "Mark", "Card", "CardRow", "Est", "Missing", "Count", "save", "save_bundle", "check_figure", "SaveReport", "Problem", "debug", "Waive", "FigureSet", "BuildReport", "Preview", "BlockContext", "Plan", "Canvas", "Panel", "Custom",
     "StyleError", "StyleWarning", "contact_sheets",
 }  # fmt: skip
 
@@ -35,7 +35,8 @@ def test_strict_refuses_and_writes_nothing(tmp_path, vocab):
     out = tmp_path / "out" / "f.png"
     with pytest.raises(sp.StyleError, match="SP203"):
         sp.save(bad_figure(vocab), out, "post")
-    assert not out.parent.exists() or list(out.parent.iterdir()) == []
+    written = sorted(str(f.relative_to(out.parent)) for f in out.parent.rglob("*") if f.is_file())
+    assert written == ["_meta/problems.json"]  # no figure, no sidecar: only the list of what to fix (C5)
 
 
 def test_compat_warns_and_records(tmp_path, vocab):

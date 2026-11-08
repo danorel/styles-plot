@@ -56,6 +56,7 @@ source`), and every data mark carries its cell id.
   estimate of a figure is post hoc, hollow marks would tell nothing apart: the marks are drawn filled and the key says
   once "all estimates post hoc" (and a sweep line's panel tag drops "post hoc").
 - **claim** decides the grey tag in the cell: none for a claimed cell, "descriptive", or "not claimed: <reason>".
+- A row for figure `*` holds in every figure; a figure's own row may change the claim, never the timing.
 - A **missing cell** says why in grey words from the vocabulary's list ("no run", "no interval"…).
 
 ## C. Marks
@@ -148,10 +149,13 @@ example row from the data read aloud. Its marks' phrases are the key, so no key 
 | SP401–SP407 | words from the vocabulary; banned variants; ids; cues; axis titles |
 | SP501–SP502 | numbers through formatters; one key, one string |
 | SP601–SP612 | text crossing lines or marks, off the figure, too small, overlapping, rotated; size; titles; markers |
+| SP613 | a column header that wraps past the target's `max_header_lines` (a warning until 0.3) |
 | SP700–SP704 | colour-vision floors; direct labels |
 | SP801–SP804 | the saved PNG: width, proportions, background, hues on the palette |
 | SP901–SP904 | `styles-plot check`: unknown target, stale sidecar, unpublished target, registry changed since drawing |
+| SP905 | a waiver that matches nothing (stale) |
 | SP906 | `styles-plot check`: a PNG without a sidecar, so only its pixels are checked (a warning until 0.3) |
 
-Strict mode (the default) refuses to write a figure with any problem. Compat mode writes it, warns, and records the
+Text placement (SP601, SP606, SP610, SP613) may be waived per figure by the text at fault, with a reason
+(`sp.Waive`); no meaning check can be. Strict mode (the default) refuses to write a figure with any problem. Compat mode writes it, warns, and records the
 problems in its sidecar, for migrating old scripts.

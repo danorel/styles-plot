@@ -124,4 +124,4 @@ def plan(card: Card, ctx: Ctx, width: float, label_w: float) -> Plan:
                             verbatim=True, full=card.note)  # fmt: skip
                 tag(t, kind="card_note", verbatim=True, ids_ok=True, full=card.note)
 
-    return Plan(height, set(), draw)
+    return Plan(height, draw, set())
