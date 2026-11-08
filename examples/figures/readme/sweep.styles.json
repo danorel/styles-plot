@@ -2,7 +2,8 @@
  "styles_plot": "0.1.14",
  "vocab": {
   "project": "styles-plot examples",
-  "sha256": "d1dfed9d8b5aaaf5928bbd291f7ef16e3847f41f11f0f0986bc8f352731a9b2d"
+  "sha256": "f776e7549b1a10e11ed74e3f75685596cf5def2aa1b5d82b522c0b6c8fddf980",
+  "hash": "meaning"
  },
  "registry": {
   "path": "status.csv",

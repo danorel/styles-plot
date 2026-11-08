@@ -8,9 +8,9 @@ with yours. The sections below are the hand-written route and explain every tabl
 
 ```
 # uv / pyproject.toml
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.1
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.2
 # pip / requirements.txt
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.1
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.2
 ```
 
 While the project and the library change together (a new block, a fix the project needs), install the library
@@ -169,7 +169,7 @@ A figure set can keep its folder clean for GitHub: `[output] sidecar_dir = "_met
 
 
 ```
-styles-plot check figures/post --vocab plotstyle.toml    # size, palette, staleness, one key one string
+styles-plot check figures/post --vocab plotstyle.toml    # size, palette, staleness (pixels, registry, vocabulary), one key one string
 styles-plot sheet figures/post                            # contact_sheet.png and contact_sheet_gray.png
 styles-plot key --vocab plotstyle.toml -o figures/post/key.png
 styles-plot palette --vocab plotstyle.toml                # which of your roles may not share a figure

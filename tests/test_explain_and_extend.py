@@ -644,6 +644,59 @@ def test_the_sidecar_hash_covers_included_files(tmp_path, vocab_dir):
     assert shas[0] != shas[1]
 
 
+def _saved(v, out):
+    return sp.save(sp.Figure("stack", v).add(*example("stack").stack(v).blocks), out / "s.png", "post")
+
+
+def _check_out(capsys, out, toml) -> tuple[int, str]:
+    capsys.readouterr()
+    code = main(["check", str(out), "--vocab", str(toml)])
+    return code, capsys.readouterr().out
+
+
+def test_a_comment_or_key_order_is_not_a_vocabulary_change(tmp_path, vocab_dir, capsys):
+    toml = vocab_dir / "plotstyle.toml"
+    side = _saved(sp.load(toml), tmp_path).sidecar
+    rec = json.loads(side.read_text())["vocab"]
+    assert rec["hash"] == "meaning" and rec["sha256"] == sp.load(toml).meaning_sha256
+    text = toml.read_text()
+    toml.write_text("# a comment, added after the save\n" + text.replace("[project]", "\n\n[project]   # the name"))
+    code, out = _check_out(capsys, tmp_path, toml)
+    assert code == 0 and "SP907" not in out
+
+
+def test_a_term_edit_is_a_vocabulary_change_and_warns_until_the_table_says(tmp_path, vocab_dir, capsys, monkeypatch):
+    toml = vocab_dir / "plotstyle.toml"
+    _saved(sp.load(toml), tmp_path)
+    toml.write_text(toml.read_text().replace('"synthetic data",', '"synthetic data", "a new term",'))
+    code, out = _check_out(capsys, tmp_path, toml)
+    assert code == 0  # a warning in 0.2.x
+    assert "SP907 vocabulary changed since save: meaning checks ran against the current vocabulary" in out
+    assert "1 saved with another vocabulary (SP907, a warning)" in out.splitlines()[-1]
+    monkeypatch.setattr(sp, "__version__", "0.3.0")
+    code, out = _check_out(capsys, tmp_path, toml)
+    assert code == 1 and "SP907" in out and "1 problem(s)" in out.splitlines()[-1]
+
+
+def test_a_sidecar_with_a_bytes_hash_is_read_until_0_3(tmp_path, vocab_dir, capsys):
+    from styles_plot._save import bytes_sha
+
+    toml = vocab_dir / "plotstyle.toml"
+    side = _saved(sp.load(toml), tmp_path).sidecar
+    meta = json.loads(side.read_text())
+    meta["vocab"] = {"project": meta["vocab"]["project"], "sha256": bytes_sha(sp.load(toml))}  # as 0.2.1 wrote it
+    side.write_text(json.dumps(meta))
+    code, out = _check_out(capsys, tmp_path, toml)
+    assert code == 0 and "SP907" not in out  # the same file: passes
+    # a comment edit since: a bytes hash cannot tell a comment from a term, so it shows, and says to save again
+    toml.write_text("# a comment\n" + toml.read_text())
+    code, out = _check_out(capsys, tmp_path, toml)
+    assert code == 0 and "SP907" in out and "save again" in out
+    _saved(sp.load(toml), tmp_path)  # saved again: a meaning hash, and the comment no longer counts
+    code, out = _check_out(capsys, tmp_path, toml)
+    assert code == 0 and "SP907" not in out
+
+
 def test_vocab_lint_reports_near_duplicates(vocab_dir, capsys):
     from styles_plot._lint import near_duplicates
 
@@ -781,7 +834,7 @@ def test_notebook_loop_returns_pictures_and_writes_nothing(tmp_path, vocab, monk
 
 # ---- E1 --------------------------------------------------------------------------------------------------------------
 def test_new_checks_warn_until_the_version_in_the_table(tmp_path, vocab, monkeypatch, capsys):
-    assert _checks.ERROR_FROM == {"SP613": "0.3", "SP906": "0.3"}
+    assert _checks.ERROR_FROM == {"SP613": "0.3", "SP906": "0.3", "SP907": "0.3"}
     assert not _checks.is_warning("SP905")  # a new feature's own check: an error at once
     fig = sp.Figure("stack", vocab).add(*example("stack").stack(vocab).blocks)
     sp.save(fig, tmp_path / "s.png", "post").sidecar.unlink()

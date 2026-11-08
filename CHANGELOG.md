@@ -6,6 +6,18 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
+## 0.2.2
+
+- **A sidecar records its vocabulary's meaning, and `check` says when it changed.** The sidecar's vocabulary hash is
+  now of the parsed vocabulary ([include] files merged), canonical JSON with sorted keys, and the sidecar says so
+  (`"vocab": {..., "hash": "meaning"}`): a comment, spacing or key order no longer changes it; a term, unit, role or
+  any other value does. `styles-plot check --vocab FILE` reports a sidecar whose hash is not FILE's as **SP907
+  vocabulary changed since save: meaning checks ran against the current vocabulary**, a warning until 0.3 (E1's
+  table), counted in the summary line. A sidecar written by 0.2.1 or earlier hashed the files' bytes: until 0.3 it
+  passes when it matches either hash, so an unchanged file passes; a comment edited since shows as SP907 (a bytes
+  hash cannot tell a comment from a term), and its message says to save again. *Migration:* save again (or build) to
+  record meaning hashes; every sidecar's `vocab` record changes once, no pixels do.
+
 ## 0.2.1
 
 - **A value label on a tie goes right.** A label takes the free side nearest its dot, and the right side on a tie; the
@@ -101,8 +113,8 @@ project may change (nothing is required unless it says so).
   first, repeats dropped); any other key defined in two files is a `VocabError` naming both; the sidecar's vocabulary
   hash covers the included files. `styles-plot vocab lint --vocab plotstyle.toml` reports canonical terms that differ
   only by case, a plural -s, a hyphen, or two letters in a word of six or more (a report: it never fails).
-  *Migration:* nothing to change. A strict refusal now leaves `_meta/problems.json` in the output folder; ignore it
-  in git (`problems.json`) if you like.
+  *Migration:* nothing to change. Every save now leaves `_meta/problems.json` in the output folder (a strict refusal
+  too); ignore it in git (`problems.json`) if you like, and allow it in any test that lists what `_meta/` may hold.
 - **C6 Figure sets and a build command.** `sp.FigureSet(name, vocab, out, targets=("post",), mode="strict")` and
   `@SET.figure(id, order=None, title="", caption="", targets=None, **figure)`: the builder receives a ready
   `Figure` (or returns one of the same id). `SET.build(only=, targets=, jobs=, mode=, out=) -> sp.BuildReport` and
