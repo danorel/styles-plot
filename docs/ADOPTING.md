@@ -89,7 +89,8 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
 
 Every problem names what is at fault and, where it can, how to fix it: `print(problem)` ends with `→ <fix>` (an `xlim`
 upper limit, a panel width, the `[terms]` line to add, the registry row to fill in). `styles-plot check DIR --json`
-prints one JSON object per problem for tools.
+prints one JSON object per problem for tools. To see them, `sp.debug(fig, "post")` writes `_debug/<id>.post.png` with
+each problem boxed in red; it is never published.
 
 
 A figure set can keep its folder clean for GitHub: `[output] sidecar_dir = "_meta"` in plotstyle.toml and

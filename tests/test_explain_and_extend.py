@@ -11,6 +11,8 @@ import styles_plot as sp
 from styles_plot import _checks
 from styles_plot._cli import main
 
+from .conftest import example
+
 
 
 def run(fig, target="post"):
@@ -90,3 +92,21 @@ def test_fix_text_for_overlap_words_missing_and_line_words(vocab, vocab_dir):
     p = next(p for p in run(sp.Figure("sweep", v).add(sp.Sweep(["c1"], "layer", "rank", lines, kind="checkpoints",
                                                                  xticks=[0, 10, 20])))[1] if p.code == "SP611")  # fmt: skip
     assert "split the panel" in p.fix
+
+
+# ---- A2 --------------------------------------------------------------------------------------------------------------
+def test_debug_picture(tmp_path, vocab):
+    import numpy as np
+    from PIL import Image
+
+    problems = sp.debug(tight(vocab), "post", out=tmp_path)
+    pic = tmp_path / "_debug" / "methods.post.png"
+    assert problems and pic.exists()
+    a = np.asarray(Image.open(pic).convert("RGB")).astype(int)
+    red = (a[..., 0] > 190) & (a[..., 1] < 80) & (a[..., 2] < 80)
+    assert red.sum() > 50  # the boxes are drawn
+    assert not list(tmp_path.rglob("*.styles.json"))  # never publishable: no sidecar
+    sp.save(sp.Figure("stack", vocab).add(*example("stack").stack(vocab).blocks), tmp_path / "stack.png", "post")
+    assert main(["check", str(tmp_path)]) == 0  # _debug/ is skipped
+    with pytest.raises(sp.StyleError, match=r'sp\.debug\(fig, "post"\)'):
+        sp.save(tight(vocab), tmp_path / "t.png", "post")

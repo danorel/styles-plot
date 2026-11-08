@@ -29,10 +29,11 @@ SIDECAR_SUFFIX = ".styles.json"
 class StyleError(ValueError):
     """A figure that breaks the grammar; nothing was written."""
 
-    def __init__(self, problems: list[Problem]):
+    def __init__(self, problems: list[Problem], target: str | None = None):
         self.problems = list(problems)
         lines = "\n".join(f"  {p}" for p in self.problems)
-        super().__init__(f"{len(self.problems)} problem(s), nothing written:\n{lines}")
+        hint = f'\nsee them drawn: sp.debug(fig, "{target}")' if target else "\nsee them drawn: sp.debug(fig, target)"
+        super().__init__(f"{len(self.problems)} problem(s), nothing written:\n{lines}{hint}")
 
 
 class StyleWarning(UserWarning):
@@ -56,6 +57,35 @@ def sidecar_path(png: str | Path, root: str | Path | None = None, sidecar_dir: s
     root = Path(root) if root is not None else png.parent
     rel = png.relative_to(root)
     return root / sidecar_dir / rel.with_name(rel.stem + SIDECAR_SUFFIX)
+
+
+DEBUG_DIR = "_debug"
+DEBUG_RED = "#d62728"  # the debug picture's own colour: never published, so outside the palette by design
+
+
+def debug(fig: Figure, target: str = "post", out: str | Path = ".") -> list[Problem]:
+    """Render a figure for a target, run every check, and write <out>/_debug/<id>.<target>.png: the figure with each
+    problem's subject boxed in red, its obstacle boxed in dashed red, and the code beside it. Never publishable: no
+    sidecar, and `styles-plot check` and `sheet` skip _debug/. Returns the problems."""
+    from matplotlib.patches import Rectangle
+
+    mpl = fig.render(target)
+    problems = _checks.run(mpl)
+    w, h = mpl.get_size_inches()
+    for p in problems:
+        for box, style in ((p.bbox_in, "-"), (p.obstacle_in, "--")):
+            if not box:
+                continue
+            x0, y0, x1, y1 = box
+            mpl.add_artist(Rectangle((x0 / w, y0 / h), (x1 - x0) / w, (y1 - y0) / h, transform=mpl.transFigure,
+                                     fill=False, edgecolor=DEBUG_RED, lw=1.4, ls=style, zorder=100))  # fmt: skip
+        if p.bbox_in:
+            mpl.text(p.bbox_in[2] / w + 0.003, p.bbox_in[3] / h, p.code, transform=mpl.transFigure, color=DEBUG_RED,
+                     fontsize=8, va="bottom", zorder=101)  # fmt: skip
+    path = Path(out) / DEBUG_DIR / f"{fig.id}.{target}.png"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    mpl.savefig(path, dpi=info(mpl).theme.dpi, facecolor=info(mpl).vocab.palette.chrome["background"])
+    return problems
 
 
 def check_figure(fig: Figure, target: str) -> list[Problem]:
@@ -105,7 +135,7 @@ def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path
     i = info(mpl)
     strict = mode == "strict" and i.theme.publishable
     if problems and strict:
-        raise StyleError(problems)
+        raise StyleError(problems, i.target)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(suffix=".png", dir=path.parent)
     os.close(fd)
@@ -115,7 +145,7 @@ def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path
         png_problems = check_png(tmp, i.theme, i.vocab.palette, i.text_only) if i.theme.strict_layout else []
         png_problems = [Problem(p.code, p.message, i.figure) for p in png_problems]
         if png_problems and strict:
-            raise StyleError(png_problems)
+            raise StyleError(png_problems, i.target)
         os.replace(tmp, path)
     finally:
         if os.path.exists(tmp):

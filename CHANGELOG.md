@@ -14,6 +14,10 @@ project may change (nothing is required unless it says so).
   that makes room; SP401 gives the `[terms]` line, SP203 the registry row with `<timing>,<claim>` placeholders,
   SP609/SP611 their fixes. Sidecars record whole problems; `styles-plot check --json` prints one object per problem.
   *Migration:* nothing to change. Code that builds `Problem(code, message, figure)` keeps working.
+- **A2 Debug picture.** `sp.debug(fig, target="post", out=".")` renders, checks, and writes
+  `<out>/_debug/<id>.<target>.png` with each problem's text boxed in red and its obstacle in dashed red; no sidecar,
+  never published; `check` and `sheet` skip `_debug/`. A `StyleError` ends with the `sp.debug(...)` call that draws it.
+  *Migration:* nothing to change; keep `_debug/` out of git if you like.
 
 ## 0.1.14
 
