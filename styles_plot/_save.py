@@ -119,22 +119,69 @@ def save(fig: Figure, path: str | Path, target: str, *, mode: str = "strict",
     the figure set's folder: with [output].sidecar_dir the sidecar goes under it (default: the PNG's folder)."""
     _mode(mode)
     mpl, problems, waived = _prepare(fig, target)
-    return _write(mpl, problems, waived, Path(path), mode, root)
+    out = Path(root) if root is not None else Path(path).parent
+    try:
+        report = _write(mpl, problems, waived, Path(path), mode, root)
+    except StyleError as e:
+        record_problems(out, fig.id, {target: problems + [p for p in e.problems if p not in problems]})
+        raise
+    record_problems(out, fig.id, {target: report.problems})
+    return report
 
 
 def save_bundle(fig: Figure, out_dir: str | Path, targets: Iterable[str] = ("post", "slide", "readme"), *,
                 mode: str = "strict") -> dict[str, SaveReport]:  # fmt: skip
     """One figure for several targets, at <out_dir>/<target>/<figure id>.png. In strict mode every target is checked
-    before anything is written, so a bundle is never half-saved."""
+    before anything is written, so a bundle is never half-saved. Each target's problems (none when clean) go to
+    <out_dir>/_meta/problems.json, read by `styles-plot todo`."""
+    return bundle(fig, out_dir, targets, mode)
+
+
+def bundle(fig: Figure, out_dir, targets, mode: str, record: bool = True) -> dict[str, SaveReport]:
+    """save_bundle; `record=False` leaves problems.json to the caller (a parallel build writes it once)."""
     _mode(mode)
+    out_dir = Path(out_dir)
     prepared = {t: _prepare(fig, t) for t in targets}
     if mode == "strict":
         blocking = [p for t, (mpl, ps, _) in prepared.items() if info(mpl).theme.publishable
                     for p in _tagged(ps, t) if not _checks.is_warning(p.code)]  # fmt: skip
         if blocking:
+            if record:
+                record_problems(out_dir, fig.id, {t: ps for t, (_m, ps, _w) in prepared.items()})
             raise StyleError(blocking)
-    return {t: _write(mpl, ps, wv, Path(out_dir) / t / f"{fig.id}.png", mode, Path(out_dir) / t)
-            for t, (mpl, ps, wv) in prepared.items()}  # fmt: skip
+    reports: dict[str, SaveReport] = {}
+    try:
+        for t, (mpl, ps, wv) in prepared.items():
+            reports[t] = _write(mpl, ps, wv, out_dir / t / f"{fig.id}.png", mode, out_dir / t)
+    except StyleError as e:  # the saved PNG failed its check
+        if record:
+            failed = next(t for t in prepared if t not in reports)
+            record_problems(out_dir, fig.id, {**{t: r.problems for t, r in reports.items()}, failed: e.problems})
+        raise
+    if record:
+        record_problems(out_dir, fig.id, {t: r.problems for t, r in reports.items()})
+    return reports
+
+
+PROBLEMS = "problems.json"
+
+
+def record_problems(out: Path, figure: str, by_target: dict[str, list[Problem]]) -> Path:
+    """Update <out>/_meta/problems.json ({figure: {target: [problem, ...]}}) with a figure's last problems."""
+    path = Path(out) / "_meta" / PROBLEMS
+    data = {}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            data = {}
+    data.setdefault(figure, {}).update({t: [p.as_dict() for p in ps] for t, ps in by_target.items()})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(suffix=".json", dir=path.parent)
+    with os.fdopen(fd, "w") as f:
+        f.write(json.dumps(dict(sorted(data.items())), indent=1, ensure_ascii=False) + "\n")
+    os.replace(tmp, path)
+    return path
 
 
 def _mode(mode: str) -> None:
@@ -184,6 +231,18 @@ def _write(mpl, problems: list[Problem], waived: list[dict], path: Path, mode: s
     return SaveReport(path, side, i.target, problems, waived)
 
 
+def _vocab_sha(vocab) -> str | None:
+    """The vocabulary file's hash; with [include], of it and its included files in order."""
+    if not vocab.includes:
+        return _sha(vocab.source)
+    if vocab.source is None:
+        return None
+    h = hashlib.sha256()
+    for p in (vocab.source, *vocab.includes):
+        h.update(Path(p).read_bytes())
+    return h.hexdigest()
+
+
 def _sha(path: Path | None) -> str | None:
     if path is None or not Path(path).exists():
         return None
@@ -214,7 +273,7 @@ def _sidecar(mpl, i: RenderInfo, png: Path, mode: str, problems: list[Problem]) 
             shown = Path(reg).name
     return {
         "styles_plot": __version__,
-        "vocab": {"project": i.vocab.project, "sha256": _sha(i.vocab.source)},
+        "vocab": {"project": i.vocab.project, "sha256": _vocab_sha(i.vocab)},
         "registry": {"path": shown, "sha256": _sha(reg)},
         "figure": i.figure,
         "target": i.target,

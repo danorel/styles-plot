@@ -127,6 +127,8 @@ styles-plot check figures/post --vocab plotstyle.toml   # PNGs and sidecars: siz
 styles-plot sheet figures/post                          # contact sheets, colour and gray
 styles-plot key --vocab plotstyle.toml                  # the project's grammar on one image
 styles-plot palette --vocab plotstyle.toml              # colour-vision distances; pairs that may not share a figure
+styles-plot todo figures                                # what the last saves left to fix: words, cells, the rest
+styles-plot vocab lint --vocab plotstyle.toml           # canonical terms written two ways
 ```
 
 ## Rebuild the examples

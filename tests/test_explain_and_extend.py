@@ -516,3 +516,110 @@ def test_max_header_lines_is_a_target_field_and_the_table_turns_warnings_into_er
     assert _checks.is_warning("SP613") and not _checks.is_warning("SP601")
     monkeypatch.setattr(sp, "__version__", "0.3.0")
     assert not _checks.is_warning("SP613")  # an error from the version in the table
+
+
+# ---- C5 --------------------------------------------------------------------------------------------------------------
+def _refused(v):
+    col = sp.DotColumn("recall", "accuracy", (40, 100), (50, 100),
+                       [sp.Series("second", {"m1": sp.Est(81, cell="acc.m1"), "m2": sp.Est(77, cell="acc.zz")})])
+    return sp.Figure("methods", v).add(sp.DotTable(["m1", "m2"], [col]))
+
+
+def test_saves_record_their_last_problems(tmp_path, vocab):
+    sp.save_bundle(sp.Figure("stack", vocab).add(*example("stack").stack(vocab).blocks), tmp_path, ("post", "readme"))
+    with pytest.raises(sp.StyleError):
+        sp.save_bundle(_refused(vocab), tmp_path, ("post", "readme"))
+    data = json.loads((tmp_path / "_meta" / "problems.json").read_text())
+    assert data["stack"] == {"post": [], "readme": []}  # clean: empty lists
+    assert {p["code"] for p in data["methods"]["post"]} == {"SP401", "SP203"}  # a strict refusal is recorded too
+    sp.save(sp.Figure("stack", vocab).add(*example("stack").stack(vocab).blocks), tmp_path / "one" / "s.png", "post")
+    assert json.loads((tmp_path / "one" / "_meta" / "problems.json").read_text()) == {"stack": {"post": []}}
+
+
+def test_todo_groups_words_cells_and_the_rest(tmp_path, vocab, vocab_dir, capsys):
+    with pytest.raises(sp.StyleError):
+        sp.save_bundle(_refused(vocab), tmp_path / "figs", ("post",))
+    with pytest.warns(sp.StyleWarning):
+        sp.save(tight(vocab), tmp_path / "figs" / "other" / "t.png", "post", mode="compat",
+                root=tmp_path / "figs" / "other")  # another set: todo reads every _meta/problems.json under the folder
+    capsys.readouterr()
+    assert main(["todo", str(tmp_path / "figs")]) == 0
+    out = capsys.readouterr().out
+    assert 'canonical = [..., "recall"]' in out and "methods,acc.zz,<timing>,<claim>,,," in out
+    assert "SP601" in out and "xlim upper ≥" in out
+    assert main(["todo", str(tmp_path / "nothing")]) == 2
+
+    toml = vocab_dir / "plotstyle.toml"
+    assert main(["todo", str(tmp_path / "figs"), "--vocab", str(toml), "--write-vocab"]) == 0
+    added = vocab_dir / "plotstyle.added.toml"
+    assert '"recall",  # added by styles-plot todo, ' in added.read_text()
+    assert 'files = ["plotstyle.added.toml"]' in capsys.readouterr().out
+    assert "acc.zz" not in (vocab_dir / "status.csv").read_text()  # a status is a decision: never written
+    toml.write_text(toml.read_text() + '\n[include]\nfiles = ["plotstyle.added.toml"]\n')
+    v = sp.load(toml)
+    assert "recall" in v.canonical and "SP401" not in {p.code for p in run(_refused(v))[1]}
+    before = added.read_text()
+    assert main(["todo", str(tmp_path / "figs"), "--vocab", str(toml), "--write-vocab"]) == 0
+    assert added.read_text() == before  # already there: kept with its date, not repeated
+    assert "[include]" not in capsys.readouterr().out.split("wrote")[-1]
+
+
+def test_write_vocab_refuses_banned_words(tmp_path, vocab, vocab_dir, capsys):
+    col = sp.DotColumn("ablation recall", "accuracy", (40, 100), (50, 100),
+                       [sp.Series("second", {"m1": sp.Est(81, cell="acc.m1")})])
+    with pytest.raises(sp.StyleError):
+        sp.save_bundle(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [col])), tmp_path, ("post",))
+    assert main(["todo", str(tmp_path), "--vocab", str(vocab_dir / "plotstyle.toml"), "--write-vocab", "w.toml"]) == 1
+    assert "refused (banned): 'ablation recall'" in capsys.readouterr().out
+    assert "ablation" not in (vocab_dir / "w.toml").read_text()
+
+
+def test_include_merges_term_lists_and_refuses_a_key_defined_twice(vocab_dir):
+    toml = vocab_dir / "plotstyle.toml"
+    base = toml.read_text() + '\n[include]\nfiles = ["more.toml"]\n'
+    toml.write_text(base)
+    more = vocab_dir / "more.toml"
+    more.write_text('[terms]\ncanonical = ["recall", "accuracy"]\nmissing = ["no seed"]\n'
+                    '[units.recall]\ntitle = "recall (%)"\nquantity = "recall"\nformat = "accuracy"\n')
+    v = sp.load(toml)
+    assert {"recall", "accuracy"} <= v.canonical and v.missing[-1] == "no seed" and "recall" in v.units
+    assert v.includes == (more,)
+    more.write_text('[units.accuracy]\ntitle = "x"\nquantity = "x"\nformat = "accuracy"\n')
+    with pytest.raises(sp.VocabError, match=r"more.toml: \[units\] 'accuracy' is also defined in .*plotstyle.toml"):
+        sp.load(toml)
+    more.write_text('[include]\nfiles = ["x.toml"]\n')
+    with pytest.raises(sp.VocabError, match="one level deep"):
+        sp.load(toml)
+    toml.write_text(base.replace("more.toml", "gone.toml"))
+    with pytest.raises(sp.VocabError, match="gone.toml does not exist"):
+        sp.load(toml)
+
+
+def test_the_sidecar_hash_covers_included_files(tmp_path, vocab_dir):
+    toml = vocab_dir / "plotstyle.toml"
+    toml.write_text(toml.read_text() + '\n[include]\nfiles = ["more.toml"]\n')
+    more = vocab_dir / "more.toml"
+    shas = []
+    for words in ('["recall"]', '["recall", "precision"]'):
+        more.write_text(f"[terms]\ncanonical = {words}\n")
+        v = sp.load(toml)
+        r = sp.save(sp.Figure("stack", v).add(*example("stack").stack(v).blocks), tmp_path / "s.png", "post")
+        shas.append(json.loads(r.sidecar.read_text())["vocab"]["sha256"])
+    assert shas[0] != shas[1]
+
+
+def test_vocab_lint_reports_near_duplicates(vocab_dir, capsys):
+    from styles_plot._lint import near_duplicates
+
+    pairs = {(a, b): w for a, b, w in near_duplicates(["switch blocked", "switches blocked", "Accuracy", "accuracy",
+                                                       "knock-out", "knock out", "baseline", "baselnie", "set one",
+                                                       "set two"])}  # fmt: skip
+    assert pairs[("switch blocked", "switches blocked")] == "plural -s"
+    assert pairs[("Accuracy", "accuracy")] == "differ only by case"
+    assert pairs[("knock out", "knock-out")] == "hyphen vs space"
+    assert "differ by 2" in pairs[("baseline", "baselnie")]
+    assert ("set one", "set two") not in pairs
+    toml = vocab_dir / "plotstyle.toml"
+    toml.write_text(toml.read_text().replace('"answers",', '"answers", "Answers",'))
+    assert main(["vocab", "lint", "--vocab", str(toml)]) == 0  # a report: nothing fails
+    assert "'Answers' / 'answers': differ only by case" in capsys.readouterr().out

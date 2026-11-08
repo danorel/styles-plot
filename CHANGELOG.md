@@ -65,6 +65,18 @@ project may change (nothing is required unless it says so).
   listed by `check`), an error from 0.3. SP613 may be waived (text placement).
   *Migration:* nothing to change. A figure that now warns SP613: widen the column (`weight=`), shorten the header, or
   move the qualifier into the unit's title.
+- **C5 `styles-plot todo` and vocabulary upkeep.** `save` and `save_bundle` write each figure's last problems per
+  target to `<out>/_meta/problems.json` (empty lists when clean; a strict refusal is recorded too, and is then the only
+  file written). `styles-plot todo <out>` reads every such file under a folder and groups: words to add (a TOML line),
+  cells to register (CSV stubs with `<timing>,<claim>`), the rest with their fixes. `--vocab plotstyle.toml
+  --write-vocab [FILE]` writes the missing words to FILE beside the vocabulary (default `plotstyle.added.toml`), each
+  dated, refuses banned ones (exit 1), prints the `[include]` line to add, and never writes the registry.
+  `[include] files = [...]` in plotstyle.toml, relative to it, one level deep: the `[terms]` lists concatenate (base
+  first, repeats dropped); any other key defined in two files is a `VocabError` naming both; the sidecar's vocabulary
+  hash covers the included files. `styles-plot vocab lint --vocab plotstyle.toml` reports canonical terms that differ
+  only by case, a plural -s, a hyphen, or two letters in a word of six or more (a report: it never fails).
+  *Migration:* nothing to change. A strict refusal now leaves `_meta/problems.json` in the output folder; ignore it
+  in git (`problems.json`) if you like.
 
 ## 0.1.15
 

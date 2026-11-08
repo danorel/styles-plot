@@ -6,12 +6,15 @@
     styles-plot key --vocab plotstyle.toml [-o key.png] [--target post] the project's key figure
     styles-plot palette [--vocab plotstyle.toml]                       colour-vision table of the slots
     styles-plot init [DIR] [--name NAME] [--force]                     a starter vocabulary, registry and figure
+    styles-plot todo <out> [--vocab plotstyle.toml] [--write-vocab [FILE]]  what the last saves left to fix
+    styles-plot vocab lint --vocab plotstyle.toml                      near-duplicate canonical terms
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from importlib.resources import files
@@ -21,7 +24,7 @@ from styles_plot._checks import ERROR_FROM, is_warning
 from styles_plot._palette import Palette
 from styles_plot._png import check_png, pixels_sha256
 from styles_plot._registry import load as load_registry
-from styles_plot._save import StyleError, find_sidecar, save
+from styles_plot._save import PROBLEMS, StyleError, find_sidecar, save
 from styles_plot._sheet import contact_sheets, figures_in
 from styles_plot._theme import targets_from
 from styles_plot._vocab import VocabError, load
@@ -167,6 +170,97 @@ def _palette(args) -> int:
     return 0
 
 
+def _todo(args) -> int:
+    root = Path(args.dir)
+    files = sorted(root.rglob(f"_meta/{PROBLEMS}"))
+    if not files:
+        print(f"styles-plot todo: no _meta/{PROBLEMS} under {root} (save, save_bundle and build write it)",
+              file=sys.stderr)  # fmt: skip
+        return 2
+    words: dict[str, None] = {}
+    cells: dict[str, None] = {}
+    rest: list[str] = []
+    clean = figures = 0
+    for f in files:
+        for fig, by_target in json.loads(f.read_text()).items():
+            figures += 1
+            clean += all(not ps for ps in by_target.values())
+            for target, ps in sorted(by_target.items()):
+                for p in ps:
+                    if p["code"] == "SP401" and p.get("subject"):
+                        words[p["subject"]] = None
+                    elif p["code"] == "SP203" and p.get("subject"):
+                        cells[f"{p['figure'] or fig},{p['subject']},<timing>,<claim>,,,"] = None
+                    else:
+                        fix = f" → {p['fix']}" if p.get("fix") else ""
+                        rest.append(f"{fig} [{target}]: {p['code']} {p['message']}{fix}")
+    if words:
+        print("words to add (plotstyle.toml [terms]; or --write-vocab):")
+        print("  canonical = [..., " + ", ".join(json.dumps(w, ensure_ascii=False) for w in words) + "]")
+    if cells:
+        print("cells to register (status.csv; a status is a decision: fill in timing and claim):")
+        for line in cells:
+            print(f"  {line}")
+    if rest:
+        print("the rest:")
+        for line in dict.fromkeys(rest):
+            print(f"  {line}")
+    print(f"styles-plot todo: {figures} figure(s), {clean} clean; {len(words)} word(s), {len(cells)} cell(s), "
+          f"{len(dict.fromkeys(rest))} other problem(s)")  # fmt: skip
+    if args.write_vocab is not None:
+        return _write_vocab(args, list(words))
+    return 0
+
+
+ADDED = "plotstyle.added.toml"
+
+
+def _write_vocab(args, words: list[str]) -> int:
+    """Append the missing words to FILE (beside the vocabulary), each with the date it was added; refuse banned ones;
+    never touch the registry."""
+    import datetime
+
+    if not args.vocab:
+        print("styles-plot todo --write-vocab: needs --vocab plotstyle.toml", file=sys.stderr)
+        return 2
+    vocab = load(args.vocab)
+    target = Path(args.vocab).parent / (args.write_vocab or ADDED)
+    have: dict[str, str] = {}
+    if target.exists():
+        for line in target.read_text(encoding="utf-8").splitlines():
+            m = re.match(r'\s*("(?:[^"\\]|\\.)*"),\s*#\s*(.*)$', line)
+            if m:
+                have[json.loads(m.group(1))] = m.group(2)
+    today = datetime.date.today().isoformat()
+    added, refused = [], []
+    for w in words:
+        if vocab.banned_hits(w):
+            refused.append(f"{w!r} ({', '.join(vocab.banned_hits(w))})")
+        elif w not in have and w not in vocab.canonical:
+            have[w] = f"added by styles-plot todo, {today}"
+            added.append(w)
+    body = "".join(f"    {json.dumps(w, ensure_ascii=False)},  # {note}\n" for w, note in have.items())
+    target.write_text("# Words styles-plot todo found missing. Review them in the diff; move them to plotstyle.toml "
+                      "when you like.\n[terms]\ncanonical = [\n" + body + "]\n", encoding="utf-8")  # fmt: skip
+    for r in refused:
+        print(f"refused (banned): {r}")
+    print(f"wrote {target}: {len(added)} word(s) added")
+    included = {Path(p).resolve() for p in vocab.includes}
+    if target.resolve() not in included:
+        print(f'add to {args.vocab}:\n  [include]\n  files = ["{target.name}"]')
+    return 1 if refused else 0
+
+
+def _vocab(args) -> int:
+    from styles_plot._lint import near_duplicates
+
+    pairs = near_duplicates(load(args.vocab).canonical)
+    for a, b, why in pairs:
+        print(f"{a!r} / {b!r}: {why}")
+    print(f"styles-plot vocab lint: {len(pairs)} near-duplicate pair(s) (a report: nothing fails)")
+    return 0
+
+
 INIT_FILES = ("plotstyle.toml", "status.csv", "first_figure.py")
 _INIT_NAME = 'name = "my project"'
 NEXT_STEPS = """next:
@@ -217,13 +311,23 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("--target", default="post")
     p = sub.add_parser("palette", help="colour-vision table of the palette's slots")
     p.add_argument("--vocab")
+    t = sub.add_parser("todo", help="what the last saves under a folder left to fix, grouped")
+    t.add_argument("dir")
+    t.add_argument("--vocab", help="the vocabulary (needed by --write-vocab)")
+    t.add_argument("--write-vocab", nargs="?", const="", default=None, metavar="FILE",
+                   help=f"write the missing words to FILE beside the vocabulary (default {ADDED})")  # fmt: skip
+    vc = sub.add_parser("vocab", help="vocabulary upkeep")
+    vsub = vc.add_subparsers(dest="vocab_cmd", required=True)
+    lint = vsub.add_parser("lint", help="near-duplicate canonical terms (a report)")
+    lint.add_argument("--vocab", required=True)
     i = sub.add_parser("init", help="write a starter plotstyle.toml, status.csv and first_figure.py")
     i.add_argument("dir", nargs="?", default=".")
     i.add_argument("--name", help="the project's name (default: the folder's name)")
     i.add_argument("--force", action="store_true", help="overwrite the three files if they exist")
     args = ap.parse_args(argv)
     try:
-        return {"check": _check, "sheet": _sheet, "key": _key, "palette": _palette, "init": _init}[args.cmd](args)
+        return {"check": _check, "sheet": _sheet, "key": _key, "palette": _palette, "init": _init,
+                "todo": _todo, "vocab": _vocab}[args.cmd](args)
     except VocabError as e:
         print(f"styles-plot: {e}", file=sys.stderr)
         return 2

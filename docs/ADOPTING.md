@@ -38,6 +38,7 @@ Everything that names a concept of your project, and every style choice you chan
 | `[targets.<name>]` | any target field (`width_in`, `dpi`, `height_in`, `aspect`, `min_pt`, `sizes`, `title`, `caption`, `max_header_lines`…); a new name is a new target | optional |
 | `[marks]` | marker, dot size, line widths, shading alpha | optional |
 | `[phrases]` | the key's wording, status tags, cues (for another language) | optional |
+| `[include]` | `files`: more vocabulary files beside this one; `[terms]` lists add up, any other key once | optional |
 
 `sp.load` fails on a mistake with the table and key at fault. Configuring in Python instead: `sp.from_dict({...})`,
 or `dataclasses.replace(vocab, ...)` on a loaded one.
@@ -137,7 +138,14 @@ styles-plot check figures/post --vocab plotstyle.toml    # size, palette, stalen
 styles-plot sheet figures/post                            # contact_sheet.png and contact_sheet_gray.png
 styles-plot key --vocab plotstyle.toml -o figures/post/key.png
 styles-plot palette --vocab plotstyle.toml                # which of your roles may not share a figure
+styles-plot todo figures                                  # what the last saves left to fix, grouped
+styles-plot todo figures --vocab plotstyle.toml --write-vocab   # the missing words into plotstyle.added.toml
+styles-plot vocab lint --vocab plotstyle.toml             # canonical terms written two ways
 ```
+
+After a run of saves, `styles-plot todo figures` lists the words to add to `[terms]` (`--write-vocab` writes them to
+`plotstyle.added.toml`, dated, for review in the diff; include it with `[include] files = ["plotstyle.added.toml"]`),
+the registry rows to fill in (it never writes a status: that is a decision), and every other problem with its fix.
 
 ## A figure the library can't draw
 
