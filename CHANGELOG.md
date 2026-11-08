@@ -18,6 +18,14 @@ project may change (nothing is required unless it says so).
   `<out>/_debug/<id>.<target>.png` with each problem's text boxed in red and its obstacle in dashed red; no sidecar,
   never published; `check` and `sheet` skip `_debug/`. A `StyleError` ends with the `sp.debug(...)` call that draws it.
   *Migration:* nothing to change; keep `_debug/` out of git if you like.
+- **A3 Waivers, for text placement only.** `sp.Waive(code, text, reason, targets=())` and `Figure(..., waive=[...])`.
+  Waivable: SP601, SP606, SP610, SP613; any other code raises `BuildError("SP603 cannot be waived ...")` when the
+  waiver is made, and a reason is required. A waiver matches a problem with its code whose subject's whole text is
+  `text` (for SP606, either text). A waiver that matches nothing on a target it applies to is **SP905 stale waiver**,
+  an error at once; `targets=` limits a waiver to the targets that need it. The sidecar gains `waived:
+  [{code, subject, reason}]` (only when something was waived), `SaveReport.waived` the same, and `check` ends with
+  `N waived`. `save_bundle`'s problems now keep their subject, boxes and fix.
+  *Migration:* nothing to change; SP606 problems carry the second text in `where["other"]`.
 
 ## 0.1.14
 

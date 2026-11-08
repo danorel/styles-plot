@@ -33,6 +33,33 @@ class BuildError(ValueError):
     """A figure declaration that cannot be drawn: an unknown role, unit, row or target; a table that does not fit."""
 
 
+WAIVABLE = frozenset({"SP601", "SP606", "SP610", "SP613"})  # text placement only: never a meaning check
+
+
+@dataclass(frozen=True)
+class Waive:
+    """Accept one layout problem a person has looked at: `code` (text placement only: SP601, SP606, SP610, SP613),
+    `text` the whole text at fault (a wrapped text by its full text; for SP606 either of the two), and why. `targets`
+    limits it to some targets (default: all). A waiver that matches nothing on a target it applies to is SP905."""
+
+    code: str
+    text: str
+    reason: str
+    targets: tuple[str, ...] = ()
+
+    def __post_init__(self):
+        if self.code not in WAIVABLE:
+            raise BuildError(f"{self.code} cannot be waived (only text placement: {', '.join(sorted(WAIVABLE))})")
+        if not self.text.strip():
+            raise BuildError(f"a {self.code} waiver needs the text it waives")
+        if not self.reason.strip():
+            raise BuildError(f"the waiver of {self.code} {self.text!r} needs a reason")
+        object.__setattr__(self, "targets", (self.targets,) if isinstance(self.targets, str) else tuple(self.targets))
+
+    def applies_to(self, target: str) -> bool:
+        return not self.targets or target in self.targets
+
+
 # ---- per-render state ------------------------------------------------------------------------------------------------
 @dataclass
 class Ctx:
@@ -197,6 +224,7 @@ class RenderInfo:
     all_post_hoc: bool = False
     text_only: bool = False  # cards only: exempt from the target's widest proportion
     findings: tuple[tuple[str, str], ...] = ()
+    waivers: tuple[Waive, ...] = ()  # those that apply to this target
 
 
 def info(fig) -> RenderInfo:
@@ -340,13 +368,18 @@ class Figure:
     explanation) are drawn only by targets whose theme asks for them; `subtitle` is one grey vocabulary term above the
     blocks ("synthetic data"); `read` is one sentence under the blocks that walks through one value, its numbers given
     as `numbers={name: (value, unit, data key)}` and printed in the unit's format. `direct_labels` exempts a figure of
-    schematics and cards from the colour-vision floors; every coloured element then needs its word right next to it."""
+    schematics and cards from the colour-vision floors; every coloured element then needs its word right next to it.
+    `waive` lists `Waive`s: layout problems a person has looked at and accepted."""
 
     def __init__(self, id: str, vocab: Vocab, *, title: str = "", caption: str = "", subtitle: str = "",
                  direct_labels: bool = False, registry: R.Registry | None = None, read: str = "",
-                 numbers: dict | None = None):  # fmt: skip
+                 numbers: dict | None = None, waive=()):  # fmt: skip
         if not id or "/" in id:
             raise BuildError(f"bad figure id {id!r}")
+        self.waive = tuple(waive)
+        for w in self.waive:
+            if not isinstance(w, Waive):
+                raise BuildError(f"waive= takes sp.Waive(code, text, reason), got {w!r}")
         self.id = id
         self.vocab = vocab
         self.title = title
@@ -438,5 +471,6 @@ class Figure:
             numbers=tuple(ctx.numbers), direct_labels=self.direct_labels, natural_height=natural,
             blocks=tuple(type(b).__name__ for b in self.blocks), encodings=enc, key_figure=self._key_figure,
             all_post_hoc=ctx.all_post_hoc, findings=tuple(ctx.findings), text_only=self._text_only(),
+            waivers=tuple(w for w in self.waive if w.applies_to(target)),
         )  # fmt: skip
         return fig

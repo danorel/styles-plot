@@ -52,6 +52,7 @@ def check(cx: CheckCtx) -> list[Problem]:
             if a.x0 < b.x1 - 1 and b.x0 < a.x1 - 1 and a.y0 < b.y1 - 1 and b.y0 < a.y1 - 1:
                 ax, where = _locate(cx, a)
                 fix = _panel_fix(cx, ax, a) if ax is not None else "move or shorten one of them, or waive it"
+                where["other"] = full_text(tb)
                 out.append(cx.problem("SP606", f"texts overlap {full_text(ta)[:20]!r} / {full_text(tb)[:20]!r}",
                                       subject=full_text(ta), where=where, bbox_in=cx.inches(a),
                                       obstacle_in=cx.inches(b), fix=fix))  # fmt: skip
@@ -82,7 +83,7 @@ def check(cx: CheckCtx) -> list[Problem]:
             need, have = tags(t)["no_room"]
             ax, where = _locate(cx, t.get_window_extent(cx.renderer))
             out.append(cx.problem("SP610", f"missing words {t.get_text()!r} need {need:g} in; the widest free span of "
-                                           f"their line is {have:g} in", subject=t.get_text(), where=where,
+                                           f"their line is {have:g} in", subject=full_text(t), where=where,
                                   fix=f"a panel about {need - have:.2f} in wider, or shorter missing words"))  # fmt: skip
     marker = cx.vocab.marks.marker
     for a in cx.marks:

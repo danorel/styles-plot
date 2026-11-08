@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import tempfile
+from dataclasses import replace
 import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -46,6 +47,7 @@ class SaveReport:
     sidecar: Path
     target: str
     problems: list[Problem] = field(default_factory=list)
+    waived: list[dict] = field(default_factory=list)  # {code, subject, reason} per waived problem
 
 
 def sidecar_path(png: str | Path, root: str | Path | None = None, sidecar_dir: str = "") -> Path:
@@ -70,7 +72,7 @@ def debug(fig: Figure, target: str = "post", out: str | Path = ".") -> list[Prob
     from matplotlib.patches import Rectangle
 
     mpl = fig.render(target)
-    problems = _checks.run(mpl)
+    problems = _checks.run(mpl)  # waived problems are not drawn
     w, h = mpl.get_size_inches()
     for p in problems:
         for box, style in ((p.bbox_in, "-"), (p.obstacle_in, "--")):
@@ -89,7 +91,7 @@ def debug(fig: Figure, target: str = "post", out: str | Path = ".") -> list[Prob
 
 
 def check_figure(fig: Figure, target: str) -> list[Problem]:
-    """Render a figure for a target and return every problem, writing nothing."""
+    """Render a figure for a target and return every problem not waived, writing nothing."""
     return _checks.run(fig.render(target))
 
 
@@ -99,8 +101,8 @@ def save(fig: Figure, path: str | Path, target: str, *, mode: str = "strict",
     nothing; compat mode (and the notebook target) warns and writes, recording the problems in the sidecar. `root` is
     the figure set's folder: with [output].sidecar_dir the sidecar goes under it (default: the PNG's folder)."""
     _mode(mode)
-    mpl, problems = _prepare(fig, target)
-    return _write(mpl, problems, Path(path), mode, root)
+    mpl, problems, waived = _prepare(fig, target)
+    return _write(mpl, problems, waived, Path(path), mode, root)
 
 
 def save_bundle(fig: Figure, out_dir: str | Path, targets: Iterable[str] = ("post", "slide", "readme"), *,
@@ -110,11 +112,11 @@ def save_bundle(fig: Figure, out_dir: str | Path, targets: Iterable[str] = ("pos
     _mode(mode)
     prepared = {t: _prepare(fig, t) for t in targets}
     if mode == "strict":
-        blocking = [p for t, (mpl, ps) in prepared.items() if info(mpl).theme.publishable for p in _tagged(ps, t)]
+        blocking = [p for t, (mpl, ps, _) in prepared.items() if info(mpl).theme.publishable for p in _tagged(ps, t)]
         if blocking:
             raise StyleError(blocking)
-    return {t: _write(mpl, ps, Path(out_dir) / t / f"{fig.id}.png", mode, Path(out_dir) / t)
-            for t, (mpl, ps) in prepared.items()}  # fmt: skip
+    return {t: _write(mpl, ps, wv, Path(out_dir) / t / f"{fig.id}.png", mode, Path(out_dir) / t)
+            for t, (mpl, ps, wv) in prepared.items()}  # fmt: skip
 
 
 def _mode(mode: str) -> None:
@@ -123,15 +125,16 @@ def _mode(mode: str) -> None:
 
 
 def _tagged(problems: list[Problem], target: str) -> list[Problem]:
-    return [Problem(p.code, p.message, f"{p.figure} [{target}]") for p in problems]
+    return [replace(p, figure=f"{p.figure} [{target}]") for p in problems]
 
 
 def _prepare(fig: Figure, target: str):
     mpl = fig.render(target)
-    return mpl, _checks.run(mpl)
+    return (mpl, *_checks.evaluate(mpl))
 
 
-def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path | None = None) -> SaveReport:
+def _write(mpl, problems: list[Problem], waived: list[dict], path: Path, mode: str,
+           root: str | Path | None = None) -> SaveReport:  # fmt: skip
     i = info(mpl)
     strict = mode == "strict" and i.theme.publishable
     if problems and strict:
@@ -155,8 +158,11 @@ def _write(mpl, problems: list[Problem], path: Path, mode: str, root: str | Path
         warnings.warn(str(p), StyleWarning, stacklevel=3)
     side = sidecar_path(path, root, i.vocab.sidecar_dir)
     side.parent.mkdir(parents=True, exist_ok=True)
-    side.write_text(json.dumps(_sidecar(mpl, i, path, mode, problems), indent=1, ensure_ascii=False) + "\n")
-    return SaveReport(path, side, i.target, problems)
+    meta = _sidecar(mpl, i, path, mode, problems)
+    if waived:
+        meta["waived"] = waived
+    side.write_text(json.dumps(meta, indent=1, ensure_ascii=False) + "\n")
+    return SaveReport(path, side, i.target, problems, waived)
 
 
 def _sha(path: Path | None) -> str | None:

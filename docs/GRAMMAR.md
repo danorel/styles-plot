@@ -151,6 +151,8 @@ example row from the data read aloud. Its marks' phrases are the key, so no key 
 | SP700–SP704 | colour-vision floors; direct labels |
 | SP801–SP804 | the saved PNG: width, proportions, background, hues on the palette |
 | SP901–SP904 | `styles-plot check`: unknown target, stale sidecar, unpublished target, registry changed since drawing |
+| SP905 | a waiver that matches nothing (stale) |
 
-Strict mode (the default) refuses to write a figure with any problem. Compat mode writes it, warns, and records the
+Text placement (SP601, SP606, SP610, SP613) may be waived per figure by the text at fault, with a reason
+(`sp.Waive`); no meaning check can be. Strict mode (the default) refuses to write a figure with any problem. Compat mode writes it, warns, and records the
 problems in its sidecar, for migrating old scripts.

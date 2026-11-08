@@ -33,7 +33,10 @@ placement only. Any other code raises `BuildError("SP603 cannot be waived")` whe
 non-waivable (those words tie a colour or a line to its name). A waiver matches a problem when the codes are equal and
 `text` equals the subject's **whole** text (a wrapped header or tag is matched by its full text; for SP606, either of
 the two texts). A waiver that matches nothing in the render is **SP905 stale waiver**, an error at once (E1: it cannot
-fail an old figure). The sidecar gains `waived: [{code, subject, reason}]`; `check` prints `N waived`.
+fail an old figure). The sidecar gains `waived: [{code, subject, reason}]`; `check` prints `N waived`. Built: the
+waiver is checked when made (`Waive.__post_init__`), and takes `targets=()` (all): a placement is usually tight on
+one target only, and without it a waiver needed on readme would be stale on post. SP606 keeps its second text in
+`where["other"]`. On a target without layout checks (notebook) no waiver is stale.
 
 ## B. Projects extend the library (experimental)
 

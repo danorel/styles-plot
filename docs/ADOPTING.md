@@ -92,6 +92,16 @@ upper limit, a panel width, the `[terms]` line to add, the registry row to fill 
 prints one JSON object per problem for tools. To see them, `sp.debug(fig, "post")` writes `_debug/<id>.post.png` with
 each problem boxed in red; it is never published.
 
+A text placement a person has looked at and accepts (a value label touching its own connector, two words that meet)
+can be waived, with a reason, by its whole text; nothing else can:
+
+```python
+fig = sp.Figure("fig01", v, waive=[sp.Waive("SP601", "0.97", "the label sits on its own connector; read as one",
+                                            targets=("readme",))])
+```
+
+A waiver that no longer matches anything is SP905 (stale): remove it. The sidecar lists what was waived and why.
+
 
 A figure set can keep its folder clean for GitHub: `[output] sidecar_dir = "_meta"` in plotstyle.toml and
 `sp.save(fig, "figures/writeup/main/fig01.png", "post", root="figures/writeup")` put the sidecar at

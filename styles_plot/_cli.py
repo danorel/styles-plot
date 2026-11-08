@@ -33,7 +33,7 @@ def _check(args) -> int:
     targets = vocab.targets if vocab else targets_from(None)
     palette = vocab.palette if vocab else Palette()
     registry = load_registry(vocab.registry_path) if vocab and vocab.registry_path and vocab.registry_path.exists() else None
-    lines, numbers, records = [], defaultdict(dict), []
+    lines, numbers, records, waived = [], defaultdict(dict), [], 0
     pngs = figures_in(root)
     sidecar_dirs = dict.fromkeys([vocab.sidecar_dir if vocab else "", "", "_meta"])  # beside the PNG, or under _meta
     for png in pngs:
@@ -55,6 +55,7 @@ def _check(args) -> int:
             lines.append(f"{rel}: SP902 the PNG's pixels changed after its sidecar was written")
         if not meta.get("publishable", True):
             lines.append(f"{rel}: SP903 a {target} figure is never published")
+        waived += len(meta.get("waived", []))
         for p in meta.get("problems", []):
             fix = f" → {p['fix']}" if p.get("fix") else ""
             lines.append(f"{rel}: {p['code']} {p['message']} (saved in compat mode){fix}")
@@ -81,7 +82,7 @@ def _check(args) -> int:
         return 1 if lines else 0
     for line in lines:
         print(line)
-    print(f"styles-plot check: {len(pngs)} figure(s), {len(lines)} problem(s)")
+    print(f"styles-plot check: {len(pngs)} figure(s), {len(lines)} problem(s)" + (f", {waived} waived" if waived else ""))
     return 1 if lines else 0
 
 
