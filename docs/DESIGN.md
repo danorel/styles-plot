@@ -70,7 +70,9 @@ number → `Est(v)`; `(v, lo, hi)` → `Est(v, lo, hi)`; a mapping with `value`/
 `None` → `BuildError` naming the row. Templates `{row}`, `{id}` (entity id, else key), `{lane}`, `{role}` fill `cell`
 and `key` of coerced values and of an `Est` whose own field is `None`; an `Est`'s own value always wins. Applies to
 **`Series.cells`, `TextColumn.cells` (same keyword defaults) and `Segment.shares`**; not to `Sweep`, `Distribution` or
-`Scatter`, whose data are arrays, not cells.
+`Scatter`, whose data are arrays, not cells. Built: bindings are resolved once per render (`_bind.resolve`) into the plain
+mappings the planners always saw, so nothing downstream changed; `Est(label=True)` keeps its check when made, so a
+hand-made labelled `Est` carries its own `key` (a template fills only what an `Est` leaves `None`).
 
 **C3.** `DotColumn(header, unit, xlim=None, xticks=None, series=(), ...)`: positional calls keep working; empty `series`
 is a `BuildError` at plan time. Resolution: the column's own value → `[units.<name>] lim = [lo, hi]`, `ticks = [...]` →
