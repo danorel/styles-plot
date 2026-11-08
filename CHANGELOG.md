@@ -101,8 +101,8 @@ project may change (nothing is required unless it says so).
   first, repeats dropped); any other key defined in two files is a `VocabError` naming both; the sidecar's vocabulary
   hash covers the included files. `styles-plot vocab lint --vocab plotstyle.toml` reports canonical terms that differ
   only by case, a plural -s, a hyphen, or two letters in a word of six or more (a report: it never fails).
-  *Migration:* nothing to change. A strict refusal now leaves `_meta/problems.json` in the output folder; ignore it
-  in git (`problems.json`) if you like.
+  *Migration:* nothing to change. Every save now leaves `_meta/problems.json` in the output folder (a strict refusal
+  too); ignore it in git (`problems.json`) if you like, and allow it in any test that lists what `_meta/` may hold.
 - **C6 Figure sets and a build command.** `sp.FigureSet(name, vocab, out, targets=("post",), mode="strict")` and
   `@SET.figure(id, order=None, title="", caption="", targets=None, **figure)`: the builder receives a ready
   `Figure` (or returns one of the same id). `SET.build(only=, targets=, jobs=, mode=, out=) -> sp.BuildReport` and
