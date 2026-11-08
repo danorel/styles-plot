@@ -77,7 +77,7 @@ class CheckCtx:
     def inches(self, bb) -> tuple[float, float, float, float]:
         """A display box (pixels) in inches from the figure's bottom-left."""
         d = self.fig.dpi
-        return (round(bb.x0 / d, 3), round(bb.y0 / d, 3), round(bb.x1 / d, 3), round(bb.y1 / d, 3))
+        return tuple(round(float(v) / d, 3) for v in (bb.x0, bb.y0, bb.x1, bb.y1))
 
     def tagged(self, *kinds: str) -> list:
         return [a for a in [*self.marks, *self.texts] if tags(a).get("kind") in kinds]

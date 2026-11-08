@@ -312,8 +312,10 @@ def _header_finding(c: _Col, ctx: Ctx) -> None:
         need += 0.05
     if c.is_panel and c.spec.width is None:
         fix = f"weight ≥ {c.spec.weight * need / c.w:.1f} (the panel {need:.2f} in wide)"
-    else:
-        fix = f"a column ≥ {need:.2f} in wide"
+    elif c.is_panel:
+        fix = f"width ≥ {need:.2f} in"
+    else:  # a text column is as wide as its numbers
+        fix = f"a header that fits {c.w:.2f} in on {ctx.theme.max_header_lines} lines"
     ctx.findings.append(("SP613", f"header {c.spec.header!r} wraps to {len(c.header)} lines (at most {most})",
                          {"subject": c.spec.header, "fix": f"{fix}, or shorten the header, or move the qualifier into "
                                                            "the unit title"}))  # fmt: skip
