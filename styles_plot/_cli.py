@@ -20,7 +20,7 @@ from pathlib import Path
 from styles_plot._palette import Palette
 from styles_plot._png import check_png, pixels_sha256
 from styles_plot._registry import load as load_registry
-from styles_plot._save import StyleError, save, sidecar_path
+from styles_plot._save import StyleError, find_sidecar, save
 from styles_plot._sheet import contact_sheets, figures_in
 from styles_plot._theme import targets_from
 from styles_plot._vocab import VocabError, load
@@ -35,13 +35,15 @@ def _check(args) -> int:
     targets = vocab.targets if vocab else targets_from(None)
     palette = vocab.palette if vocab else Palette()
     registry = load_registry(vocab.registry_path) if vocab and vocab.registry_path and vocab.registry_path.exists() else None
-    lines, numbers, records, waived = [], defaultdict(dict), [], 0
+    lines, warnings, numbers, records, waived = [], [], defaultdict(dict), [], 0
     pngs = figures_in(root)
-    sidecar_dirs = dict.fromkeys([vocab.sidecar_dir if vocab else "", "", "_meta"])  # beside the PNG, or under _meta
+    sidecar_dirs = tuple(dict.fromkeys([vocab.sidecar_dir if vocab else "", "_meta"]))
     for png in pngs:
         rel = png.relative_to(root)
-        side = next((s for s in (sidecar_path(png, root, d) for d in sidecar_dirs) if s.exists()), None)
+        side = find_sidecar(png, root, sidecar_dirs)
         meta = json.loads(side.read_text()) if side else None
+        if meta is None:  # a warning until 0.3: it can fail a run that passed before
+            warnings.append(f"{rel}: SP906 no sidecar: meaning and staleness not checked (only the PNG)")
         target = meta["target"] if meta else args.target
         if target not in targets:
             lines.append(f"{rel}: SP901 unknown target {target!r}")
@@ -73,18 +75,22 @@ def _check(args) -> int:
         if len(strings) > 1:
             where = ", ".join(f"{s!r} in {p}" for s, p in sorted(strings.items()))
             lines.append(f"SP502 data key {key!r} prints {len(strings)} strings: {where}")
-    if args.json:  # one JSON object per problem
-        for line in lines:
+    if args.json:  # one JSON object per problem; SP906 marked as a warning
+        for line in lines + warnings:
             rec = next((r for r in records if line.startswith(f"{r['path']}: {r['code']}")), None)
             if rec is None:
                 path, _, rest = line.partition(": ")
                 code, _, message = rest.partition(" ")
                 rec = {"path": path, "code": code, "message": message}
+            if line in warnings:
+                rec["warning"] = True
             print(json.dumps(rec, ensure_ascii=False))
         return 1 if lines else 0
-    for line in lines:
+    for line in lines + warnings:
         print(line)
-    print(f"styles-plot check: {len(pngs)} figure(s), {len(lines)} problem(s)" + (f", {waived} waived" if waived else ""))
+    no_side = f", {len(warnings)} without a sidecar (SP906, a warning)" if warnings else ""
+    print(f"styles-plot check: {len(pngs)} figure(s), {len(lines)} problem(s){no_side}"
+          + (f", {waived} waived" if waived else ""))  # fmt: skip
     return 1 if lines else 0
 
 

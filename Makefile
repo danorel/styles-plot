@@ -20,7 +20,7 @@ gallery:            ## every example for every target into gallery/ (strict), wi
 gallery-check: gallery  ## build the gallery, then check it as CI does
 	for t in post slide readme; do .venv/bin/styles-plot check gallery/$$t --vocab examples/plotstyle.toml || exit 1; done
 
-readme-images:      ## the four README images into examples/figures/readme/ (sidecars in examples/figures/_meta/), committed
+readme-images:      ## the four README images into examples/figures/readme/ (sidecars in its _meta/), committed
 	$(PY) examples/build_gallery.py --out examples/figures --targets readme --only dot_table key sweep methods --no-sheets --sidecar-dir _meta
 
 readme:             ## the README's generated blocks (the StyleError of examples/strict/refused.py, the starter builder)
@@ -29,7 +29,7 @@ readme:             ## the README's generated blocks (the StyleError of examples
 readme-check: readme  ## README blocks up to date, images' meaning unchanged, links resolve, images pass check
 	git diff --exit-code README.md
 	$(PY) docs/readme_blocks.py --check
-	.venv/bin/styles-plot check examples/figures --vocab examples/plotstyle.toml
+	.venv/bin/styles-plot check examples/figures/readme --vocab examples/plotstyle.toml
 
 check: lint test gallery-check readme-check  ## everything CI checks
 

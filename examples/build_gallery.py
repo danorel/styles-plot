@@ -4,7 +4,7 @@
                                      [--sidecar-dir _meta]
 
 The README images are `--out examples/figures --targets readme --only dot_table key sweep methods --no-sheets
---sidecar-dir _meta` (`make readme-images`): PNGs in examples/figures/readme/, sidecars in examples/figures/_meta/readme/.
+--sidecar-dir _meta` (`make readme-images`): PNGs in examples/figures/readme/, sidecars in its _meta/.
 
 Exits 1 when any figure breaks the grammar (strict mode writes nothing for it).
 """
@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--targets", nargs="+", default=list(TARGETS), help="targets to build")
     ap.add_argument("--only", nargs="+", metavar="ID", help="build only these figure ids")
     ap.add_argument("--no-sheets", action="store_true", help="no contact sheets")
-    ap.add_argument("--sidecar-dir", default="", help="sidecars under <out>/<this>/<target>/ instead of beside the PNGs")
+    ap.add_argument("--sidecar-dir", default="", help="sidecars under <out>/<target>/<this>/ instead of beside the PNGs")
     args = ap.parse_args(argv)
     out = args.out
     v = sp.load(HERE / "plotstyle.toml")
@@ -73,11 +73,7 @@ def main(argv: list[str] | None = None) -> int:
     for fig in figures:
         try:
             targets = [t for t in args.targets if fig.id != "key" or t in KEY_TARGETS]
-            if args.sidecar_dir:  # one sidecar folder for every target, under out
-                for t in targets:
-                    sp.save(fig, out / t / f"{fig.id}.png", t, root=out)
-            else:
-                sp.save_bundle(fig, out, targets)
+            sp.save_bundle(fig, out, targets)
             print(f"ok    {fig.id}")
         except sp.StyleError as e:
             failed += 1

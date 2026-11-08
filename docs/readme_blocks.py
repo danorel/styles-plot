@@ -65,7 +65,7 @@ def check_images() -> list[str]:
         if build_images(Path(tmp)) != 0:
             return ["the README images do not build strict"]
         for name in README_FIGURES:
-            rel = Path("_meta") / "readme" / f"{name}.styles.json"
+            rel = Path("readme") / "_meta" / f"{name}.styles.json"
             committed, fresh = IMAGES / rel, Path(tmp) / rel
             if not committed.exists():
                 errors.append(f"examples/figures/{rel} is missing: run make readme-images")

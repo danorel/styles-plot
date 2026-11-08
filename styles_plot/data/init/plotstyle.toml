@@ -11,10 +11,11 @@ slot = "violet"
 word = "our method"  # CHANGE: printed above the first row, in the role's colour
 meaning = "the method under test"  # CHANGE: shown on the key figure
 
-[roles.variant]
-slot = "amber"
-word = "variant"  # CHANGE
-meaning = "a second condition of the method"  # CHANGE
+# A second role, once a figure draws it:
+# [roles.variant]
+# slot = "amber"
+# word = "variant"  # CHANGE
+# meaning = "a second condition of the method"  # CHANGE
 
 # Controls: the grey things, named in the key as "grey: ...". (ADOPTING.md §2)
 [controls]
