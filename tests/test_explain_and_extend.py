@@ -108,7 +108,8 @@ def test_fix_text_for_overlap_words_missing_and_line_words(vocab, vocab_dir):
         sp.Series("first", {"m1": sp.Est(50, cell="acc.m1")}, word="a linear probe of the same signal"),
         sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")}, word="anything measured under a swap")], width=1.2)  # fmt: skip
     p = next(p for p in run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [words])))[1] if p.code == "SP609")
-    assert re.match(r"width (≥ )?6\.30", p.fix) and "lanes" in p.fix
+    need = float(re.search(r"need ([\d.]+) in", p.message).group(1))  # font metrics differ a little by platform
+    assert re.match(rf"width (≥ )?{need:.2f}", p.fix) and "lanes" in p.fix
     toml = vocab_dir / "plotstyle.toml"
     toml.write_text(toml.read_text().replace('missing = ["no run", "no interval", "below gate"]',
                                              'missing = ["no run", "no interval", "below gate", "no comparable run at all"]'))  # fmt: skip
