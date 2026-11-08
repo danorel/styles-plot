@@ -129,7 +129,8 @@ def save_bundle(fig: Figure, out_dir: str | Path, targets: Iterable[str] = ("pos
     _mode(mode)
     prepared = {t: _prepare(fig, t) for t in targets}
     if mode == "strict":
-        blocking = [p for t, (mpl, ps, _) in prepared.items() if info(mpl).theme.publishable for p in _tagged(ps, t)]
+        blocking = [p for t, (mpl, ps, _) in prepared.items() if info(mpl).theme.publishable
+                    for p in _tagged(ps, t) if not _checks.is_warning(p.code)]  # fmt: skip
         if blocking:
             raise StyleError(blocking)
     return {t: _write(mpl, ps, wv, Path(out_dir) / t / f"{fig.id}.png", mode, Path(out_dir) / t)
@@ -154,8 +155,9 @@ def _write(mpl, problems: list[Problem], waived: list[dict], path: Path, mode: s
            root: str | Path | None = None) -> SaveReport:  # fmt: skip
     i = info(mpl)
     strict = mode == "strict" and i.theme.publishable
-    if problems and strict:
-        raise StyleError(problems, i.target)
+    blocking = [p for p in problems if not _checks.is_warning(p.code)]  # a new check warns for one minor version
+    if blocking and strict:
+        raise StyleError(blocking, i.target)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(suffix=".png", dir=path.parent)
     os.close(fd)

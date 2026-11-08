@@ -132,6 +132,11 @@ def _validate(t: DotTable, ctx: Ctx) -> None:
                              "log scale. Use a Sweep for a log axis, or a unit of the log values")  # fmt: skip
         if not c.series:
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} has no series")
+        if not c.weight > 0:
+            raise BuildError(f"{ctx.figure_id}: column {c.header!r} has weight {c.weight!r}; it must be positive")
+        if c.width is not None and c.weight != 1.0:
+            raise BuildError(f"{ctx.figure_id}: column {c.header!r} sets both width= (inches) and weight= (a share of "
+                             "the free width); keep one")  # fmt: skip
         if c.xlim is not None and c.xlim[1] <= c.xlim[0]:
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} has xlim {c.xlim}")
         for s in c.series:
@@ -196,11 +201,12 @@ def _widths(lay: _Layout, ctx: Ctx, label_w: float) -> None:
     free = [c for c in lay.cols if c.is_panel and c.spec.width is None]
     avail = lay.width - label_w - RIGHT - fixed - th.pad * len(lay.cols)
     if free:
-        each = avail / len(free)
-        if each < 0.7:
-            raise BuildError(f"{ctx.figure_id}: the table does not fit {lay.width} in ({each:.2f} in per panel)")
+        total = sum(c.spec.weight for c in free)
         for c in free:
-            c.w = each
+            c.w = avail * c.spec.weight / total
+        narrowest = min(c.w for c in free)
+        if narrowest < 0.7:
+            raise BuildError(f"{ctx.figure_id}: the table does not fit {lay.width} in ({narrowest:.2f} in for a panel)")
     elif avail < -1e-6:
         raise BuildError(f"{ctx.figure_id}: the table is {-avail:.2f} in wider than {lay.width} in")
     x, pid = label_w, 0
@@ -295,6 +301,22 @@ def _computed(spec: DotColumn, w: float, t: DotTable, ctx: Ctx) -> tuple[float, 
             break
         hi = math.ceil(need / q) * q
     return lo, hi
+
+
+def _header_finding(c: _Col, ctx: Ctx) -> None:
+    """SP613: a header that wraps past the target's limit, with the width (and for a shared panel the weight) that
+    keeps it within."""
+    sz, most = ctx.sizes, ctx.theme.max_header_lines
+    need = c.w
+    while len(ctx.wrap(c.spec.header, need, sz.header, "bold")) > most and need < 20:
+        need += 0.05
+    if c.is_panel and c.spec.width is None:
+        fix = f"weight ≥ {c.spec.weight * need / c.w:.1f} (the panel {need:.2f} in wide)"
+    else:
+        fix = f"a column ≥ {need:.2f} in wide"
+    ctx.findings.append(("SP613", f"header {c.spec.header!r} wraps to {len(c.header)} lines (at most {most})",
+                         {"subject": c.spec.header, "fix": f"{fix}, or shorten the header, or move the qualifier into "
+                                                           "the unit title"}))  # fmt: skip
 
 
 def _cells(col: DotColumn, row: str):
@@ -417,6 +439,8 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
     for c in lay.cols:
         if c.is_panel or c.is_text:
             c.header = ctx.wrap(c.spec.header, c.w, sz.header, "bold") if c.spec.header else []
+            if len(c.header) > ctx.theme.max_header_lines:
+                _header_finding(c, ctx)
             u = v.unit(c.spec.unit)
             show = c.is_panel or c.spec.unit_title
             c.title = ctx.wrap(u.title, c.w + ctx.theme.pad * 0.8, sz.axis) if show else []

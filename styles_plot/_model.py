@@ -104,6 +104,7 @@ class DotColumn:
     rules: Sequence[Rule] = ()
     width: float | None = None  # inches; None shares the remaining width
     band_name: str = ""  # which [key.bands] definition the band has; "" = [key].band
+    weight: float = 1.0  # this panel's share of the free width (panels without `width`), relative to the others
 
 
 @dataclass(frozen=True)

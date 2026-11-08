@@ -69,7 +69,7 @@ class Ctx:
     registry: R.Registry | None
     numbers: list[tuple[str, str]] = field(default_factory=list)  # (data key, printed string)
     all_post_hoc: bool = False  # every estimate is post hoc: marks drawn filled, the key says so once
-    findings: list[tuple[str, str]] = field(default_factory=list)  # (code, message) a block reports while laid out
+    findings: list[tuple] = field(default_factory=list)  # (code, message[, detail]) a block reports while laid out
     next_pid: int = 1000  # panel ids for project blocks' panels (a table numbers its own from 0)
 
     @property
@@ -229,7 +229,7 @@ class RenderInfo:
     key_figure: bool = False
     all_post_hoc: bool = False
     text_only: bool = False  # cards only: exempt from the target's widest proportion
-    findings: tuple[tuple[str, str], ...] = ()
+    findings: tuple[tuple, ...] = ()  # (code, message[, detail]) a block reported while laid out
     waivers: tuple[Waive, ...] = ()  # those that apply to this target
 
 

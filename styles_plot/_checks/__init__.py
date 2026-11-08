@@ -54,8 +54,31 @@ def _matches(w, p: Problem) -> bool:
     return w.text == p.subject or w.text == (p.where or {}).get("other")
 
 
+ERROR_FROM = {"SP613": "0.3"}  # a new check that can fail an old figure warns until this version (E1)
+
+
+def is_warning(code: str) -> bool:
+    """Whether a problem with this code is a StyleWarning in this release (written, recorded, listed; not refused)."""
+    until = ERROR_FROM.get(code)
+    return until is not None and _version() < _parse(until)
+
+
+def _parse(v: str) -> tuple[int, ...]:
+    out = []
+    for part in v.split(".")[:2]:
+        digits = "".join(ch for ch in part if ch.isdigit())
+        out.append(int(digits) if digits else 0)
+    return tuple(out)
+
+
+def _version() -> tuple[int, ...]:
+    from styles_plot import __version__
+
+    return _parse(__version__) if __version__[:1].isdigit() and __version__ != "0+unknown" else (0, 0)
+
+
 def _all(cx: CheckCtx) -> list[Problem]:
-    out: list[Problem] = [cx.problem(code, message) for code, message in cx.info.findings]
+    out: list[Problem] = [cx.problem(f[0], f[1], **(f[2] if len(f) > 2 else {})) for f in cx.info.findings]
     seen: set[tuple[str, str]] = {(p.code, p.message) for p in out}
     for family in _FAMILIES:
         for p in family(cx):

@@ -149,6 +149,7 @@ example row from the data read aloud. Its marks' phrases are the key, so no key 
 | SP401–SP407 | words from the vocabulary; banned variants; ids; cues; axis titles |
 | SP501–SP502 | numbers through formatters; one key, one string |
 | SP601–SP612 | text crossing lines or marks, off the figure, too small, overlapping, rotated; size; titles; markers |
+| SP613 | a column header that wraps past the target's `max_header_lines` (a warning until 0.3) |
 | SP700–SP704 | colour-vision floors; direct labels |
 | SP801–SP804 | the saved PNG: width, proportions, background, hues on the palette |
 | SP901–SP904 | `styles-plot check`: unknown target, stale sidecar, unpublished target, registry changed since drawing |

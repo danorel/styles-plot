@@ -17,6 +17,7 @@ from collections import defaultdict
 from importlib.resources import files
 from pathlib import Path
 
+from styles_plot._checks import ERROR_FROM, is_warning
 from styles_plot._palette import Palette
 from styles_plot._png import check_png, pixels_sha256
 from styles_plot._registry import load as load_registry
@@ -64,6 +65,10 @@ def _check(args) -> int:
             codes = ", ".join(sorted({w["code"] for w in meta["waived"]}))
             notes.append(f"{rel}: {len(meta['waived'])} waived ({codes})")
         for p in meta.get("problems", []):
+            if is_warning(p["code"]):
+                fix = f" → {p['fix']}" if p.get("fix") else ""
+                warnings.append(f"{rel}: {p['code']} {p['message']} (a warning until {ERROR_FROM[p['code']]}){fix}")
+                continue
             fix = f" → {p['fix']}" if p.get("fix") else ""
             lines.append(f"{rel}: {p['code']} {p['message']} (saved in compat mode){fix}")
             records.append({"path": str(rel), **p})
@@ -91,7 +96,9 @@ def _check(args) -> int:
         return 1 if lines else 0
     for line in lines + warnings + notes:
         print(line)
-    no_side = f", {len(warnings)} without a sidecar (SP906, a warning)" if warnings else ""
+    n_side = sum(": SP906 " in w for w in warnings)
+    no_side = f", {n_side} without a sidecar (SP906, a warning)" if n_side else ""
+    no_side += f", {len(warnings) - n_side} warning(s)" if len(warnings) > n_side else ""
     print(f"styles-plot check: {len(pngs)} figure(s), {len(lines)} problem(s){no_side}"
           + (f", {waived} waived" if waived else ""))  # fmt: skip
     return 1 if lines else 0

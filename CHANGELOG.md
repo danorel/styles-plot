@@ -58,6 +58,13 @@ project may change (nothing is required unless it says so).
   its ends (a label there meets the next panel's), as many as the panel's width holds.
   *Migration:* nothing to change. To drop a range repeated in every builder, put it under its unit and remove
   `xlim`/`xticks` from the columns.
+- **C4 Geometry that scales across targets.** `DotColumn(weight=1.0)`: a panel's share of the free width, so one
+  figure keeps its proportions on post, readme and slide; `width=` (inches) stays, and both together are a
+  `BuildError`. `Theme.max_header_lines = 2` (a target field): a column header that wraps past it is **SP613**, with
+  the weight or width that fits it; a *warning* in 0.2 (the figure is written, the problem recorded in its sidecar and
+  listed by `check`), an error from 0.3. SP613 may be waived (text placement).
+  *Migration:* nothing to change. A figure that now warns SP613: widen the column (`weight=`), shorten the header, or
+  move the qualifier into the unit's title.
 
 ## 0.1.15
 

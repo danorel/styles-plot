@@ -38,6 +38,7 @@ class Theme:
     row_h: float = 0.42  # inches per table row
     sub_h: float = 0.26  # inches added to a row that carries a status tag or a note
     pad: float = 0.2  # inches between columns
+    max_header_lines: int = 2  # a column header that wraps to more lines is SP613
     strict_layout: bool = True  # False: layout checks off (notebook)
     publishable: bool = True  # False: `styles-plot check` refuses the PNG (notebook)
     title: bool = False  # draw the figure's title (one bold claim) above it

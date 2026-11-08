@@ -35,7 +35,7 @@ Everything that names a concept of your project, and every style choice you chan
 | `[registry]` | `path` to the status CSV, relative to the toml | for publishable figures |
 | `[palette]` | `slots` (change or add hexes), `chrome`, `colour_vision` floors | optional |
 | `[style]` | `font` | optional |
-| `[targets.<name>]` | any target field (`width_in`, `dpi`, `height_in`, `aspect`, `min_pt`, `sizes`, `title`, `caption`…); a new name is a new target | optional |
+| `[targets.<name>]` | any target field (`width_in`, `dpi`, `height_in`, `aspect`, `min_pt`, `sizes`, `title`, `caption`, `max_header_lines`…); a new name is a new target | optional |
 | `[marks]` | marker, dot size, line widths, shading alpha | optional |
 | `[phrases]` | the key's wording, status tags, cues (for another language) | optional |
 
@@ -97,6 +97,8 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
   `sp.Series("method", lambda m: (avg[m], lo[m], hi[m]), cell="direct.{row}", key="direct.{row}.avg", label=True)`.
   Templates: `{row}` (the entity key), `{id}` (its `id`, else the key), `{lane}`, `{role}`. The same works for
   `TextColumn` cells and a stack's `Segment` shares.
+- Size panels by `weight=` (a share of the free width), not `width=` (inches): one figure goes to targets 8, 11 and
+  12.3 in wide. A header that wraps past the target's `max_header_lines` (2) warns SP613 with the weight that fits it.
 - `xlim` and `xticks` are optional: a column without them takes its unit's `lim`/`ticks`, else a range computed from
   its data that leaves room for the value labels.
 - A rule label with a number is a template: `sp.Rule(15, "bar fixed in advance: {}", unit="points", key="bar")`.

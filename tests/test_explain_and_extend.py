@@ -458,3 +458,61 @@ def test_unit_ranges_are_validated_and_an_empty_column_refused(vocab, vocab_dir)
             sp.load(toml)
     with pytest.raises(sp.BuildError, match="has no series"):
         sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [sp.DotColumn("accuracy", "accuracy")])).render("post")
+
+
+# ---- C4 --------------------------------------------------------------------------------------------------------------
+def _two_panels(v, header="accuracy", **first):
+    s = sp.Series("second", {"m1": sp.Est(61, cell="acc.m1")})
+    cols = [sp.DotColumn(header, "accuracy", (40, 100), (50, 100), [s], **first),
+            sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [s])]
+    return sp.Figure("methods", v).add(sp.DotTable(["m1"], cols))
+
+
+def test_weight_shares_the_free_width(vocab):
+    from styles_plot._tags import tags
+
+    axes = [a for a in _two_panels(vocab, weight=2).render("post").axes if tags(a).get("kind") == "panel"]
+    w = [a.get_position().width for a in axes]
+    assert w[0] / w[1] == pytest.approx(2.0, rel=1e-6)
+    with pytest.raises(sp.BuildError, match="both width= .* and weight="):
+        _two_panels(vocab, width=2.0, weight=2).render("post")
+    with pytest.raises(sp.BuildError, match="must be positive"):
+        _two_panels(vocab, weight=0).render("post")
+
+
+LONG = "switches blocked by the knock-out"
+
+
+def test_a_header_past_its_lines_warns_with_the_weight_that_fits(tmp_path, vocab, vocab_dir, capsys):
+    toml = vocab_dir / "plotstyle.toml"
+    toml.write_text(toml.read_text().replace('"switches blocked",', f'"switches blocked", "{LONG}",'))
+    v = sp.load(toml)
+    p = next(p for p in run(_two_panels(v, LONG, width=0.8))[1] if p.code == "SP613")
+    assert "wraps to 4 lines (at most 2)" in p.message and "a column ≥ 1.60 in wide" in p.fix and "unit title" in p.fix
+    fig = sp.Figure("methods", v).add(sp.DotTable(["m1"], [
+        sp.DotColumn(LONG, "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(61, cell="acc.m1")})]),
+        *(sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(61, cell="acc.m1")})])
+          for _ in range(4))]))  # fmt: skip
+    p = next(p for p in run(fig)[1] if p.code == "SP613")
+    weight = float(re.search(r"weight ≥ ([\d.]+)", p.fix).group(1))
+    with pytest.warns(sp.StyleWarning, match="SP613"):
+        r = sp.save(fig, tmp_path / "w.png", "post")  # strict, and still written: a new check warns first (E1)
+    assert [q["code"] for q in json.loads(r.sidecar.read_text())["problems"]] == ["SP613"]
+    capsys.readouterr()
+    assert main(["check", str(tmp_path)]) == 0
+    assert "SP613" in capsys.readouterr().out
+    import dataclasses
+
+    cols = fig.blocks[0].columns
+    fig.blocks[0] = sp.DotTable(["m1"], [dataclasses.replace(cols[0], weight=weight + 0.1), *cols[1:]])
+    assert "SP613" not in {q.code for q in run(fig)[1]}
+
+
+def test_max_header_lines_is_a_target_field_and_the_table_turns_warnings_into_errors(vocab, vocab_dir, monkeypatch):
+    toml = vocab_dir / "plotstyle.toml"
+    toml.write_text(toml.read_text().replace('"switches blocked",', f'"switches blocked", "{LONG}",')
+                    + "\n[targets.post]\nmax_header_lines = 4\n")  # fmt: skip
+    assert "SP613" not in {p.code for p in run(_two_panels(sp.load(toml), LONG, width=0.8))[1]}  # 4 lines allowed
+    assert _checks.is_warning("SP613") and not _checks.is_warning("SP601")
+    monkeypatch.setattr(sp, "__version__", "0.3.0")
+    assert not _checks.is_warning("SP613")  # an error from the version in the table
