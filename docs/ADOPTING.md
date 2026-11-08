@@ -92,6 +92,11 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
 
 - Every number comes from your data by code; `key=` names it so `styles-plot check` can tell when one key prints two
   strings across figures.
+- A series may be a function of the row, with its cell and key as templates; a number, `(value, lo, hi)` or a mapping
+  with `value`/`lo`/`hi` reads as an `Est`, and a missing cell returns `sp.Missing("no run")`:
+  `sp.Series("method", lambda m: (avg[m], lo[m], hi[m]), cell="direct.{row}", key="direct.{row}.avg", label=True)`.
+  Templates: `{row}` (the entity key), `{id}` (its `id`, else the key), `{lane}`, `{role}`. The same works for
+  `TextColumn` cells and a stack's `Segment` shares.
 - A rule label with a number is a template: `sp.Rule(15, "bar fixed in advance: {}", unit="points", key="bar")`.
   The key figure's sentence likewise: `sp.key_figure(v, example=..., read_aloud="… drops {a} points …",
   numbers={"a": (value, "points", "ko.q27.drop")})`.

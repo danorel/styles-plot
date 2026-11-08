@@ -352,13 +352,13 @@ def _estimate_cells(block) -> list:
     return []
 
 
-def _all_post_hoc(fig, registry) -> bool:
+def _all_post_hoc(fig, registry, blocks) -> bool:
     """Whether every estimate of a figure is post hoc in the registry (then hollow marks would say nothing)."""
     from styles_plot import _custom
 
-    if any(_custom.is_block(b) for b in fig.blocks):  # a project block's cells are unknown before it draws: stay hollow
+    if any(_custom.is_block(b) for b in blocks):  # a project block's cells are unknown before it draws: stay hollow
         return False
-    cells = [c for b in fig.blocks for c in _estimate_cells(b)]
+    cells = [c for b in blocks for c in _estimate_cells(b)]
     if not cells or registry is None or any(c is None for c in cells):
         return False
     return all((st := registry.get(fig.id, c)) is not None and st.timing == "post_hoc" for c in cells)
@@ -436,12 +436,15 @@ class Figure:
             raise BuildError(str(e)) from None
         if not self.blocks:
             raise BuildError(f"figure {self.id!r} has no blocks")
-        ctx = Ctx(self.vocab, theme, self.id, self.registry, all_post_hoc=_all_post_hoc(self, self.registry))
+        from styles_plot._bind import resolve
+
+        bound = [resolve(b, self.vocab, self.id) for b in self.blocks]  # callables and loose values read as Est
+        ctx = Ctx(self.vocab, theme, self.id, self.registry, all_post_hoc=_all_post_hoc(self, self.registry, bound))
         W, inner = theme.width_in, theme.width_in - 2 * MARGIN
         muted = ctx.chrome("muted")
 
-        label_w = max(_label_width(ctx, b) for b in self.blocks)
-        blocks = list(self.blocks)
+        label_w = max(_label_width(ctx, b) for b in bound)
+        blocks = list(bound)
         if self.read:
             from styles_plot._keyfig import ReadAloud
 

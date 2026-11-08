@@ -56,19 +56,19 @@ ours = {m: int(rng.binomial(N, 0.70 + 0.08 * i)) for i, m in enumerate(models)}
 base = {m: int(rng.binomial(N, 0.5)) for m in models}
 
 
-def est(k, m, key=None):
-    """Accuracy k/n in % with its Wilson 95% interval: the whisker is what the key says it is."""
+def wilson(k):
+    """Accuracy k/N in % with its Wilson 95% interval: the whisker is what the key says it is."""
     p, z = k / N, 1.96
     mid = (p + z * z / (2 * N)) / (1 + z * z / N)
     half = z * np.sqrt(p * (1 - p) / N + z * z / (4 * N * N)) / (1 + z * z / N)
-    return sp.Est(100 * p, 100 * (mid - half), 100 * (mid + half), cell=f"acc.{m}", key=key, label=key is not None)
+    return 100 * p, 100 * (mid - half), 100 * (mid + half)  # (value, lo, hi) reads as an sp.Est
 
 
-col = sp.DotColumn("accuracy", "accuracy", (30, 100), (50, 75, 100),
-                   series=[sp.Series("control", {m: est(base[m], m) for m in models}, control="shuffled labels"),
-                           sp.Series("method", {m: est(ours[m], m, f"acc.{m}") for m in models})],
-                   rules=[sp.Rule(50, "chance")])  # fmt: skip
-counts = sp.TextColumn("answers", "prompts", {m: sp.Count(ours[m], N, cell=f"acc.{m}", key=f"n.{m}") for m in models})
+# a series is a function of the row; cell and key are templates filled per row ({row}, {id}, {lane}, {role})
+method = sp.Series("method", lambda m: wilson(ours[m]), cell="acc.{row}", key="acc.{row}", label=True)
+control = sp.Series("control", lambda m: wilson(base[m]), control="shuffled labels", cell="acc.{row}")
+col = sp.DotColumn("accuracy", "accuracy", (30, 100), (50, 75, 100), [control, method], rules=[sp.Rule(50, "chance")])
+counts = sp.TextColumn("answers", "prompts", lambda m: sp.Count(ours[m], N), cell="acc.{row}", key="n.{row}")
 
 fig = sp.Figure("first_figure", v, subtitle="synthetic data",
                 title="Our method beats the shuffled-label baseline on every model",

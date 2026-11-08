@@ -42,6 +42,14 @@ project may change (nothing is required unless it says so).
   Two `*` rows for one cell are duplicates.
   *Migration:* nothing to change. To drop repeated rows, keep one `*` row per cell and only the figure rows that
   change its claim.
+- **C2 Data binding without dict comprehensions.** `Series.cells`, `TextColumn.cells` and `Segment.shares` may be a
+  callable `row -> value` (`(row, lane) -> value` with lanes), called for every row. Values are read as `Est`: a
+  number, `(value, lo, hi)`, a mapping with `value`/`lo`/`hi`; `Est`, `Missing`, `Count` as they are; `None` is a
+  `BuildError` naming the row. New keyword-only fields: `Series(..., cell=, key=, label=, interval=)`,
+  `TextColumn(..., cell=, key=)`, `Segment(..., cell=, key=)`; `cell` and `key` are templates (`{row}`, `{id}`,
+  `{lane}`, `{role}`) for values that do not set their own; `label` and `interval` apply to values read from numbers,
+  tuples and mappings. `examples/blocks/dot_table.py` and the `init` starter use it; their pixels are unchanged.
+  *Migration:* nothing to change. An `Est(..., label=True)` still needs its own `key` (it is checked when made).
 
 ## 0.1.15
 

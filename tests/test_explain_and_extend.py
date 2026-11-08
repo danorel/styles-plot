@@ -323,3 +323,76 @@ def test_star_rows_draw_and_check_like_figure_rows(tmp_path, vocab, vocab_dir, c
     capsys.readouterr()
     assert main(["check", str(tmp_path), "--vocab", str(vocab_dir / "plotstyle.toml")]) == 1
     assert capsys.readouterr().out.count("SP904 cell 'acc.m1' changed") == 2
+
+
+# ---- C2 --------------------------------------------------------------------------------------------------------------
+def _bound(vocab, *series, lanes=(), rows=("m1", "m2")):
+    from styles_plot._bind import resolve
+
+    col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), list(series))
+    t = resolve(sp.DotTable(list(rows), [col], lanes=lanes), vocab, "methods")
+    return [s.cells for s in t.columns[0].series]
+
+
+def test_values_are_coerced(vocab):
+    (cells,) = _bound(vocab, sp.Series("second", {"m1": 61, "m2": (70, 65, 75)}))
+    assert cells == {"m1": sp.Est(61.0), "m2": sp.Est(70.0, 65.0, 75.0)}
+    (cells,) = _bound(vocab, sp.Series("second", {"m1": {"value": 61, "lo": 60, "hi": 62}, "m2": sp.Missing("no run")}))
+    assert cells == {"m1": sp.Est(61, 60, 62), "m2": sp.Missing("no run")}
+    est = sp.Est(61, cell="own.cell")
+    (cells,) = _bound(vocab, sp.Series("second", {"m1": est}, cell="acc.{row}"))
+    assert cells["m1"].cell == "own.cell"  # a value's own field wins
+    (cells,) = _bound(vocab, sp.Series("second", {"m1": sp.Est(61)}, cell="acc.{row}"))
+    assert cells["m1"].cell == "acc.m1"
+
+
+def test_bad_values_name_their_row(vocab):
+    for bad, match in ((None, "no value for row 'm2'.*sp.Missing"), ((1, 2), "a tuple is \\(value, lo, hi\\)"),
+                       ("61", "cannot read '61'"), ({"lo": 1}, "needs 'value'"), (True, "cannot read True"),
+                       ((70, 75, 65), "lo > hi")):  # fmt: skip
+        with pytest.raises(sp.BuildError, match=match):
+            _bound(vocab, sp.Series("second", lambda m, bad=bad: 60 if m == "m1" else bad))
+
+
+def test_callables_and_template_fields(vocab, vocab_dir):
+    (cells,) = _bound(vocab, sp.Series("second", lambda m: 60, cell="acc.{row}.{role}", key="k.{row}", label=True,
+                                       interval="sem"))  # fmt: skip
+    assert cells["m2"] == sp.Est(60.0, cell="acc.m2.second", key="k.m2", label=True, interval="sem")
+    lanes = [sp.Lane("a", "set one"), sp.Lane("b", "set two")]
+    (cells,) = _bound(vocab, sp.Series("second", lambda m, lane: 60, cell="x.{row}.{lane}"), lanes=lanes)
+    assert set(cells) == {("m1", "a"), ("m1", "b"), ("m2", "a"), ("m2", "b")} and cells["m2", "b"].cell == "x.m2.b"
+    toml = vocab_dir / "plotstyle.toml"
+    toml.write_text(toml.read_text().replace('key = "m1"\nname = "Model 1"', 'key = "m1"\nname = "Model 1"\nid = "q9"'))
+    (cells,) = _bound(sp.load(toml), sp.Series("second", {"m1": 60, "m2": 61}, cell="layer.{id}"))
+    assert cells["m1"].cell == "layer.q9" and cells["m2"].cell == "layer.m2"  # id, else the key
+    with pytest.raises(sp.BuildError, match="no field 'lane'"):
+        _bound(vocab, sp.Series("second", {"m1": 60}, cell="x.{lane}"))
+
+
+def test_text_columns_and_stack_shares_bind_too(vocab):
+    from styles_plot._bind import resolve
+
+    counts = sp.TextColumn("answers", "prompts", lambda m: sp.Count(30, 40), cell="acc.{row}", key="n.{row}")
+    t = resolve(sp.DotTable(["m1"], [counts]), vocab, "methods")
+    assert t.columns[0].cells == {"m1": sp.Count(30, 40, cell="acc.m1", key="n.m1")}
+    s = resolve(sp.Stack(["m1"], [sp.Segment("correct", "first", {"m1": 0.7}, cell="s.{row}"),
+                                  sp.Segment("wrong", "other", lambda m: 0.3, cell="s.{row}")]), vocab, "stack")  # fmt: skip
+    assert [seg.shares["m1"] for seg in s.segments] == [sp.Est(0.7, cell="s.m1"), sp.Est(0.3, cell="s.m1")]
+
+
+def test_bound_table_draws_as_the_written_out_one(vocab):
+    def fig(series):
+        col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 75, 100), series, rules=[sp.Rule(50, "chance")])
+        return sp.Figure("methods", vocab).add(sp.DotTable(["m1", "m2"], [col]))
+
+    acc = {"m1": 61.2, "m2": 72.5}
+    long = fig([sp.Series("second", {m: sp.Est(acc[m], acc[m] - 2, acc[m] + 2, cell=f"acc.{m}", key=f"acc.{m}",
+                                               label=True) for m in acc})])  # fmt: skip
+    short = fig([sp.Series("second", lambda m: (acc[m], acc[m] - 2, acc[m] + 2), cell="acc.{row}", key="acc.{row}",
+                           label=True)])  # fmt: skip
+    import io
+
+    a, b = io.BytesIO(), io.BytesIO()
+    long.render("post").savefig(a, format="png")
+    short.render("post").savefig(b, format="png")
+    assert a.getvalue() == b.getvalue()
