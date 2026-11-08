@@ -213,7 +213,7 @@ fig.add(sp.Custom(1.4, draw))
 
 | type | for | rows | notes |
 |---|---|---|---|
-| `DotTable` | estimates per entity and condition | entities | `DotColumn` panels, `TextColumn` numbers, `ColumnGroup`, `Gutter` |
+| `DotTable` | estimates per entity and condition | entities | `DotColumn` panels, `TextColumn` numbers, `ColumnGroup`, `Gutter`; a difference between two roles is drawn in a neutral role with its header as the word, `Series("neutral", …, word=header)` (GRAMMAR E1) |
 | `Sweep` | a quantity over depth | entities, stacked | lines with optional interval bands; `Point`s on lines |
 | `Distribution` | histograms or strips | entities, stacked; conditions as columns | `count_unit` names a histogram's counts |
 | `Stack` | 100% splits | entities | at most 4 segments, each named in words |

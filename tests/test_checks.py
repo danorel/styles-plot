@@ -275,7 +275,7 @@ def test_png_checks(tmp_path, vocab):
 # ---- key figure, cue words, one-line colour words, slide size, line status -------------------------------------------
 def test_cue_word_larger(vocab_dir):
     p = vocab_dir / "plotstyle.toml"
-    p.write_text(p.read_text().replace('title = "gap: A − B (points)"\nquantity = "gap"', 'title = "gap: A − B (points)"\nquantity = "gap"\ncue_word = "larger"'))
+    p.write_text(p.read_text().replace('title = "gap: alpha − beta (points)"\nquantity = "gap"', 'title = "gap: alpha − beta (points)"\nquantity = "gap"\ncue_word = "larger"'))
     v = sp.load(p)
     assert v.cue("gap") == "→ larger gap"
     mpl, problems = run(example("dot_table").dot_table(v))
@@ -549,15 +549,19 @@ def test_one_estimate_per_colour_per_line(vocab):
     assert run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [a, b])))[1] == []  # across columns: allowed
 
 
-def test_header_that_is_the_role_word(vocab_dir):
+@pytest.mark.parametrize("word", [None, "gap: alpha − beta"])  # the role's own word, or the series' word
+def test_header_that_is_the_role_word(vocab_dir, word):
     p = vocab_dir / "plotstyle.toml"
-    p.write_text(p.read_text() + '\n[roles.diff]\nslot = "slate"\nword = "gap"\nmeaning = "a quantity of no role"\n')
+    header = word or "gap"
+    if word is None:
+        p.write_text(p.read_text().replace('word = "neutral"', 'word = "gap"'))
     v = sp.load(p)
-    col = sp.DotColumn("gap", "gap", (-4, 98), (0, 30, 60), [sp.Series("diff", {"m1": sp.Est(40, cell="acc.m1")})])
+    col = sp.DotColumn(header, "gap", (-4, 98), (0, 30, 60),
+                       [sp.Series("neutral", {"m1": sp.Est(40, cell="acc.m1")}, word=word)])  # fmt: skip
     mpl, problems = run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [col])))
     assert problems == [], [str(p) for p in problems]
     words = [t for t in mpl.findobj(lambda a: tags(a).get("kind") == "role_word")]
-    assert len(words) == 1 and words[0].get_text() == "gap" and words[0].get_color() == v.role("diff").hex
+    assert len(words) == 1 and words[0].get_text() == header and words[0].get_color() == v.role("neutral").hex
 
 
 def test_stack_with_a_text_column(vocab):

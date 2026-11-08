@@ -39,9 +39,9 @@ def key(v: sp.Vocab) -> sp.Figure:
                        series=[sp.Series("second", {m: sp.Est(b, cell="band.m2")}),
                                sp.Series("first", {m: sp.Est(a, cell="band.m2")})],
                        connect=("second", "first"), ticks={m: ctrl})  # fmt: skip
-    gap_col = sp.DotColumn("gap", "gap", (-4, 98), (0, 30, 60),
-                           series=[sp.Series("first", {m: sp.Est(gap, gap - 4, gap + 4, cell="band.m2",
-                                                                 key="gap.band.m2", label=True)})])  # fmt: skip
+    gap_col = sp.DotColumn(dt.GAP, "gap", (-4, 98), (0, 30, 60),
+                           series=[sp.Series("neutral", {m: sp.Est(gap, gap - 4, gap + 4, cell="band.m2",
+                                                                   key="gap.band.m2", label=True)}, word=dt.GAP)])  # fmt: skip
     text = (f"read: on {v.entity('models', m).name}, the knock-out drops alpha {{a}} points and beta {{b}}; the gap "
             "is {gap}, the largest same-size control's {ctrl}")  # fmt: skip
     numbers = {"a": (a, "drop", "drop.alpha.m2"), "b": (b, "drop", "drop.beta.m2"), "gap": (gap, "gap", "gap.band.m2"),

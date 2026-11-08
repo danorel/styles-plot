@@ -23,6 +23,11 @@ is an error at once.
 - **`file=` in a figure set.** `@SET.figure(id, file="01_main_split")` saves `<out>/<target>/01_main_split.png`; the
   default is the id. Two figures with one file name are a `BuildError` when the second is registered. The figure keeps
   its id in the sidecar, the registry and `problems.json`; `index.json` gains `file`. *Migration:* none.
+- **The dot-table example follows E1.** Its two gap columns drew the difference alpha − beta in alpha's colour, with
+  "alpha" above them. They are now drawn in a neutral role (slot slate) with the header "gap: alpha − beta" as its
+  word, the way GRAMMAR E1 says; the key figure's example row does the same. The examples' words say alpha and beta
+  throughout (the title, the gap axis titles), and the scorecard example's gap, which is beta − its shuffled-label
+  baseline, gets a unit of its own instead of the alpha − beta one. *Pixels:* `dot_table`, `key` and `custom`.
 
 ## 0.2.0
 

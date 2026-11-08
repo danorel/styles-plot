@@ -2,7 +2,7 @@
  "styles_plot": "0.1.14",
  "vocab": {
   "project": "styles-plot examples",
-  "sha256": "7bb13f3e25396147dfafebe666fc9187b6e0025213375f454e6a8887eb706e21"
+  "sha256": "d1dfed9d8b5aaaf5928bbd291f7ef16e3847f41f11f0f0986bc8f352731a9b2d"
  },
  "registry": {
   "path": "status.csv",
@@ -14,11 +14,12 @@
  "publishable": true,
  "text_only": false,
  "png": {
-  "pixels_sha256": "db3c20bf2c8f77ee52f7f8500f52649522a5ac82212bc69cbfd3a32e1eb52260",
+  "pixels_sha256": "8c78a5830e661ba660b7f5fe5baff76cb604a15836958d079f39dc75e9a0b457",
   "dpi": 160
  },
  "roles": [
   "first",
+  "neutral",
   "second"
  ],
  "controls": [],
@@ -47,7 +48,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "band.m2",
    "timing": "fixed_in_advance",
    "claim": "claimed",

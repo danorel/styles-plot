@@ -15,6 +15,7 @@ import numpy as np
 import styles_plot as sp
 
 MODELS = ["m1", "m2", "m3", "m4", "m5"]
+GAP = "gap: alpha − beta"  # a difference is drawn in the neutral role; its header names it (GRAMMAR E1)
 
 
 def _band_data():
@@ -44,8 +45,8 @@ def dot_table(v: sp.Vocab) -> sp.Figure:
         connect=("second", "first"),
     )  # fmt: skip
     gap_col = sp.DotColumn(
-        "gap", "gap", (-4, 98), (0, 30, 60),
-        series=[sp.Series("first", lambda m: (gap[m], gap[m] - 4, gap[m] + 4), cell="band.{row}",
+        GAP, "gap", (-4, 98), (0, 30, 60),
+        series=[sp.Series("neutral", lambda m: (gap[m], gap[m] - 4, gap[m] + 4), word=GAP, cell="band.{row}",
                           key="gap.band.{row}", label=True)],
         ticks=ctrl,
     )  # fmt: skip
@@ -61,14 +62,14 @@ def dot_table(v: sp.Vocab) -> sp.Figure:
         return layer_gap[m], layer_gap[m] - 0.07, layer_gap[m] + 0.07
 
     layer_gap_col = sp.DotColumn(
-        "gap", "gap_share", (-0.1, 1.1), (0, 0.5, 1),
-        series=[sp.Series("first", layer_gap_est, cell="layer.{row}", key="gap.layer.{row}", label=True)],
+        GAP, "gap_share", (-0.1, 1.1), (0, 0.5, 1),
+        series=[sp.Series("neutral", layer_gap_est, word=GAP, cell="layer.{row}", key="gap.layer.{row}", label=True)],
     )  # fmt: skip
     table = sp.DotTable(MODELS, [sp.ColumnGroup("Test A · synthetic", [drop, gap_col]), sp.Gutter(),
                                  sp.ColumnGroup("Test B · synthetic", [blocked, layer_gap_col])])  # fmt: skip
     return sp.Figure(
         "dot_table", v, subtitle="synthetic data",
-        title="Method A loses far more than method B under the knock-out, on every model",
+        title="Alpha loses far more than beta under the knock-out, on every model",
         caption="Synthetic data. Each row is a model; the left group is a band test, the right group a one-layer "
                 "test. Hollow marks were run after the data; grey tags say which cells the text does not claim.",
     ).add(table)  # fmt: skip
