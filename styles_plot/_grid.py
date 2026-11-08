@@ -13,6 +13,28 @@ from styles_plot._text import line_h
 STRIP_GAP = 0.12  # inches between two words on one level
 
 
+def widen(panel: dict, need: float) -> str | None:
+    """The column setting that makes a dot-table panel `need` inches wide, from its tags: `width ≥` for a panel with a
+    fixed width; for a panel sharing the free width, the `weight ≥` that gives it `need` once the others shrink (the
+    free width is split in proportion to weight); None when the table cannot give it that much (`max_in`: the other
+    free panels at their minimum). When the most is near, the fix gives the range: more would break a neighbour."""
+    most = panel.get("max_in", math.inf)
+    if need > most + 1e-9:
+        return None
+    if panel.get("fixed"):
+        return f"width ≥ {need:.2f} in" if most > need * 1.25 else f"width {need:.2f}–{most:.2f} in"
+    weight, total, free = panel["weight"], panel["free_weight"], panel["free_in"]
+    rest = total - weight
+    if rest <= 0 or need >= free:
+        return None
+    exact, top = need * rest / (free - need), (most * rest / (free - most) if most < free else math.inf)
+    for step in (0.1, 0.05, 0.01):  # the roundest weight that still fits under the most
+        w = round(math.ceil(exact / step - 1e-9) * step, 2)
+        if w <= top + 1e-9:
+            return f"weight ≥ {w:g}" if top > w * 1.25 else f"weight {w:g}–{math.floor(top * 100) / 100:g}"
+    return None
+
+
 def place_in_line(items, width: float) -> list:
     """Place items (x_centre, w, payload) on one line, in the order of their x, each as near its x as the others
     allow: no overlap, inside [0, width] when they fit. Returns [(x_left, payload)]."""

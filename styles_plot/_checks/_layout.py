@@ -21,6 +21,7 @@ from matplotlib.patches import Patch
 from matplotlib.transforms import Bbox
 
 from styles_plot._checks._base import CheckCtx, Problem, full_text
+from styles_plot._grid import widen
 from styles_plot._tags import tags
 
 MARK_CLEAR = 4.0  # points of white between a marker's edge and any text
@@ -51,7 +52,7 @@ def check(cx: CheckCtx) -> list[Problem]:
             (ta, a), (tb, b) = boxes[i], boxes[j]
             if a.x0 < b.x1 - 1 and b.x0 < a.x1 - 1 and a.y0 < b.y1 - 1 and b.y0 < a.y1 - 1:
                 ax, where = _locate(cx, a)
-                fix = _panel_fix(cx, ax, a) if ax is not None else "move or shorten one of them, or waive it"
+                fix = _panel_fix(cx, ax, a, ta) if ax is not None else "move or shorten one of them"
                 where["other"] = full_text(tb)
                 out.append(cx.problem("SP606", f"texts overlap {full_text(ta)[:20]!r} / {full_text(tb)[:20]!r}",
                                       subject=full_text(ta), where=where, bbox_in=cx.inches(a),
@@ -61,7 +62,7 @@ def check(cx: CheckCtx) -> list[Problem]:
         what, obstacle = _hit(bb, obstacles)
         if what:
             ax, where = _locate(cx, bb)
-            fix = _panel_fix(cx, ax, bb) if ax is not None else "move the text or the line, or waive it"
+            fix = _panel_fix(cx, ax, bb, t) if ax is not None else "move the text or the line"
             out.append(cx.problem("SP601", f"text {what}: {full_text(t)[:30]!r}", subject=full_text(t), where=where,
                                   bbox_in=cx.inches(bb), obstacle_in=cx.inches(obstacle) if obstacle is not None else None,
                                   fix=fix))  # fmt: skip
@@ -72,8 +73,10 @@ def check(cx: CheckCtx) -> list[Problem]:
             out.append(cx.problem("SP607", "an axes title"))
     full = {tags(t)["line_full"] for t in cx.texts if tags(t).get("line_full")}
     for need, have in sorted(full):
+        sizing = next((tags(t).get("sizing") for t in cx.texts if tags(t).get("line_full") == (need, have)), None)
+        wider = widen(sizing, need) if sizing else None
         out.append(cx.problem("SP609", f"colour words need {need:g} in on one line above a panel {have:g} in wide",
-                              fix=f"a panel ≥ {need:g} in wide, shorter words, or the conditions as lanes"))  # fmt: skip
+                              fix=f"{wider + ', ' if wider else ''}shorter words, or the conditions as lanes"))  # fmt: skip
     for t in cx.texts:
         if tags(t).get("far_from_line"):
             out.append(cx.problem("SP611", f"the word {t.get_text()!r} sits {tags(t)['far_from_line']:g} in from its "
@@ -82,9 +85,10 @@ def check(cx: CheckCtx) -> list[Problem]:
         if tags(t).get("no_room"):
             need, have = tags(t)["no_room"]
             ax, where = _locate(cx, t.get_window_extent(cx.renderer))
+            wider = _wider(ax, ax.bbox.width / cx.fig.dpi + need - have) if ax is not None else None
             out.append(cx.problem("SP610", f"missing words {t.get_text()!r} need {need:g} in; the widest free span of "
                                            f"their line is {have:g} in", subject=full_text(t), where=where,
-                                  fix=f"a panel about {need - have:.2f} in wider, or shorter missing words"))  # fmt: skip
+                                  fix=f"{wider + ', or ' if wider else ''}shorter missing words"))  # fmt: skip
     marker = cx.vocab.marks.marker
     for a in cx.marks:
         if isinstance(a, Line2D) and a.get_marker() not in (None, "None", "none", "", " ", marker):
@@ -194,21 +198,30 @@ def _locate(cx: CheckCtx, bb) -> tuple[object, dict]:
     return best, where
 
 
-def _panel_fix(cx: CheckCtx, ax, bb) -> str:
-    """The range that gives a text in a panel room: the text's width added to the panel's upper limit."""
-    lo, hi = ax.get_xlim()
+def _panel_fix(cx: CheckCtx, ax, bb, text) -> str:
+    """What gives a text in a panel room: the text's width added to the panel's upper limit; for a value label that
+    found no gap, also the panel width that has one (`room_w`, worked out where it was placed), as the column's own
+    width or weight."""
+    hi = ax.get_xlim()[1]
     inv = ax.transData.inverted()
     y = (bb.y0 + bb.y1) / 2
     d0, d1 = inv.transform([(bb.x0, y), (bb.x1, y)])[:, 0]
     clear = abs(inv.transform([(bb.x0 + 8 * cx.fig.dpi / 72, y)])[0][0] - d0)  # about 8 pt of air, in data units
     need = hi + (d1 - d0) + 2 * clear
-    width_in = ax.bbox.width / cx.fig.dpi
-    wider = width_in * need_ratio(lo, hi, need)
-    return f"xlim upper ≥ {_nice(need)}, or a panel ≥ {wider:.2f} in wide, or waive it (text placement is waivable)"
+    room = tags(text).get("room_w")
+    wider = _wider(ax, room) if room else None
+    return f"xlim upper ≥ {_nice(need)}" + (f", or {wider}" if wider else "")
 
 
-def need_ratio(lo: float, hi: float, need: float) -> float:
-    return (need - lo) / (hi - lo)
+def _wider(ax, need_in: float) -> str | None:
+    """The setting that makes a panel `need_in` wide: a dot table's `width`/`weight`, a project block's own panel
+    width; None for a panel whose width nothing in the figure sets (a sweep's, the target's)."""
+    p = tags(ax) if ax is not None else {}
+    if p.get("kind") != "panel":
+        return None
+    if "fixed" in p or "weight" in p:
+        return widen(p, need_in)
+    return f"a panel ≥ {need_in:.2f} in wide"
 
 
 def _nice(v: float) -> str:

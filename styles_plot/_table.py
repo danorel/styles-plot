@@ -7,12 +7,13 @@ stop at that line so no tag crosses one.
 from __future__ import annotations
 
 import dataclasses
+import math
 from dataclasses import dataclass, field
 
 from matplotlib.patches import Rectangle
 
 from styles_plot._model import ColumnGroup, Count, DotColumn, DotTable, Est, Gutter, Missing, TextColumn
-from styles_plot._grid import STRIP_GAP, place_in_line
+from styles_plot._grid import STRIP_GAP, place_in_line, widen
 from styles_plot._render import LANE_INDENT, BuildError, Canvas, Ctx, Plan
 from styles_plot._tags import tag
 from styles_plot._text import PT, line_h
@@ -20,6 +21,7 @@ from styles_plot._text import PT, line_h
 TOP = 0.08  # inches above the first header line
 SUB_GAP = 0.06  # inches of air inside a row's second line
 RIGHT = 0.1  # inches right of the last column
+MIN_PANEL = 0.7  # inches: the narrowest a shared panel may get
 TIE_PT = 0.5  # a value label's two sides nearer than this (points) are a tie, and it goes right
 
 
@@ -94,6 +96,8 @@ class _Layout:
     tick_h: float = 0.0
     title_h: float = 0.0
     height: float = 0.0
+    slack: float = 0.0  # inches the columns leave free (only when every panel has a fixed width)
+    header_min: dict = field(default_factory=dict)  # id(free panel) -> the narrowest width that keeps its header within
 
 
 # ---- plan ------------------------------------------------------------------------------------------------------------
@@ -206,10 +210,12 @@ def _widths(lay: _Layout, ctx: Ctx, label_w: float) -> None:
         for c in free:
             c.w = avail * c.spec.weight / total
         narrowest = min(c.w for c in free)
-        if narrowest < 0.7:
+        if narrowest < MIN_PANEL:
             raise BuildError(f"{ctx.figure_id}: the table does not fit {lay.width} in ({narrowest:.2f} in for a panel)")
     elif avail < -1e-6:
         raise BuildError(f"{ctx.figure_id}: the table is {-avail:.2f} in wider than {lay.width} in")
+    else:
+        lay.slack = avail
     x, pid = label_w, 0
     for c in lay.cols:
         c.x = x
@@ -304,22 +310,50 @@ def _computed(spec: DotColumn, w: float, t: DotTable, ctx: Ctx) -> tuple[float, 
     return lo, hi
 
 
-def _header_finding(c: _Col, ctx: Ctx) -> None:
-    """SP613: a header that wraps past the target's limit, with the width (and for a shared panel the weight) that
-    keeps it within."""
+def _sizing(c: _Col, lay: _Layout) -> dict:
+    """What sets a panel's width, and the most it can get, for a fix that widens it (`_grid.widen`). Widening one
+    panel shrinks the free panels in proportion; the most is where the first of them reaches its own minimum (its
+    header within the lines it has now, and `MIN_PANEL`), so a fix never breaks a neighbour's header."""
+    free = [x for x in lay.cols if x.is_panel and x.spec.width is None]
+    others = [x for x in free if x is not c]
+
+    def floor(x: _Col) -> float:  # a header already past its lines is its own problem: only MIN_PANEL holds it
+        m = lay.header_min.get(id(x), MIN_PANEL)
+        return max(m if m <= x.w + 1e-9 else MIN_PANEL, MIN_PANEL)
+
+    shrink = max((floor(x) / x.w for x in others), default=1.0)  # the least the others may keep, as a fraction
+    room = sum(x.w for x in others) * (1 - shrink)
+    if c.spec.width is not None:
+        return {"fixed": True, "max_in": round(c.w + lay.slack + room, 4)}
+    return {"weight": c.spec.weight, "free_weight": sum(x.spec.weight for x in free),
+            "free_in": round(sum(x.w for x in free), 4), "max_in": round(c.w + room, 4)}  # fmt: skip
+
+
+def _header_min(c: _Col, ctx: Ctx) -> float:
+    """The narrowest width (to 0.01 in) at which a panel's header wraps to the target's lines at most."""
+    sz, most = ctx.sizes, ctx.theme.max_header_lines
+    lo, hi = MIN_PANEL, max(MIN_PANEL, ctx.measure(c.spec.header, sz.header, "bold")[0] + 0.01)
+    if not c.spec.header or len(ctx.wrap(c.spec.header, lo, sz.header, "bold")) <= most:
+        return lo
+    while hi - lo > 0.01:
+        mid = (lo + hi) / 2
+        lo, hi = (lo, mid) if len(ctx.wrap(c.spec.header, mid, sz.header, "bold")) <= most else (mid, hi)
+    return hi
+
+
+def _header_finding(c: _Col, lay: _Layout, ctx: Ctx) -> None:
+    """SP613: a header that wraps past the target's limit, with the width or weight that keeps it within."""
     sz, most = ctx.sizes, ctx.theme.max_header_lines
     need = c.w
     while len(ctx.wrap(c.spec.header, need, sz.header, "bold")) > most and need < 20:
         need += 0.05
-    if c.is_panel and c.spec.width is None:
-        fix = f"weight ≥ {c.spec.weight * need / c.w:.1f} (the panel {need:.2f} in wide)"
-    elif c.is_panel:
-        fix = f"width ≥ {need:.2f} in"
+    if c.is_panel:
+        wider = widen(_sizing(c, lay), need)
+        fix = f"{wider}, or shorten the header" if wider else "shorten the header"
     else:  # a text column is as wide as its numbers
         fix = f"a header that fits {c.w:.2f} in on {ctx.theme.max_header_lines} lines"
     ctx.findings.append(("SP613", f"header {c.spec.header!r} wraps to {len(c.header)} lines (at most {most})",
-                         {"subject": c.spec.header, "fix": f"{fix}, or shorten the header, or move the qualifier into "
-                                                           "the unit title"}))  # fmt: skip
+                         {"subject": c.spec.header, "fix": f"{fix}, or move the qualifier into the unit title"}))  # fmt: skip
 
 
 def _cells(col: DotColumn, row: str):
@@ -439,11 +473,13 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
         span = members[-1].x + members[-1].w - members[0].x
         lay.group_lines[id(g)] = ctx.wrap(g.header, span, sz.header, "bold")
     lay.group_h = max((len(v) for v in lay.group_lines.values()), default=0) * line_h(sz.header) + (0.06 if lay.groups else 0.0)
+    if sum(c.is_panel for c in lay.cols) > 1:  # what each shared panel may give up, for fixes that widen another
+        lay.header_min = {id(c): _header_min(c, ctx) for c in lay.cols if c.is_panel and c.spec.width is None}
     for c in lay.cols:
         if c.is_panel or c.is_text:
             c.header = ctx.wrap(c.spec.header, c.w, sz.header, "bold") if c.spec.header else []
             if len(c.header) > ctx.theme.max_header_lines:
-                _header_finding(c, ctx)
+                _header_finding(c, lay, ctx)
             u = v.unit(c.spec.unit)
             show = c.is_panel or c.spec.unit_title
             c.title = ctx.wrap(u.title, c.w + ctx.theme.pad * 0.8, sz.axis) if show else []
@@ -498,7 +534,7 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx, seen_rules: set) -> int:
                       (word, ctx.role_hex(s.role), "bold", sz.role_word, {"kind": "role_word", "role": s.role})))  # fmt: skip
     need = sum(w for _xc, w, _p in words) + STRIP_GAP * max(len(words) - 1, 0)
     if words and need > c.w + ctx.theme.pad * 0.7:  # one line is the rule: say so instead of overlapping silently
-        words = [(xc, w, (*p[:4], {**p[4], "line_full": (round(need, 2), round(c.w, 2))})) for xc, w, p in words]
+        words = [(xc, w, (*p[:4], {**p[4], "line_full": (round(need, 2), round(c.w, 2)), "sizing": _sizing(c, lay)})) for xc, w, p in words]
     line = place_in_line(words, c.w)
     occupied = [(x0, x0 + ctx.measure(p[0], sz.role_word, "bold")[0], 0) for x0, p in line]
     c.strip = [(x0, 0, *p) for x0, p in line]
@@ -637,7 +673,8 @@ def _panel(cv: Canvas, ctx: Ctx, lay: _Layout, c: _Col) -> None:
     ax.spines["bottom"].set_color(ctx.chrome("faint"))
     ax.set_xticks(list(spec.xticks), labels=[""] * len(spec.xticks))
     ax.tick_params(axis="x", length=3, color=ctx.chrome("faint"), pad=0)
-    tag(ax, kind="panel", pid=c.pid, unit=spec.unit, cue=ctx.vocab.unit(spec.unit).cue, header=spec.header)
+    tag(ax, kind="panel", pid=c.pid, unit=spec.unit, cue=ctx.vocab.unit(spec.unit).cue, header=spec.header,
+        **_sizing(c, lay))  # fmt: skip
 
     # vertical lines stop at a row's second line where a tag spans this panel
     cuts = [(r.top + dy - lay.head, r.top + dy + h - lay.head) for r in lay.rows for dy, h, items in r.bands
@@ -675,31 +712,28 @@ def _line(cv: Canvas, ax, ctx: Ctx, c: _Col, key, y_abs: float, head: float, vli
     """One line of a panel (a row, or a lane of a row): connector, grey tick, dots, missing words, value labels."""
     mk, spec = ctx.marks, c.spec
     y = y_abs - head
-    per = c.per_inch()
-    ests = {s.role: val for s, val in _cells(spec, key) if isinstance(val, Est)}
-    spans: list[tuple[float, float]] = []  # what a value label on this line may not touch, in data x
+    ests ={s.role: val for s, val in _cells(spec, key) if isinstance(val, Est)}
+    spans: list[tuple[float, float, float]] = []  # what a label on this line may not touch: data x0, x1, inches of pad
     if spec.connect and all(k in ests for k in spec.connect):
         a, b = ests[spec.connect[0]].value, ests[spec.connect[1]].value
         tag(ax.plot([a, b], [y, y], color=ctx.chrome("connector"), lw=mk.connector_lw, solid_capstyle="round",
                     zorder=2), kind="connector")  # fmt: skip
-        cap = (mk.connector_lw / 2 + 2) * PT * per
-        spans.append((min(a, b) - cap, max(a, b) + cap))
+        spans.append((min(a, b), max(a, b), (mk.connector_lw / 2 + 2) * PT))
     if key in spec.ticks:
         tx, half = spec.ticks[key], mk.tick_half * ctx.theme.row_h
         tag(ax.plot([tx, tx], [y - half, y + half], color=ctx.palette.control, lw=mk.tick_lw, zorder=3), kind="tick",
             role="control")  # fmt: skip
-        w = (mk.tick_lw / 2 + 2) * PT * per
-        spans.append((tx - w, tx + w))
+        spans.append((tx, tx, (mk.tick_lw / 2 + 2) * PT))
     labels, missing = [], []
-    r = (mk.dot_size / 2 + mk.hollow_edge + 4) * PT * per  # a dot's radius and the check's clearance
+    r = (mk.dot_size / 2 + mk.hollow_edge + 4) * PT  # a dot's radius and the check's clearance
     for s, val in _cells(spec, key):
         if isinstance(val, Missing):
             missing.append(val.words)
             continue
         _dot(ax, ctx, s, val, y)
-        spans.append((val.value - r, val.value + r))
+        spans.append((val.value, val.value, r))
         if val.lo is not None:
-            spans.append((val.lo, val.hi))
+            spans.append((val.lo, val.hi, 0.0))
         if val.label:
             labels.append((val, s.role))
     for words in missing:  # after the marks: missing words keep clear of them too
@@ -712,7 +746,7 @@ def _missing(cv: Canvas, ctx: Ctx, c: _Col, y: float, words: str, vlines, spans=
     right-aligned at its right, else in the first gap wide enough."""
     w = ctx.measure(words, ctx.sizes.tag)[0]
     clear = 4 * PT
-    blocked = sorted([(c.dx(v), c.dx(v)) for v in vlines] + [(c.dx(a), c.dx(b)) for a, b in spans])
+    blocked = sorted([(c.dx(v), c.dx(v)) for v in vlines] + [(c.dx(a) - e, c.dx(b) + e) for a, b, e in spans])
     candidates = [0.04, c.w - 0.04 - w]
     edges = [(0.0, 0.0), *blocked, (c.w, c.w)]
     candidates += [e0[1] + clear for e0, e1 in zip(edges, edges[1:]) if e1[0] - e0[1] - 2 * clear >= w]
@@ -764,6 +798,27 @@ def _dot(ax, ctx: Ctx, s, val: Est, y: float) -> list[float]:
     return out
 
 
+def _room(c: _Col, ctx: Ctx, value: float, label_in: float, marks) -> float | None:
+    """The narrowest panel (inches) in which a value label `label_in` wide has a free gap beside its dot `value`, the
+    xlim kept: a gap's data span grows with the panel, its marks' pads and the label do not. `marks` are (data x0, data
+    x1, inches of pad); None when no width gives room (marks that touch in data never part)."""
+    lo, hi = c.spec.xlim
+    clear = 3 * PT
+    ends = sorted(marks)
+    need = []
+    cur, pad = lo, 0.0
+    for a, b, e in ends:
+        if a > cur and (a <= value or cur >= value):
+            need.append((label_in + pad + e + 2 * clear) * (hi - lo) / (a - cur))
+        if b >= cur:
+            cur, pad = b, e
+    over = label_in + pad + clear - ctx.theme.pad * 0.7  # the right end: the label may run 0.7 pad past the axis
+    if cur >= value and hi > cur:
+        need.append(over * (hi - lo) / (hi - cur) if over > 0 else c.w)
+    fits = [w for w in need if w > c.w]
+    return math.ceil(min(fits) * 100) / 100 if fits else None
+
+
 def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines) -> None:
     """The printed values of one line. Every mark, whisker, connector, tick, vertical line and placed label is an
     obstacle; each value goes into the free gap nearest its own dot (the right side on a tie: sides within `TIE_PT`
@@ -774,7 +829,8 @@ def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines
     lo, hi = c.spec.xlim
     clear = 3 * PT * per
     right_end = hi + ctx.theme.pad * 0.7 * per
-    blocked = list(spans) + [(xv, xv) for xv in vlines]
+    blocked = [(a - e * per, b + e * per) for a, b, e in spans] + [(xv, xv) for xv in vlines]
+    marks = [*spans, *((xv, xv, 0.0) for xv in vlines)]
 
     def gaps() -> list[tuple[float, float]]:
         out, cur = [], lo
@@ -803,6 +859,10 @@ def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines
         if cands:  # sides within half a point of each other are a tie, and a tie goes right: float noise never decides
             near = min(d for d, _s, _x in cands) + TIE_PT * PT * per
             best = min((c for c in cands if c[0] <= near), key=lambda c: (c[1], c[0]))
+        if best is None:  # no room at this width: the width that has room, for the check's fix
+            room = _room(c, ctx, val.value, wd / per, marks)
+            if room is not None:
+                meta["room_w"] = room
         x0 = best[2] if best is not None else min(val.value + (ctx.marks.dot_size / 2 + 5) * PT * per, right_end - wd)
         blocked.append((x0, x0 + wd))
         cv.text(c.x + c.dx(x0), y, text, size=ctx.sizes.value, color=col, **meta)

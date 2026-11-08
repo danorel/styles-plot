@@ -12,6 +12,14 @@ is an error at once.
   tie was compared exactly, so with symmetric whiskers, or a dot without an interval, float noise (~1e-14 pt) could
   put the label on the left. Sides within half a point of each other are now a tie. *Pixels:* such labels move to
   the right of their dot; in the gallery, "0.53" and "0.58" in `dot_table` and "64" in `methods` (readme).
+- **A fix names only what clears the problem.** "or waive it" is gone from the SP601/SP606 fixes: a waiver is a
+  person's choice with a reason (ADOPTING.md), not a fix. The width part of a fix (SP601, SP606, SP609, SP610, SP613)
+  is the column's own setting: `weight` for a panel that shares the free width, `width` for a fixed one, never "a
+  panel ≥ x in wide" (a project block's own panel keeps that). The number is now exact: it accounts for the other
+  panels shrinking (the 0.2.0 SP613 weight was a little low), stops where a neighbour's header would wrap past its
+  lines (then it gives the range, e.g. `weight 1.27–1.29`, or leaves the width part out), and for a value label with no
+  gap it is the width at which a gap opens (the label keeps its size as the panel grows). *Migration:* none; a weight
+  copied from a 0.2.0 SP613 fix may be one step short: use the new one.
 
 ## 0.2.0
 
