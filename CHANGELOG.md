@@ -100,6 +100,9 @@ project may change (nothing is required unless it says so).
   0.3. SP905 (a stale waiver) belongs to a new feature and is an error at once. Not retroactive: 0.1.10 (SP611, the
   log-scale refusal) and 0.1.11 (SP612) stay errors.
   *Migration:* nothing to change.
+- **E2 Co-development.** ADOPTING.md says how to change a project and the library together: install the library
+  editable from a local checkout, pin the tag again before the project's branch is merged.
+  *Migration:* nothing to change.
 
 ## 0.1.15
 
