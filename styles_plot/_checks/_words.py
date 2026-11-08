@@ -66,7 +66,8 @@ def check(cx: CheckCtx) -> list[Problem]:
             or (kind == "axis_title" and _embedding_title(cx, s))
         )
         if not ok:
-            out.append(cx.problem("SP401", f"{kind or 'text'} {s[:50]!r} is not in the vocabulary"))
+            out.append(cx.problem("SP401", f"{kind or 'text'} {s[:50]!r} is not in the vocabulary", subject=s,
+                                  fix=f'add "{s}" to [terms] canonical in plotstyle.toml: canonical = [..., "{s}"]'))  # fmt: skip
     out += _cues(cx)
     return out
 

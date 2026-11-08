@@ -518,7 +518,7 @@ def _panel(cv: Canvas, ctx: Ctx, lay: _Layout, c: _Col) -> None:
     ax.spines["bottom"].set_color(ctx.chrome("faint"))
     ax.set_xticks(list(spec.xticks), labels=[""] * len(spec.xticks))
     ax.tick_params(axis="x", length=3, color=ctx.chrome("faint"), pad=0)
-    tag(ax, kind="panel", pid=c.pid, unit=spec.unit, cue=ctx.vocab.unit(spec.unit).cue)
+    tag(ax, kind="panel", pid=c.pid, unit=spec.unit, cue=ctx.vocab.unit(spec.unit).cue, header=spec.header)
 
     # vertical lines stop at a row's second line where a tag spans this panel
     cuts = [(r.top + dy - lay.head, r.top + dy + h - lay.head) for r in lay.rows for dy, h, items in r.bands

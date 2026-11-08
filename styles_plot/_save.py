@@ -173,5 +173,5 @@ def _sidecar(mpl, i: RenderInfo, png: Path, mode: str, problems: list[Problem]) 
         "marks": marks,
         "key": key,
         "numbers": dict(i.numbers),
-        "problems": [{"code": p.code, "message": p.message} for p in problems],
+        "problems": [p.as_dict() for p in problems],
     }

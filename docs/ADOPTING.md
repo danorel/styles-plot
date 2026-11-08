@@ -87,6 +87,11 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
 
 ## 5. Check and review
 
+Every problem names what is at fault and, where it can, how to fix it: `print(problem)` ends with `→ <fix>` (an `xlim`
+upper limit, a panel width, the `[terms]` line to add, the registry row to fill in). `styles-plot check DIR --json`
+prints one JSON object per problem for tools.
+
+
 A figure set can keep its folder clean for GitHub: `[output] sidecar_dir = "_meta"` in plotstyle.toml and
 `sp.save(fig, "figures/writeup/main/fig01.png", "post", root="figures/writeup")` put the sidecar at
 `figures/writeup/_meta/main/fig01.styles.json`; contact sheets go to `_sheets/` with `sheet -o`.

@@ -33,7 +33,7 @@ def _check(args) -> int:
     targets = vocab.targets if vocab else targets_from(None)
     palette = vocab.palette if vocab else Palette()
     registry = load_registry(vocab.registry_path) if vocab and vocab.registry_path and vocab.registry_path.exists() else None
-    lines, numbers = [], defaultdict(dict)
+    lines, numbers, records = [], defaultdict(dict), []
     pngs = figures_in(root)
     sidecar_dirs = dict.fromkeys([vocab.sidecar_dir if vocab else "", "", "_meta"])  # beside the PNG, or under _meta
     for png in pngs:
@@ -56,7 +56,9 @@ def _check(args) -> int:
         if not meta.get("publishable", True):
             lines.append(f"{rel}: SP903 a {target} figure is never published")
         for p in meta.get("problems", []):
-            lines.append(f"{rel}: {p['code']} {p['message']} (saved in compat mode)")
+            fix = f" → {p['fix']}" if p.get("fix") else ""
+            lines.append(f"{rel}: {p['code']} {p['message']} (saved in compat mode){fix}")
+            records.append({"path": str(rel), **p})
         if registry is not None:
             for cell, st in meta.get("cells", {}).items():
                 now = registry.get(meta["figure"], cell)
@@ -68,6 +70,15 @@ def _check(args) -> int:
         if len(strings) > 1:
             where = ", ".join(f"{s!r} in {p}" for s, p in sorted(strings.items()))
             lines.append(f"SP502 data key {key!r} prints {len(strings)} strings: {where}")
+    if args.json:  # one JSON object per problem
+        for line in lines:
+            rec = next((r for r in records if line.startswith(f"{r['path']}: {r['code']}")), None)
+            if rec is None:
+                path, _, rest = line.partition(": ")
+                code, _, message = rest.partition(" ")
+                rec = {"path": path, "code": code, "message": message}
+            print(json.dumps(rec, ensure_ascii=False))
+        return 1 if lines else 0
     for line in lines:
         print(line)
     print(f"styles-plot check: {len(pngs)} figure(s), {len(lines)} problem(s)")
@@ -144,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("dir")
     c.add_argument("--vocab")
     c.add_argument("--target", default="post", help="target of PNGs without a sidecar (default post)")
+    c.add_argument("--json", action="store_true", help="one JSON object per problem")
     s = sub.add_parser("sheet", help="contact sheets in colour and gray")
     s.add_argument("dir")
     s.add_argument("--width", type=int, default=720)

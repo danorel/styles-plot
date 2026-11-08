@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from matplotlib.collections import Collection
 from matplotlib.colors import to_hex, to_rgba
@@ -16,14 +16,30 @@ from styles_plot._tags import tags
 
 @dataclass(frozen=True)
 class Problem:
-    """One violation: a stable code, a message, and the figure it was found in."""
+    """One violation: a stable code, a message, the figure it was found in, and, when known, what is at fault
+    (`subject`), where (`where`: target, block, row, column), its box and its obstacle's box (inches from the figure's
+    bottom-left), and one line that fixes it (`fix`)."""
 
     code: str
     message: str
     figure: str = ""
+    subject: str = ""
+    where: dict | None = field(default=None, compare=False, hash=False)
+    bbox_in: tuple | None = None
+    obstacle_in: tuple | None = None
+    fix: str = ""
 
     def __str__(self) -> str:
-        return f"{self.figure}: {self.code} {self.message}" if self.figure else f"{self.code} {self.message}"
+        head = f"{self.figure}: {self.code} {self.message}" if self.figure else f"{self.code} {self.message}"
+        return f"{head} → {self.fix}" if self.fix else head
+
+    def as_dict(self) -> dict:
+        d = {"code": self.code, "message": self.message, "figure": self.figure}
+        for k in ("subject", "where", "bbox_in", "obstacle_in", "fix"):
+            v = getattr(self, k)
+            if v:
+                d[k] = list(v) if isinstance(v, tuple) else v
+        return d
 
 
 @dataclass
@@ -59,8 +75,15 @@ class CheckCtx:
     def theme(self):
         return self.info.theme
 
-    def problem(self, code: str, message: str) -> Problem:
-        return Problem(code, message, self.name)
+    def problem(self, code: str, message: str, **detail) -> Problem:
+        if "where" in detail or detail:
+            detail.setdefault("where", {"target": self.info.target})
+        return Problem(code, message, self.name, **detail)
+
+    def inches(self, bb) -> tuple[float, float, float, float]:
+        """A display box (pixels) in inches from the figure's bottom-left."""
+        d = self.fig.dpi
+        return (round(bb.x0 / d, 3), round(bb.y0 / d, 3), round(bb.x1 / d, 3), round(bb.y1 / d, 3))
 
     def tagged(self, *kinds: str) -> list:
         return [a for a in [*self.marks, *self.texts] if tags(a).get("kind") in kinds]

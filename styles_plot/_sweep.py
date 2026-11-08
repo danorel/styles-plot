@@ -167,6 +167,7 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
             cv.text(0.08, top + panel_h / 2, ctx.entity_name(s.kind, row), kind="row_label", size=sz.label,
                     weight="bold")  # fmt: skip
             ax = cv.axes(px0, top, pw, panel_h)
+            tag(ax, kind="sweep_panel", header=header, row=row)
             ax.set_xlim(*xlim)
             if yu.scale == "log":
                 ax.set_yscale("log")

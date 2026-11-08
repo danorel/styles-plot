@@ -3,6 +3,18 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## Unreleased (0.2)
+
+Every change is backward compatible: a 0.1.14 builder runs unchanged and draws the same pixels. Each item says what a
+project may change (nothing is required unless it says so).
+
+- **A1 Problems that explain themselves.** `Problem` gains `subject`, `where` ({target, column, row}), `bbox_in`,
+  `obstacle_in` (inches from the figure's bottom-left) and `fix`; `str(problem)` ends with `→ <fix>`. Text-placement
+  problems in a panel (SP601, SP606, SP610) name the column and row and give the `xlim` upper limit (or panel width)
+  that makes room; SP401 gives the `[terms]` line, SP203 the registry row with `<timing>,<claim>` placeholders,
+  SP609/SP611 their fixes. Sidecars record whole problems; `styles-plot check --json` prints one object per problem.
+  *Migration:* nothing to change. Code that builds `Problem(code, message, figure)` keeps working.
+
 ## 0.1.14
 
 - A 100% stack's segment that is zero in every row is neither drawn nor named above the bars (its word would sit
