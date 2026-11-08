@@ -20,6 +20,7 @@ from styles_plot._text import PT, line_h
 TOP = 0.08  # inches above the first header line
 SUB_GAP = 0.06  # inches of air inside a row's second line
 RIGHT = 0.1  # inches right of the last column
+TIE_PT = 0.5  # a value label's two sides nearer than this (points) are a tie, and it goes right
 
 
 @dataclass
@@ -765,7 +766,8 @@ def _dot(ax, ctx: Ctx, s, val: Est, y: float) -> list[float]:
 
 def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines) -> None:
     """The printed values of one line. Every mark, whisker, connector, tick, vertical line and placed label is an
-    obstacle; each value goes into the free gap nearest its own dot (the right side on a tie), from the rightmost dot
+    obstacle; each value goes into the free gap nearest its own dot (the right side on a tie: sides within `TIE_PT`
+    of each other), from the rightmost dot
     leftwards, so the outer values take the outer sides. With no gap wide enough it sits right of its dot and the
     layout check reports it."""
     per = c.per_inch()
@@ -789,17 +791,18 @@ def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines
         col = ctx.chrome("muted") if role == "control" else ctx.role_hex(role)
         wd = ctx.measure(text, ctx.sizes.value)[0] * per
         meta = {"kind": "value", "key": val.key, "cell": val.cell, "unit": c.spec.unit, "role": role}
-        best = None  # (distance, left side?, start x)
+        cands = []  # (distance, left side?, start x)
         for g0, g1 in gaps():
             if g1 - g0 < wd:
                 continue
             if g0 >= val.value:  # right of the dot: as near as the gap allows
-                cand = (g0 - val.value, 0, g0)
+                cands.append((g0 - val.value, 0, g0))
             elif g1 <= val.value:  # left of the dot
-                cand = (val.value - g1, 1, g1 - wd)
-            else:
-                continue
-            best = cand if best is None or cand[:2] < best[:2] else best
+                cands.append((val.value - g1, 1, g1 - wd))
+        best = None
+        if cands:  # sides within half a point of each other are a tie, and a tie goes right: float noise never decides
+            near = min(d for d, _s, _x in cands) + TIE_PT * PT * per
+            best = min((c for c in cands if c[0] <= near), key=lambda c: (c[1], c[0]))
         x0 = best[2] if best is not None else min(val.value + (ctx.marks.dot_size / 2 + 5) * PT * per, right_end - wd)
         blocked.append((x0, x0 + wd))
         cv.text(c.x + c.dx(x0), y, text, size=ctx.sizes.value, color=col, **meta)

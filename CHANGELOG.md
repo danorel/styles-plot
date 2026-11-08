@@ -6,6 +6,13 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
+## Unreleased (0.2.1)
+
+- **A value label on a tie goes right.** A label takes the free side nearest its dot, and the right side on a tie; the
+  tie was compared exactly, so with symmetric whiskers, or a dot without an interval, float noise (~1e-14 pt) could
+  put the label on the left. Sides within half a point of each other are now a tie. *Pixels:* such labels move to
+  the right of their dot; in the gallery, "0.53" and "0.58" in `dot_table` and "64" in `methods` (readme).
+
 ## 0.2.0
 
 Every change is backward compatible: a 0.1.14 builder runs unchanged and draws the same pixels. Each item says what a

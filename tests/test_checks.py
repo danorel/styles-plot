@@ -600,6 +600,39 @@ def test_left_fallback_starts_at_its_own_dot(vocab):
     assert label.get_window_extent(r).x0 > ctrl_x  # between the control and its own dot, not left of everything
 
 
+def _label_side(vocab, est) -> str:
+    col = sp.DotColumn("gap", "gap_share", (-0.1, 1.1), (0, 0.5, 1), [sp.Series("first", {"m1": est})])
+    mpl, problems = run(sp.Figure("dot_table", vocab).add(sp.DotTable(["m1"], [col])))
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]
+    label = next(t for t in mpl.findobj(lambda a: tags(a).get("kind") == "value"))
+    dot = next(d for d in mpl.findobj(lambda a: tags(a).get("kind") == "dot"))
+    r = mpl.canvas.get_renderer()
+    dot_x = dot.get_transform().transform([[est.value, dot.get_ydata()[0]]])[0][0]
+    return "right" if label.get_window_extent(r).x0 > dot_x else "left"
+
+
+@pytest.mark.parametrize("shorter", [0.0, 1e-9])  # a left whisker shorter by float noise is still a tie
+def test_a_label_between_symmetric_whiskers_goes_right(vocab, shorter):
+    est = sp.Est(0.53, 0.46 + shorter, 0.60, cell="layer.m1", key="v", label=True)
+    assert _label_side(vocab, est) == "right"
+
+
+@pytest.mark.parametrize("target", ["post", "readme"])
+def test_tied_labels_in_the_dot_table_example_go_right(vocab, target):
+    # its gaps are differences of sums, so the two sides of "0.53" (whiskers) and "0.58" (no interval) differed by
+    # ~1e-14 pt, and that noise put both labels on the left
+    mpl = example("dot_table").dot_table(vocab).render(target)
+    r = mpl.canvas.get_renderer()
+    dots = [d.get_transform().transform([[d.get_xdata()[0], d.get_ydata()[0]]])[0]
+            for d in mpl.findobj(lambda a: tags(a).get("kind") == "dot")]  # fmt: skip
+    labels = [t for t in mpl.findobj(lambda a: tags(a).get("kind") == "value") if t.get_text() in ("0.53", "0.58")]
+    assert len(labels) == 2
+    for t in labels:
+        bb = t.get_window_extent(r)
+        x, _y = min(dots, key=lambda d: abs(d[1] - (bb.y0 + bb.y1) / 2) + abs(d[0] - bb.x0))
+        assert bb.x0 > x, t.get_text()
+
+
 def test_tag_and_note_on_one_row_and_tags_under_their_lane(vocab_dir):
     with (vocab_dir / "status.csv").open("a") as f:
         f.write("lanes,x.m1,fixed_in_advance,descriptive,,,\nlanes,y.m1,fixed_in_advance,claimed,,,\n")
