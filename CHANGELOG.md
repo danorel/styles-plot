@@ -3,6 +3,16 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.15
+
+A first figure in five minutes.
+
+- `styles-plot init [DIR] [--name NAME] [--force]` writes a starter `plotstyle.toml` (two roles, one control, the
+  units, three entities, the terms it prints, the registry path, sidecars under `_meta`), a `status.csv` (two cells
+  fixed in advance, one post hoc) and a `first_figure.py` (a dot table with a role, a grey control, a chance line and
+  counts) that passes strict on `post` and `readme`. It refuses to overwrite any of the three (exit 2) unless
+  `--force`. The templates ship in the wheel (`styles_plot/data/init/`).
+
 ## 0.1.14
 
 - A 100% stack's segment that is zero in every row is neither drawn nor named above the bars (its word would sit
