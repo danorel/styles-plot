@@ -47,8 +47,9 @@ def _check(args) -> int:
         rel = png.relative_to(root)
         side = find_sidecar(png, root, sidecar_dirs)
         meta = json.loads(side.read_text()) if side else None
-        if meta is None:  # a warning until 0.3: it can fail a run that passed before
-            warnings.append(f"{rel}: SP906 no sidecar: meaning and staleness not checked (only the PNG)")
+        if meta is None:  # a warning while ERROR_FROM says so: it can fail a run that passed before
+            line = f"{rel}: SP906 no sidecar: meaning and staleness not checked (only the PNG)"
+            (warnings if is_warning("SP906") else lines).append(line)
         target = meta["target"] if meta else args.target
         if target not in targets:
             lines.append(f"{rel}: SP901 unknown target {target!r}")

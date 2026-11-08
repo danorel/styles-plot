@@ -1,7 +1,10 @@
 # Changelog
 
-Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
-figures that passed strict checks fail them is a major version. Projects pin a tag.
+Versions follow semver; projects pin a tag. A grammar or palette change is a minor version with a migration note here.
+A new check that can fail a figure that passed before ships as a warning for one minor version (the figure is written,
+the problem recorded and listed by `check`), then becomes an error in the next minor; the table `ERROR_FROM` in
+`styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
+is an error at once.
 
 ## Unreleased (0.2)
 
@@ -92,6 +95,10 @@ project may change (nothing is required unless it says so).
 - **C7 Notebook loop.** A `Figure` shows itself in a notebook (`_repr_png_`, the notebook target). `fig.preview(
   target="post") -> sp.Preview` renders that target, runs the checks, and shows the PNG with each problem boxed in red
   (as `sp.debug` draws it) and the problem list with fixes (`_repr_html_`). Neither writes a file.
+  *Migration:* nothing to change.
+- **E1 New checks warn first.** The policy above, with one table (`ERROR_FROM`): SP613 and SP906 are warnings until
+  0.3. SP905 (a stale waiver) belongs to a new feature and is an error at once. Not retroactive: 0.1.10 (SP611, the
+  log-scale refusal) and 0.1.11 (SP612) stay errors.
   *Migration:* nothing to change.
 
 ## 0.1.15

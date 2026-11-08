@@ -1,6 +1,10 @@
 """The checks. Each family reads a rendered figure's tagged artists and returns problems; `run` runs them all.
 
-Codes are stable across releases; a new check that can fail an old figure is a major version.
+Codes are stable across releases. Release policy: a new check that can fail a figure that passed before ships as a
+warning for one minor version (a StyleWarning: the figure is written, the problem recorded in its sidecar and listed by
+`styles-plot check`), then becomes an error in the next minor. `ERROR_FROM` below is the one table of such checks and
+the version each becomes an error. A check that belongs to a new feature (SP905, a stale waiver) cannot fail an old
+figure and is an error at once.
 SP1xx colour by role · SP2xx status · SP3xx key · SP4xx words and cues · SP5xx numbers · SP6xx layout ·
 SP7xx colour vision · SP8xx saved PNG · SP9xx check. SP612 (a table of numbers only) is reported by the table while
 laid out.
@@ -54,7 +58,11 @@ def _matches(w, p: Problem) -> bool:
     return w.text == p.subject or w.text == (p.where or {}).get("other")
 
 
-ERROR_FROM = {"SP613": "0.3"}  # a new check that can fail an old figure warns until this version (E1)
+# a check that can fail a figure that passed before -> the version from which it is an error (a warning until then)
+ERROR_FROM = {
+    "SP613": "0.3",  # a header past the target's max_header_lines (0.2)
+    "SP906": "0.3",  # styles-plot check: a PNG without a sidecar (0.1.15)
+}
 
 
 def is_warning(code: str) -> bool:

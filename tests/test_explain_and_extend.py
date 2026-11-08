@@ -734,3 +734,16 @@ def test_notebook_loop_returns_pictures_and_writes_nothing(tmp_path, vocab, monk
     a = np.asarray(Image.open(io.BytesIO(bad.png)).convert("RGB")).astype(int)
     assert ((a[..., 0] > 190) & (a[..., 1] < 80) & (a[..., 2] < 80)).sum() > 50  # the problem is boxed in red
     assert sorted(tmp_path.rglob("*")) == before  # nothing written
+
+
+# ---- E1 --------------------------------------------------------------------------------------------------------------
+def test_new_checks_warn_until_the_version_in_the_table(tmp_path, vocab, monkeypatch, capsys):
+    assert _checks.ERROR_FROM == {"SP613": "0.3", "SP906": "0.3"}
+    assert not _checks.is_warning("SP905")  # a new feature's own check: an error at once
+    fig = sp.Figure("stack", vocab).add(*example("stack").stack(vocab).blocks)
+    sp.save(fig, tmp_path / "s.png", "post").sidecar.unlink()
+    assert main(["check", str(tmp_path)]) == 0  # SP906 warns in 0.2
+    monkeypatch.setattr(sp, "__version__", "0.3.0")
+    capsys.readouterr()
+    assert main(["check", str(tmp_path)]) == 1  # and fails from 0.3
+    assert "SP906" in capsys.readouterr().out
