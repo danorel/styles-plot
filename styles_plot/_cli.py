@@ -5,6 +5,7 @@
     styles-plot sheet <dir> [--width 720] [-o DIR] [--order FILE]      contact sheets, colour and gray
     styles-plot key --vocab plotstyle.toml [-o key.png] [--target post] the project's key figure
     styles-plot palette [--vocab plotstyle.toml]                       colour-vision table of the slots
+    styles-plot init [DIR] [--name NAME] [--force]                     a starter vocabulary, registry and figure
 """
 
 from __future__ import annotations
@@ -13,12 +14,13 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from importlib.resources import files
 from pathlib import Path
 
 from styles_plot._palette import Palette
 from styles_plot._png import check_png, pixels_sha256
 from styles_plot._registry import load as load_registry
-from styles_plot._save import StyleError, save, sidecar_path
+from styles_plot._save import StyleError, find_sidecar, save
 from styles_plot._sheet import contact_sheets, figures_in
 from styles_plot._theme import targets_from
 from styles_plot._vocab import VocabError, load
@@ -33,13 +35,15 @@ def _check(args) -> int:
     targets = vocab.targets if vocab else targets_from(None)
     palette = vocab.palette if vocab else Palette()
     registry = load_registry(vocab.registry_path) if vocab and vocab.registry_path and vocab.registry_path.exists() else None
-    lines, numbers = [], defaultdict(dict)
+    lines, warnings, numbers = [], [], defaultdict(dict)
     pngs = figures_in(root)
-    sidecar_dirs = dict.fromkeys([vocab.sidecar_dir if vocab else "", "", "_meta"])  # beside the PNG, or under _meta
+    sidecar_dirs = tuple(dict.fromkeys([vocab.sidecar_dir if vocab else "", "_meta"]))
     for png in pngs:
         rel = png.relative_to(root)
-        side = next((s for s in (sidecar_path(png, root, d) for d in sidecar_dirs) if s.exists()), None)
+        side = find_sidecar(png, root, sidecar_dirs)
         meta = json.loads(side.read_text()) if side else None
+        if meta is None:  # a warning until 0.3: it can fail a run that passed before
+            warnings.append(f"{rel}: SP906 no sidecar: meaning and staleness not checked (only the PNG)")
         target = meta["target"] if meta else args.target
         if target not in targets:
             lines.append(f"{rel}: SP901 unknown target {target!r}")
@@ -68,9 +72,10 @@ def _check(args) -> int:
         if len(strings) > 1:
             where = ", ".join(f"{s!r} in {p}" for s, p in sorted(strings.items()))
             lines.append(f"SP502 data key {key!r} prints {len(strings)} strings: {where}")
-    for line in lines:
+    for line in lines + warnings:
         print(line)
-    print(f"styles-plot check: {len(pngs)} figure(s), {len(lines)} problem(s)")
+    no_side = f", {len(warnings)} without a sidecar (SP906, a warning)" if warnings else ""
+    print(f"styles-plot check: {len(pngs)} figure(s), {len(lines)} problem(s){no_side}")
     return 1 if lines else 0
 
 
@@ -137,6 +142,37 @@ def _palette(args) -> int:
     return 0
 
 
+INIT_FILES = ("plotstyle.toml", "status.csv", "first_figure.py")
+_INIT_NAME = 'name = "my project"'
+NEXT_STEPS = """next:
+  1. python first_figure.py
+  2. open figures/readme/first_figure.png
+  3. rename the roles, units and entities in plotstyle.toml
+  4. replace the synthetic data with yours and register each cell in status.csv
+  5. styles-plot check figures/post --vocab plotstyle.toml"""
+
+
+def _init(args) -> int:
+    root = Path(args.dir)
+    existing = [root / f for f in INIT_FILES if (root / f).exists()]
+    if existing and not args.force:
+        print("styles-plot init: these exist, nothing written (--force overwrites):", file=sys.stderr)
+        for p in existing:
+            print(f"  {p}", file=sys.stderr)
+        return 2
+    name = args.name or root.resolve().name or "my project"
+    root.mkdir(parents=True, exist_ok=True)
+    templates = files("styles_plot") / "data" / "init"
+    for f in INIT_FILES:
+        text = (templates / f).read_text(encoding="utf-8")
+        if f == "plotstyle.toml":
+            text = text.replace(_INIT_NAME, f"name = {json.dumps(name, ensure_ascii=False)}", 1)
+        (root / f).write_text(text, encoding="utf-8")
+        print(f"wrote {root / f}")
+    print(NEXT_STEPS if root.resolve() == Path.cwd().resolve() else f"cd {root}\n{NEXT_STEPS}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="styles-plot", description="One figure grammar shared across projects.")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -155,9 +191,13 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("--target", default="post")
     p = sub.add_parser("palette", help="colour-vision table of the palette's slots")
     p.add_argument("--vocab")
+    i = sub.add_parser("init", help="write a starter plotstyle.toml, status.csv and first_figure.py")
+    i.add_argument("dir", nargs="?", default=".")
+    i.add_argument("--name", help="the project's name (default: the folder's name)")
+    i.add_argument("--force", action="store_true", help="overwrite the three files if they exist")
     args = ap.parse_args(argv)
     try:
-        return {"check": _check, "sheet": _sheet, "key": _key, "palette": _palette}[args.cmd](args)
+        return {"check": _check, "sheet": _sheet, "key": _key, "palette": _palette, "init": _init}[args.cmd](args)
     except VocabError as e:
         print(f"styles-plot: {e}", file=sys.stderr)
         return 2

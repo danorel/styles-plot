@@ -182,3 +182,46 @@ def test_sidecar_hashes_pixels_not_bytes(tmp_path, vocab, capsys):
     im.save(rep.path)  # one pixel changed
     assert main(["check", str(out)]) == 1
     assert "SP902" in capsys.readouterr().out
+
+
+# ---- check finds every sidecar save wrote; a PNG without one is said ------------------------------------------------
+def _tamper(png):
+    from PIL import Image
+
+    im = Image.open(png).convert("RGB")
+    im.putpixel((5, 5), (0, 0, 0))
+    im.save(png)
+
+
+def test_check_finds_sidecars_under_the_targets_meta(tmp_path, vocab, capsys):
+    import dataclasses
+
+    v = dataclasses.replace(vocab, sidecar_dir="_meta")
+    fig = sp.Figure("stack", v).add(*example("stack").stack(v).blocks)
+    sp.save_bundle(fig, tmp_path, targets=("post", "readme"))  # sidecars in <target>/_meta/
+    assert (tmp_path / "readme" / "_meta" / "stack.styles.json").exists()
+    assert main(["check", str(tmp_path)]) == 0  # from the parent: readme is checked as readme, not as post
+    _tamper(tmp_path / "readme" / "stack.png")
+    assert main(["check", str(tmp_path / "readme")]) == 1
+    assert "SP902" in capsys.readouterr().out
+
+
+def test_check_finds_sidecars_under_an_ancestors_meta(tmp_path, vocab, capsys):
+    import dataclasses
+
+    v = dataclasses.replace(vocab, sidecar_dir="_meta")
+    fig = sp.Figure("stack", v).add(*example("stack").stack(v).blocks)
+    sp.save(fig, tmp_path / "main" / "stack.png", "post", root=tmp_path)  # <root>/_meta/main/stack.styles.json
+    _tamper(tmp_path / "main" / "stack.png")
+    assert main(["check", str(tmp_path)]) == 1
+    assert "SP902" in capsys.readouterr().out
+
+
+def test_a_png_without_a_sidecar_is_a_warning(tmp_path, vocab, capsys):
+    fig = sp.Figure("stack", vocab).add(*example("stack").stack(vocab).blocks)
+    report = sp.save(fig, tmp_path / "stack.png", "post")
+    report.sidecar.unlink()
+    assert main(["check", str(tmp_path)]) == 0  # a warning in 0.1.x: it does not fail the run
+    out = capsys.readouterr().out
+    assert "stack.png: SP906 no sidecar: meaning and staleness not checked" in out
+    assert out.strip().endswith("0 problem(s), 1 without a sidecar (SP906, a warning)")

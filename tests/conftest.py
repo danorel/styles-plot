@@ -29,7 +29,9 @@ def vocab(vocab_dir: Path) -> sp.Vocab:
 
 
 def example(name: str):
-    spec = importlib.util.spec_from_file_location(f"example_{name}", EXAMPLES / f"{name}.py")
+    """An example module: a figure type from examples/blocks/, else examples/<name>.py (build_gallery)."""
+    path = EXAMPLES / "blocks" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"example_{name}", path if path.exists() else EXAMPLES / f"{name}.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

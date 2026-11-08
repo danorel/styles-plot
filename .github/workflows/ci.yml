@@ -58,3 +58,29 @@ jobs:
         with:
           name: gallery
           path: gallery/
+      - name: the README's generated blocks are up to date
+        run: |
+          uv run --no-sync python docs/readme_blocks.py
+          git diff --exit-code README.md
+      - name: the README's images mean what they meant, and its links resolve
+        run: uv run --no-sync python docs/readme_blocks.py --check
+      - name: the README's images pass check
+        run: uv run --no-sync styles-plot check examples/figures/readme --vocab examples/plotstyle.toml
+
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: build the wheel
+        run: uv build --wheel -o dist
+      - name: init and a first figure from the installed wheel, in an empty folder
+        run: |
+          uv venv --clear /tmp/clean
+          uv pip install -p /tmp/clean/bin/python dist/*.whl
+          mkdir /tmp/first && cd /tmp/first
+          /tmp/clean/bin/styles-plot init
+          /tmp/clean/bin/python first_figure.py
+          /tmp/clean/bin/styles-plot check figures/post --vocab plotstyle.toml

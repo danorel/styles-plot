@@ -1,6 +1,10 @@
-"""Build the gallery: every example for every published target, strict, then the contact sheets.
+"""Build the gallery: every example in blocks/ for every published target, strict, then the contact sheets.
 
-    python examples/build_gallery.py [--out gallery] [--targets post slide readme]
+    python examples/build_gallery.py [--out gallery] [--targets post slide readme] [--only ID ...] [--no-sheets]
+                                     [--sidecar-dir _meta]
+
+The README images are `--out examples/figures --targets readme --only dot_table key sweep methods --no-sheets
+--sidecar-dir _meta` (`make readme-images`): PNGs in examples/figures/readme/, sidecars in its _meta/.
 
 Exits 1 when any figure breaks the grammar (strict mode writes nothing for it).
 """
@@ -8,6 +12,7 @@ Exits 1 when any figure breaks the grammar (strict mode writes nothing for it).
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import importlib.util
 import sys
 from pathlib import Path
@@ -21,7 +26,7 @@ KEY_TARGETS = ("post", "readme")  # the key figure belongs to a reading page; on
 
 
 def _module(name: str):
-    spec = importlib.util.spec_from_file_location(f"examples_{name}", HERE / f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"examples_{name}", HERE / "blocks" / f"{name}.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -49,12 +54,22 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Build and check the gallery.")
     ap.add_argument("--out", type=Path, default=HERE.parent / "gallery", help="output folder (default: gallery/)")
     ap.add_argument("--targets", nargs="+", default=list(TARGETS), help="targets to build")
+    ap.add_argument("--only", nargs="+", metavar="ID", help="build only these figure ids")
+    ap.add_argument("--no-sheets", action="store_true", help="no contact sheets")
+    ap.add_argument("--sidecar-dir", default="", help="sidecars under <out>/<target>/<this>/ instead of beside the PNGs")
     args = ap.parse_args(argv)
     out = args.out
     v = sp.load(HERE / "plotstyle.toml")
+    if args.sidecar_dir:
+        v = dataclasses.replace(v, sidecar_dir=args.sidecar_dir)
     failed = 0
     figures = [build(v) for name in EXAMPLES for build in _module(name).FIGURES]
     figures.append(key(v))
+    if args.only:
+        unknown = set(args.only) - {f.id for f in figures}
+        if unknown:
+            ap.error(f"no such figure: {', '.join(sorted(unknown))}")
+        figures = [f for f in figures if f.id in args.only]
     for fig in figures:
         try:
             targets = [t for t in args.targets if fig.id != "key" or t in KEY_TARGETS]
@@ -66,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         except sp.BuildError as e:
             failed += 1
             print(f"FAIL  {fig.id}: {e}")
-    for t in args.targets:
+    for t in [] if args.no_sheets else args.targets:
         pngs = sorted(p for p in (out / t).glob("*.png") if not p.name.startswith("contact_sheet"))
         if pngs:
             sp.contact_sheets(pngs, out / t, width=720)

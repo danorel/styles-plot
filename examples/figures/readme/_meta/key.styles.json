@@ -1,0 +1,71 @@
+{
+ "styles_plot": "0.1.14",
+ "vocab": {
+  "project": "styles-plot examples",
+  "sha256": "7bb13f3e25396147dfafebe666fc9187b6e0025213375f454e6a8887eb706e21"
+ },
+ "registry": {
+  "path": "status.csv",
+  "sha256": "686a65930a4fae73d5ae858492f20e309f0d33e97e012c677c86a5499d83c02e"
+ },
+ "figure": "key",
+ "target": "readme",
+ "mode": "strict",
+ "publishable": true,
+ "text_only": false,
+ "png": {
+  "pixels_sha256": "db3c20bf2c8f77ee52f7f8500f52649522a5ac82212bc69cbfd3a32e1eb52260",
+  "dpi": 160
+ },
+ "roles": [
+  "first",
+  "second"
+ ],
+ "controls": [],
+ "cells": {
+  "band.m2": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  }
+ },
+ "marks": [
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "band.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  }
+ ],
+ "key": [
+  "grey band: within 0.10 of a random direction",
+  "grey tick: the largest control of the same size",
+  "grey: a random direction · shuffled labels",
+  "whiskers: 95% interval",
+  "○ post hoc"
+ ],
+ "numbers": {
+  "drop.alpha.m2": "46.6",
+  "drop.beta.m2": "2.2",
+  "gap.band.m2": "44.4",
+  "ctrl.band.m2": "10.0"
+ },
+ "problems": []
+}

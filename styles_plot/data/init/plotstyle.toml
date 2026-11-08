@@ -1,0 +1,66 @@
+# The project's vocabulary: every word a figure prints and what each colour means. docs/ADOPTING.md §2 explains each
+# table. Lines marked CHANGE are the ones to make yours first.
+
+# The project. (ADOPTING.md §2)
+[project]
+name = "my project"  # CHANGE: your project's name
+
+# Roles: one colour each, the same meaning in every figure. (ADOPTING.md §2; slots in GRAMMAR.md §A)
+[roles.method]
+slot = "violet"
+word = "our method"  # CHANGE: printed above the first row, in the role's colour
+meaning = "the method under test"  # CHANGE: shown on the key figure
+
+# A second role, once a figure draws it:
+# [roles.variant]
+# slot = "amber"
+# word = "variant"  # CHANGE
+# meaning = "a second condition of the method"  # CHANGE
+
+# Controls: the grey things, named in the key as "grey: ...". (ADOPTING.md §2)
+[controls]
+names = ["shuffled labels"]  # CHANGE: your baselines
+
+# Units: an axis title, the quantity its cue names, and a number format. (ADOPTING.md §2)
+[units.accuracy]
+title = "accuracy (%)"  # CHANGE
+quantity = "accuracy"
+format = "accuracy"
+
+[units.prompts]
+title = "prompts"
+quantity = "prompts"
+format = "z"
+
+# Terms: every other word a figure may print. (ADOPTING.md §2)
+[terms]
+canonical = ["synthetic data", "accuracy", "answers", "chance"]  # CHANGE: add your headers and labels
+templates = []
+missing = ["no run"]  # words for a cell with no value
+not_claimed = ["run after the data"]  # reasons a cell is not claimed
+
+# A banned variant and the word to use instead. (ADOPTING.md §2)
+# [[terms.banned]]
+# pattern = "pts"
+# use = "points"
+
+# Entities: the rows, in the order every figure shows them. (ADOPTING.md §2)
+[[entities.models]]
+key = "m1"
+name = "Model 1"  # CHANGE
+
+[[entities.models]]
+key = "m2"
+name = "Model 2"  # CHANGE
+
+[[entities.models]]
+key = "m3"
+name = "Model 3"  # CHANGE
+
+# The status registry: one row per drawn cell. (ADOPTING.md §3)
+[registry]
+path = "status.csv"
+
+# Sidecars go under figures/<target>/_meta/, so the figure folders hold only PNGs. (ADOPTING.md §5)
+[output]
+sidecar_dir = "_meta"

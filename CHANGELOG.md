@@ -3,6 +3,33 @@
 Versions follow semver. A grammar or palette change is a minor version with a migration note here; a change that makes
 figures that passed strict checks fail them is a major version. Projects pin a tag.
 
+## 0.1.15
+
+A first figure in five minutes.
+
+- `styles-plot init [DIR] [--name NAME] [--force]` writes a starter `plotstyle.toml` (one role, a second one commented
+  out, one control, the units, three entities, the terms it prints, the registry path, sidecars under `_meta`), a
+  `status.csv` (two cells fixed in advance, one post hoc) and a `first_figure.py` (a dot table with a role, a grey
+  control, a chance line and counts; accuracy is k/n of the counts, whiskers their Wilson 95% intervals) that passes
+  strict on `post` and `readme`. It refuses to overwrite any of the three (exit 2) unless `--force`. The templates ship
+  in the wheel (`styles_plot/data/init/`).
+- The README shows four figures (`examples/figures/readme/`, committed, rebuilt by `make readme-images`), a quick
+  start, and two blocks generated from code by `make readme`: the starter builder and the `StyleError` of
+  `examples/strict/refused.py`.
+  `make readme-check` (in `make check` and CI) fails when a block is stale, an image's sidecar means something else
+  than a fresh build's, a link is broken, or an image fails `check`. CI also installs the wheel into a clean venv and
+  runs `init` and the first figure in an empty folder.
+- `examples/` is grouped: `blocks/` (one module per figure type), `strict/` (a figure strict mode refuses),
+  `figures/` (the committed README images), the shared `plotstyle.toml` and `status.csv`, and `build_gallery.py`,
+  which takes `--only ID ...`, `--no-sheets` and `--sidecar-dir`.
+- The `sweep` and `methods` examples carry a title and a caption, so their `readme` PNGs change; no other figure does.
+- `styles-plot check` finds every sidecar `save` writes: beside the PNG, else under `_meta/` of the PNG's own folder or
+  of any folder above it up to the folder checked. Before, checking the parent of `post/` and `readme/` checked
+  `readme` PNGs as `post` (a false SP801), and a PNG whose sidecar was not found had its pixels checked only, silently.
+  A PNG with no sidecar is now **SP906**, counted in the summary line; a warning that does not fail the run until 0.3.
+
+*Migration:* nothing to change.
+
 ## 0.1.14
 
 - A 100% stack's segment that is zero in every row is neither drawn nor named above the bars (its word would sit

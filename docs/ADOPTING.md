@@ -2,11 +2,15 @@
 
 ## 1. Install, pinned to a tag
 
+Start with `styles-plot init` (once installed as below): it writes a starter `plotstyle.toml`, `status.csv` and
+`first_figure.py` that passes strict; run it, then rename the roles, units and entities and replace the synthetic data
+with yours. The sections below are the hand-written route and explain every table the starter uses.
+
 ```
 # uv / pyproject.toml
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.14
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.15
 # pip / requirements.txt
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.2
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.15
 ```
 
 Add the `[check]` extra (`styles-plot[check] @ git+…`) only if you change palette hexes: the colour-vision distances of
