@@ -1,4 +1,4 @@
-"""Build the gallery: every example for every published target, strict, then the contact sheets.
+"""Build the gallery: every example in blocks/ for every published target, strict, then the contact sheets.
 
     python examples/build_gallery.py [--out gallery] [--targets post slide readme] [--only ID ...] [--no-sheets]
                                      [--sidecar-dir _meta]
@@ -26,7 +26,7 @@ KEY_TARGETS = ("post", "readme")  # the key figure belongs to a reading page; on
 
 
 def _module(name: str):
-    spec = importlib.util.spec_from_file_location(f"examples_{name}", HERE / f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"examples_{name}", HERE / "blocks" / f"{name}.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

@@ -78,7 +78,7 @@ for target, report in sp.save_bundle(fig, HERE / "figures", targets=("post", "re
 
 ## What strict mode refuses
 
-A header word missing from the vocabulary and a cell missing from the registry ([examples/refused.py](examples/refused.py)):
+A header word missing from the vocabulary and a cell missing from the registry ([examples/strict/refused.py](examples/strict/refused.py)):
 
 <!-- refused:start -->
 ```

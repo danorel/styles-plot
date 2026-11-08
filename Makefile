@@ -23,7 +23,7 @@ gallery-check: gallery  ## build the gallery, then check it as CI does
 readme-images:      ## the four README images into examples/figures/readme/ (sidecars in examples/figures/_meta/), committed
 	$(PY) examples/build_gallery.py --out examples/figures --targets readme --only dot_table key sweep methods --no-sheets --sidecar-dir _meta
 
-readme:             ## the README's generated blocks (the StyleError of examples/refused.py, the starter builder)
+readme:             ## the README's generated blocks (the StyleError of examples/strict/refused.py, the starter builder)
 	$(PY) docs/readme_blocks.py
 
 readme-check: readme  ## README blocks up to date, images' meaning unchanged, links resolve, images pass check

@@ -6,7 +6,7 @@
                                            move with a matplotlib release, meaning may not); every relative link and
                                            image path in the README exists
 
-Blocks: `refused` is the StyleError of examples/refused.py; `first-figure` is the starter builder `styles-plot init`
+Blocks: `refused` is the StyleError of examples/strict/refused.py; `first-figure` is the starter builder `styles-plot init`
 writes, so the code in the README is the code the tests run.
 """
 
@@ -35,7 +35,7 @@ def _module(path: Path):
 
 
 def blocks() -> dict[str, str]:
-    refused = _module(ROOT / "examples" / "refused.py").error_text()
+    refused = _module(ROOT / "examples" / "strict" / "refused.py").error_text()
     first = (files("styles_plot") / "data" / "init" / "first_figure.py").read_text(encoding="utf-8")
     return {"refused": f"```\n{refused}\n```", "first-figure": f"```python\n{first.rstrip()}\n```"}
 
