@@ -91,16 +91,25 @@ def debug(fig: Figure, target: str = "post", out: str | Path = ".") -> list[Prob
     mpl = fig.render(target)
     problems = _checks.run(mpl)  # waived problems are not drawn
     w, h = mpl.get_size_inches()
+    # the overlay is a last subfigure over the whole figure: matplotlib 3.8 draws subfigures after the figure's own
+    # artists whatever their zorder, so anything added to the figure itself would sit under the sections
+    from matplotlib.gridspec import GridSpec
+
+    top = mpl.add_subfigure(GridSpec(1, 1, figure=mpl)[0], zorder=1000)
+    top.set_facecolor("none")
+    ov = top.add_axes((0, 0, 1, 1))
+    ov.set_axis_off()
+    ov.set_xlim(0, w)
+    ov.set_ylim(0, h)
+    ov.patch.set_alpha(0)
     for p in problems:
         for box, style in ((p.bbox_in, "-"), (p.obstacle_in, "--")):
             if not box:
                 continue
             x0, y0, x1, y1 = box
-            mpl.add_artist(Rectangle((x0 / w, y0 / h), (x1 - x0) / w, (y1 - y0) / h, transform=mpl.transFigure,
-                                     fill=False, edgecolor=DEBUG_RED, lw=1.4, ls=style, zorder=100))  # fmt: skip
+            ov.add_patch(Rectangle((x0, y0), x1 - x0, y1 - y0, fill=False, edgecolor=DEBUG_RED, lw=1.4, ls=style))
         if p.bbox_in:
-            mpl.text(p.bbox_in[2] / w + 0.003, p.bbox_in[3] / h, p.code, transform=mpl.transFigure, color=DEBUG_RED,
-                     fontsize=8, va="bottom", zorder=101)  # fmt: skip
+            ov.text(p.bbox_in[2] + 0.02, p.bbox_in[3], p.code, color=DEBUG_RED, fontsize=8, va="bottom")
     path = Path(out) / DEBUG_DIR / f"{fig.id}.{target}.png"
     path.parent.mkdir(parents=True, exist_ok=True)
     mpl.savefig(path, dpi=info(mpl).theme.dpi, facecolor=info(mpl).vocab.palette.chrome["background"])

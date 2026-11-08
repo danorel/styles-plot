@@ -488,7 +488,9 @@ def test_a_header_past_its_lines_warns_with_the_weight_that_fits(tmp_path, vocab
     toml.write_text(toml.read_text().replace('"switches blocked",', f'"switches blocked", "{LONG}",'))
     v = sp.load(toml)
     p = next(p for p in run(_two_panels(v, LONG, width=0.8))[1] if p.code == "SP613")
-    assert "wraps to 4 lines (at most 2)" in p.message and "a column ≥ 1.60 in wide" in p.fix and "unit title" in p.fix
+    assert "wraps to 4 lines (at most 2)" in p.message and "unit title" in p.fix
+    need = float(re.search(r"a column ≥ ([\d.]+) in wide", p.fix).group(1))
+    assert 1.3 < need < 2.0  # font metrics differ a little between platforms
     fig = sp.Figure("methods", v).add(sp.DotTable(["m1"], [
         sp.DotColumn(LONG, "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(61, cell="acc.m1")})]),
         *(sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(61, cell="acc.m1")})])
