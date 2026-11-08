@@ -6,7 +6,7 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
-## Unreleased (0.2)
+## 0.2.0
 
 Every change is backward compatible: a 0.1.14 builder runs unchanged and draws the same pixels. Each item says what a
 project may change (nothing is required unless it says so).
