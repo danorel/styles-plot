@@ -2,9 +2,9 @@
 
 ## 1. Install, pinned to a tag
 
-Start with `styles-plot init` (once installed as below): it writes a starter `plotstyle.toml`, `status.csv` and `first_figure.py` that passes
-strict; run it, then rename the roles, units and entities and replace the synthetic data with yours. The sections below
-are the hand-written route and explain every table the starter uses.
+Start with `styles-plot init` (once installed as below): it writes a starter `plotstyle.toml`, `status.csv` and
+`first_figure.py` that passes strict; run it, then rename the roles, units and entities and replace the synthetic data
+with yours. The sections below are the hand-written route and explain every table the starter uses.
 
 ```
 # uv / pyproject.toml
