@@ -12,6 +12,15 @@ A first figure in five minutes.
   fixed in advance, one post hoc) and a `first_figure.py` (a dot table with a role, a grey control, a chance line and
   counts) that passes strict on `post` and `readme`. It refuses to overwrite any of the three (exit 2) unless
   `--force`. The templates ship in the wheel (`styles_plot/data/init/`).
+- The README shows four figures (`examples/figures/readme/`, committed, rebuilt by `make readme-images`), a quick
+  start, and two blocks generated from code by `make readme`: the starter builder and the `StyleError` of `examples/refused.py`.
+  `make readme-check` (in `make check` and CI) fails when a block is stale, an image's sidecar means something else
+  than a fresh build's, a link is broken, or an image fails `check`. CI also installs the wheel into a clean venv and
+  runs `init` and the first figure in an empty folder.
+- `examples/build_gallery.py` takes `--only ID ...`, `--no-sheets` and `--sidecar-dir`.
+- The `sweep` and `methods` examples carry a title and a caption, so their `readme` PNGs change; no other figure does.
+
+*Migration:* nothing to change.
 
 ## 0.1.14
 
