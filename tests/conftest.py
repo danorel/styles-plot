@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import shutil
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -33,6 +34,7 @@ def example(name: str):
     path = EXAMPLES / "blocks" / f"{name}.py"
     spec = importlib.util.spec_from_file_location(f"example_{name}", path if path.exists() else EXAMPLES / f"{name}.py")
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod  # a dataclass in the module looks itself up here
     spec.loader.exec_module(mod)
     return mod
 

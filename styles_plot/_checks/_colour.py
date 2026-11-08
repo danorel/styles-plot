@@ -13,8 +13,8 @@ from styles_plot._tags import DATA_KINDS, tags
 
 # role-tagged artists whose colour is the role's
 _ROLE_KINDS = DATA_KINDS | {"whisker", "shading", "tick", "median", "role_word", "value", "key_mark", "schematic_word",
-                            "box", "arrow", "swatch", "card_text"}  # fmt: skip
-_NAMING_KINDS = {"role_word", "schematic_word"}
+                            "box", "arrow", "swatch", "card_text", "word"}  # fmt: skip
+_NAMING_KINDS = {"role_word", "schematic_word", "word"}
 
 
 def check(cx: CheckCtx) -> list[Problem]:

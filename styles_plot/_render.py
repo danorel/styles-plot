@@ -70,6 +70,7 @@ class Ctx:
     numbers: list[tuple[str, str]] = field(default_factory=list)  # (data key, printed string)
     all_post_hoc: bool = False  # every estimate is post hoc: marks drawn filled, the key says so once
     findings: list[tuple[str, str]] = field(default_factory=list)  # (code, message) a block reports while laid out
+    next_pid: int = 1000  # panel ids for project blocks' panels (a table numbers its own from 0)
 
     @property
     def palette(self):
@@ -199,11 +200,16 @@ class Canvas:
 
 @dataclass
 class Plan:
-    """A block laid out: its height, the encodings it draws (for the key), and how to draw it."""
+    """A block laid out: its height in inches, how to draw it, and the encodings it draws (for the key line).
+    *Experimental* as public API (`sp.Plan`): may change in a minor release.
+
+    A project's block returns one from `plan(ctx, width)`; leave `encodings` as None and the renderer finds them by
+    drawing the block once on a throwaway figure and reading what its primitives tagged, with the same function the
+    key check uses, so the key and what is drawn cannot drift apart."""
 
     height: float
-    encodings: set
-    draw: Callable[[Canvas], None]
+    draw: Callable
+    encodings: set | None = None
 
 
 @dataclass(frozen=True)
@@ -321,7 +327,11 @@ def _planner(block) -> Callable:
     for kind, plan in planners.items():
         if isinstance(block, kind):
             return plan
-    raise BuildError(f"not a figure block: {type(block).__name__}")
+    from styles_plot import _custom
+
+    if _custom.is_block(block):
+        return _custom.plan
+    raise BuildError(f"not a figure block: {type(block).__name__} (a block has plan(ctx, width) -> sp.Plan)")
 
 
 def _estimate_cells(block) -> list:
@@ -344,6 +354,10 @@ def _estimate_cells(block) -> list:
 
 def _all_post_hoc(fig, registry) -> bool:
     """Whether every estimate of a figure is post hoc in the registry (then hollow marks would say nothing)."""
+    from styles_plot import _custom
+
+    if any(_custom.is_block(b) for b in fig.blocks):  # a project block's cells are unknown before it draws: stay hollow
+        return False
     cells = [c for b in fig.blocks for c in _estimate_cells(b)]
     if not cells or registry is None or any(c is None for c in cells):
         return False

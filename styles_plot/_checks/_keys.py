@@ -14,8 +14,14 @@ from styles_plot._tags import tags
 
 
 def drawn_encodings(cx: CheckCtx) -> set[tuple]:
-    enc: set[tuple] = {("all_post_hoc",)} if cx.info.all_post_hoc else set()
-    for a in cx.marks:
+    return ({("all_post_hoc",)} if cx.info.all_post_hoc else set()) | encodings_of(cx.marks)
+
+
+def encodings_of(marks) -> set[tuple]:
+    """The key's encodings that tagged marks draw. The renderer reads a project block's encodings with this too (a dry
+    run of its draw), so the key and this check share one definition of "drawn"."""
+    enc: set[tuple] = set()
+    for a in marks:
         t = tags(a)
         kind = t.get("kind")
         if t.get("hollow"):

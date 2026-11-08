@@ -221,7 +221,7 @@ def plan(s: Sweep, ctx: Ctx, width: float, label_w: float) -> Plan:
                     _point(cv, ax, ctx, p, yv, st, s.y_unit, to_in, obstacles, (px0, top, pw, panel_h))
         draw_x_bottom(cv, ctx, px0, pw, tops[s.rows[-1]] + panel_h, xlim, xt, xu, xtitle, xcue, pid=None)
 
-    return Plan(height, enc, draw)
+    return Plan(height, draw, enc)
 
 
 def _margin_words(cv: Canvas, ctx: Ctx, x: float, top: float, height: float, items, edge: float) -> None:

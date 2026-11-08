@@ -119,6 +119,33 @@ styles-plot key --vocab plotstyle.toml -o figures/post/key.png
 styles-plot palette --vocab plotstyle.toml                # which of your roles may not share a figure
 ```
 
+## A figure the library can't draw
+
+*Experimental: `BlockContext`, `Canvas`, `Panel`, `Plan` and `Custom` may change in a minor release.*
+
+Write the block in your project. A block is any object with `plan(ctx, width) -> sp.Plan`; for a fixed height,
+`sp.Custom(height, draw)` is enough:
+
+```python
+def draw(cv: sp.Canvas) -> None:          # inches from the block's top-left
+    cv.word(1.0, 0.15, "beta", role="second", size="role_word", weight="bold")   # names the role's colour
+    p = cv.panel(1.0, 0.35, 5.5, 0.3, "accuracy", (40, 100), (50, 75, 100))       # axis title and cue from the unit
+    p.rule(50, "chance")
+    p.dot(0.15, sp.Est(80, 77, 83, cell="score.acc", key="score.acc", label=True), "second")  # hollow if post hoc
+
+fig.add(sp.Custom(1.4, draw))
+```
+
+- The primitives tag what they draw as the library's blocks do, so every check reads them; a dot's fill comes from
+  the registry, a number from its unit's format, a panel's title and cue from its unit.
+- The key line is read from what `draw` draws (a dry run on a throwaway figure): never list encodings by hand.
+- Raw matplotlib (`cv.axes(...)`, `cv.subfigure`) is allowed and checked: an untagged mark in a role colour, a word not
+  in the vocabulary or a number typed by hand fails as anywhere else.
+- `BlockContext` gives the vocabulary, the target, the row-label width (`label_width`, to align with tables), text
+  measuring and wrapping, `axis_height(unit, width)` for a panel's title and cue, and registry lookups.
+- [`examples/blocks/custom.py`](../examples/blocks/custom.py) is a whole block: a scorecard, one panel per quantity.
+- When the same block appears in three figures, propose it upstream.
+
 ## Figure types
 
 | type | for | rows | notes |
@@ -130,3 +157,4 @@ styles-plot palette --vocab plotstyle.toml                # which of your roles 
 | `Scatter` | embeddings, or two quantities | panels side by side | clouds named next to them; controls grey |
 | `Schematic` | boxes, arrows, coloured words | — | `direct_labels=True` for a figure of schematics and cards |
 | `Card` | a real item: prompt, answers per condition, a note | readers | `direct_labels=True`; words verbatim |
+| your own | anything else that follows the grammar | yours | see "A figure the library can't draw" above |

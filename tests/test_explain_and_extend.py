@@ -168,3 +168,118 @@ def test_overlap_waived_by_either_text(vocab):
         problems, waived = _checks.evaluate(mpl)
         assert "SP606" not in {p.code for p in problems} and "SP905" not in {p.code for p in problems}
         assert {"SP601", "SP606"} <= {w["code"] for w in waived}
+
+
+# ---- B1 --------------------------------------------------------------------------------------------------------------
+def test_custom_example_passes_strict_on_every_target(tmp_path, vocab):
+    reports = sp.save_bundle(example("custom").custom(vocab), tmp_path, targets=("post", "slide", "readme"))
+    for r in reports.values():
+        assert r.problems == []
+        meta = json.loads(r.sidecar.read_text())
+        assert meta["cells"]["score.rank"]["timing"] == "post_hoc"
+
+
+def _one_dot(est, role="second", **dot):
+    def draw(cv):
+        cv.word(1.0, 0.15, "beta", role="second", size="role_word", weight="bold")
+        p = cv.panel(1.0, 0.35, 5.5, 0.3, "accuracy", (40, 100), (50, 75, 100))
+        p.dot(0.15, est, role, **dot)
+
+    return draw
+
+
+def _key(mpl) -> set[str]:
+    from styles_plot._tags import tags
+
+    return {t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") == "key")}
+
+
+def test_custom_encodings_are_read_from_what_is_drawn(vocab):
+    est = sp.Est(80, 77, 83, cell="score.rank")  # post hoc in the registry: hollow
+    mpl = sp.Figure("custom", vocab).add(sp.Custom(1.4, _one_dot(est))).render("post")
+    assert {"○ post hoc", "whiskers: 95% interval"} <= _key(mpl)
+    assert _checks.run(mpl) == []
+
+
+def test_declared_encodings_that_drift_fail_the_key_check(vocab):
+    est = sp.Est(80, 77, 83, cell="score.acc")
+
+    class Declared:
+        def plan(self, ctx, width):
+            return sp.Plan(1.4, _one_dot(est), encodings={("tick",)})  # says a tick, draws a whisker
+
+    codes = {p.code for p in run(sp.Figure("custom", vocab).add(Declared()))[1]}
+    assert {"SP301", "SP302"} <= codes
+
+
+def test_raw_matplotlib_inside_a_custom_block_is_checked(vocab):
+    def untagged(cv):
+        _one_dot(sp.Est(80, cell="score.acc"))(cv)
+        cv.axes(1.0, 0.35, 5.5, 0.3).plot([0, 1], [0, 1], color=vocab.role("second").hex)
+
+    def unknown_word(cv):
+        _one_dot(sp.Est(80, cell="score.acc"))(cv)
+        cv.word(3.0, 0.15, "a word nobody declared")
+
+    def hand_number(cv):
+        _one_dot(sp.Est(80, cell="score.acc"))(cv)
+        cv.subfigure.text(0.9, 0.9, "81")
+
+    for draw, code in ((untagged, "SP103"), (unknown_word, "SP401"), (hand_number, "SP501")):
+        assert code in {p.code for p in run(sp.Figure("custom", vocab).add(sp.Custom(1.4, draw)))[1]}, code
+
+
+def test_a_control_dot_must_name_its_control(vocab):
+    codes = {p.code for p in run(sp.Figure("custom", vocab).add(
+        sp.Custom(1.4, _one_dot(sp.Est(60, cell="score.acc"), role="control"))))[1]}  # fmt: skip
+    assert "SP304" in codes
+
+
+def test_block_context_and_plan_validation(vocab):
+    seen = {}
+
+    class Probe:
+        rows, kind = ["m1", "m2"], "models"  # rows share the table's label column
+
+        def plan(self, ctx, width):
+            seen.update(width=width, label=ctx.label_width, target=ctx.target.name, w=ctx.measure("accuracy")[0],
+                        lines=ctx.wrap("a b c d e f", 0.3), status=ctx.status("score.rank").timing,
+                        title=ctx.unit("accuracy").title, word=ctx.role("second").word,
+                        axis=ctx.axis_height("accuracy", 3.0))  # fmt: skip
+            with pytest.raises(sp.BuildError):
+                ctx.unit("nothing")
+            return sp.Plan(0.5, lambda cv: None)
+
+    table = sp.DotTable(["m1"], [sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100),
+                                              [sp.Series("second", {"m1": sp.Est(60, cell="score.acc")})])])  # fmt: skip
+    sp.Figure("custom", vocab).add(table, Probe()).render("post")
+    assert seen["width"] == 8.0 and seen["target"] == "post" and seen["label"] > 0.5
+    assert seen["w"] > 0 and len(seen["lines"]) > 1 and seen["status"] == "post_hoc"
+    assert seen["title"] == "accuracy (%)" and seen["word"] == "beta" and seen["axis"] > 0.3
+
+    class Wrong:
+        def plan(self, ctx, width):
+            return (1.0, lambda cv: None)
+
+    with pytest.raises(sp.BuildError, match="must return sp.Plan"):
+        sp.Figure("custom", vocab).add(Wrong()).render("post")
+    with pytest.raises(sp.BuildError, match="positive"):
+        sp.Figure("custom", vocab).add(sp.Custom(0, lambda cv: None)).render("post")
+    with pytest.raises(sp.BuildError, match="not a figure block"):
+        sp.Figure("custom", vocab).add(object()).render("post")
+    with pytest.raises(sp.BuildError, match="takes an sp.Est"):
+        sp.Figure("custom", vocab).add(sp.Custom(1.4, _one_dot(80))).render("post")
+
+
+def test_a_dry_run_leaves_no_trace(vocab):
+    calls = []
+
+    def draw(cv):
+        calls.append(1)
+        _one_dot(sp.Est(80, cell="score.acc", key="score.acc", label=True))(cv)
+
+    mpl = sp.Figure("custom", vocab).add(sp.Custom(1.4, draw)).render("post")
+    assert len(calls) == 2  # once to read its encodings, once for real
+    from styles_plot._render import info
+
+    assert info(mpl).numbers == (("score.acc", "80"),)  # the dry run's printed numbers are not logged

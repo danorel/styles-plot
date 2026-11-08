@@ -53,7 +53,10 @@ the built-ins do: `word(x, y, text, role=None, size="value")`, `number(x, y, val
 throwaway Agg figure of the block's size and reads the encodings from the tagged artists with the *same* function SP301
 and SP302 use (`drawn_encodings`). The key and its check therefore share one definition of "drawn", a project never lists
 encodings by hand, and drift is impossible rather than merely caught. Cost: one extra draw of that block (milliseconds).
-Raw matplotlib inside `draw` is checked like everything else (SP103, SP401, SP501).
+Raw matplotlib inside `draw` is checked like everything else (SP103, SP401, SP501). Built as proposed, plus: `Panel.x(value)`
+(a data value in inches, to place a word at it), `BlockContext.line_height`, `axis_height` and `figure_id`; a project
+block's words are kind `word` (a role word when coloured); a figure with a project block never takes the "all
+estimates post hoc" shortcut, since its cells are known only once it draws; one `Plan` class serves both sides.
 
 ## C. Less ceremony
 

@@ -114,6 +114,8 @@ sidecar until you fix them.
 - **Stack**: 100% splits per entity.
 - **Scatter**: embeddings, or two quantities, with named clouds.
 - **Schematic** and **Card**: boxes, arrows and coloured words; a real item's prompt and answers.
+- **Your own block** (experimental): drawn with the library's primitives and checked like the rest
+  ([ADOPTING.md](docs/ADOPTING.md#a-figure-the-library-cant-draw), [example](examples/blocks/custom.py)).
 
 The full table is in [ADOPTING.md](docs/ADOPTING.md#figure-types).
 

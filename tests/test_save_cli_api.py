@@ -14,7 +14,7 @@ PUBLIC = {
     "Sizes", "MarkStyle", "Phrases", "load_registry", "Registry", "RegistryError", "Status", "Figure", "BuildError",
     "key_figure", "DotTable", "DotColumn", "TextColumn", "ColumnGroup", "Gutter", "Lane", "Series", "Rule", "Sweep", "Line",
     "Point", "Distribution", "Stack", "Segment", "Scatter", "ScatterPanel", "Cloud", "Schematic", "Box", "Arrow",
-    "Words", "Mark", "Card", "CardRow", "Est", "Missing", "Count", "save", "save_bundle", "check_figure", "SaveReport", "Problem", "debug", "Waive",
+    "Words", "Mark", "Card", "CardRow", "Est", "Missing", "Count", "save", "save_bundle", "check_figure", "SaveReport", "Problem", "debug", "Waive", "BlockContext", "Plan", "Canvas", "Panel", "Custom",
     "StyleError", "StyleWarning", "contact_sheets",
 }  # fmt: skip
 

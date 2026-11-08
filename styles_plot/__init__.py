@@ -46,7 +46,8 @@ from styles_plot._keyfig import key_figure
 from styles_plot._palette import Palette
 from styles_plot._registry import Registry, RegistryError, Status
 from styles_plot._registry import load as load_registry
-from styles_plot._render import BuildError, Figure, Waive
+from styles_plot._custom import BlockContext, Canvas, Custom, Panel
+from styles_plot._render import BuildError, Figure, Plan, Waive
 from styles_plot._sheet import contact_sheets
 from styles_plot._save import Problem, SaveReport, StyleError, StyleWarning, check_figure, debug, save, save_bundle
 from styles_plot._theme import MarkStyle, Phrases, Sizes, Theme
@@ -108,6 +109,12 @@ __all__ = [
     "Mark",
     "Card",
     "CardRow",
+    # project blocks (experimental)
+    "BlockContext",
+    "Plan",
+    "Canvas",
+    "Panel",
+    "Custom",
     # values
     "Est",
     "Missing",

@@ -135,4 +135,4 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
                             full=u.title)  # fmt: skip
             cx += w + th.pad
 
-    return Plan(height, enc, draw)
+    return Plan(height, draw, enc)

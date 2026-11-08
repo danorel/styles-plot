@@ -26,6 +26,16 @@ project may change (nothing is required unless it says so).
   [{code, subject, reason}]` (only when something was waived), `SaveReport.waived` the same, and `check` prints
   `N waived` per figure and in its summary. `save_bundle`'s problems now keep their subject, boxes and fix.
   *Migration:* nothing to change; SP606 problems carry the second text in `where["other"]`.
+- **B1 Project blocks (experimental).** A block is any object with `plan(ctx, width) -> sp.Plan`. `sp.BlockContext`
+  (vocabulary, target, `label_width`, `measure`, `wrap`, `line_height`, `unit`, `role`, `status`, `axis_height`),
+  `sp.Canvas` (`word`, `number`, `panel`, raw `axes` and `subfigure`), `sp.Panel` (`dot`, `tick`, `rule`, `band`,
+  `connector`, `x`), `sp.Plan(height, draw, encodings=None)`, `sp.Custom(height, draw)`. Primitives tag what they draw
+  as the built-in blocks do; with `encodings=None` the key line is read from a dry run of `draw`, so it cannot drift;
+  raw matplotlib is checked like the rest (SP103, SP401, SP501). `examples/blocks/custom.py` draws a scorecard (one
+  model, one panel per quantity) none of the built-in types can. A figure with a project block never takes the
+  "all estimates post hoc" shortcut (its cells are unknown before it draws). The tick labels under a log-scale x axis
+  sit at their ticks (no built-in block draws one, so no figure changes).
+  *Migration:* nothing to change. `sp.Plan`'s fields are now `(height, draw, encodings)`; it was internal before.
 
 ## 0.1.15
 

@@ -20,7 +20,7 @@ from pathlib import Path
 import styles_plot as sp
 
 HERE = Path(__file__).resolve().parent
-EXAMPLES = ("dot_table", "sweep", "distribution", "stack", "scatter", "schematic", "card")
+EXAMPLES = ("dot_table", "sweep", "distribution", "stack", "scatter", "schematic", "card", "custom")
 TARGETS = ("post", "slide", "readme")
 KEY_TARGETS = ("post", "readme")  # the key figure belongs to a reading page; on a slide it does not fit 6.5 in
 
@@ -28,6 +28,7 @@ KEY_TARGETS = ("post", "readme")  # the key figure belongs to a reading page; on
 def _module(name: str):
     spec = importlib.util.spec_from_file_location(f"examples_{name}", HERE / "blocks" / f"{name}.py")
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod  # a dataclass in the module looks itself up here
     spec.loader.exec_module(mod)
     return mod
 

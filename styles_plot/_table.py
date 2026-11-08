@@ -112,7 +112,7 @@ def plan(t: DotTable, ctx: Ctx, width: float, label_w: float) -> Plan:
     _widths(lay, ctx, label_w)
     enc = _statuses(lay, ctx)
     _vertical(lay, ctx)
-    return Plan(lay.height, enc, lambda cv: _draw(cv, ctx, lay))
+    return Plan(lay.height, lambda cv: _draw(cv, ctx, lay), enc)
 
 
 def _validate(t: DotTable, ctx: Ctx) -> None:

@@ -55,13 +55,7 @@ class CheckCtx:
         i = info(fig)
         fig.canvas.draw()
         texts = [t for t in fig.findobj(Text) if t.get_visible() and t.get_text().strip()]
-        own = {id(fig.patch), *(id(s.patch) for s in fig.subfigs), *(id(ax.patch) for ax in fig.axes)}
-        for ax in fig.axes:  # an axis's tick marks are chrome drawn by matplotlib, not marks
-            for axis in (ax.xaxis, ax.yaxis):
-                own |= {id(t) for t in (*axis.get_ticklines(), *axis.get_ticklines(minor=True))}
-        marks = [a for a in fig.findobj(lambda a: isinstance(a, (Line2D, Patch, Collection)))
-                 if id(a) not in own and a.get_visible()]  # fmt: skip
-        return cls(fig, i, texts, marks, fig.canvas.get_renderer())
+        return cls(fig, i, texts, marks_of(fig), fig.canvas.get_renderer())
 
     @property
     def name(self) -> str:
@@ -87,6 +81,17 @@ class CheckCtx:
 
     def tagged(self, *kinds: str) -> list:
         return [a for a in [*self.marks, *self.texts] if tags(a).get("kind") in kinds]
+
+
+def marks_of(fig) -> list:
+    """Every visible Line2D, Patch and Collection of a figure, minus the figure, subfigure and axes backgrounds and the
+    axes' own tick marks (chrome drawn by matplotlib)."""
+    own = {id(fig.patch), *(id(s.patch) for s in fig.subfigs), *(id(ax.patch) for ax in fig.axes)}
+    for ax in fig.axes:
+        for axis in (ax.xaxis, ax.yaxis):
+            own |= {id(t) for t in (*axis.get_ticklines(), *axis.get_ticklines(minor=True))}
+    return [a for a in fig.findobj(lambda a: isinstance(a, (Line2D, Patch, Collection)))
+            if id(a) not in own and a.get_visible()]  # fmt: skip
 
 
 def full_text(t) -> str:

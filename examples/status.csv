@@ -44,3 +44,6 @@ methods,acc.m4,fixed_in_advance,claimed,,,synthetic
 methods,acc.m5,fixed_in_advance,claimed,,,synthetic
 key,band.m2,fixed_in_advance,claimed,,the example row of the key figure,synthetic
 refused,acc.m1,fixed_in_advance,claimed,,fixed before the run,synthetic
+custom,score.acc,fixed_in_advance,claimed,,fixed before the run,synthetic
+custom,score.gap,fixed_in_advance,claimed,,fixed before the run,synthetic
+custom,score.rank,post_hoc,claimed,,the layer was picked after the data,synthetic
