@@ -13,6 +13,14 @@ styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.15
 styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.15
 ```
 
+While the project and the library change together (a new block, a fix the project needs), install the library
+editable from a local checkout of its branch, and pin the tag again before the project's branch is merged:
+
+```
+uv pip install -e ../styles-plot          # while both change; every edit is live
+styles-plot @ git+https://github.com/danorel/styles-plot@vX.Y.Z   # back to a tag before merging
+```
+
 Add the `[check]` extra (`styles-plot[check] @ git+…`) only if you change palette hexes: the colour-vision distances of
 the default slots ship with the library; custom hexes are computed with colorspacious.
 
