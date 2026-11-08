@@ -675,7 +675,7 @@ def col(header="accuracy"):
     return sp.DotColumn(header, "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(61, cell="acc.m1")})])
 
 
-@SET.figure("methods", order=2, title="Beta is above chance", caption="Synthetic data.")
+@SET.figure("methods", order=2, title="Beta is above chance", caption="Synthetic data.", file="02_methods")
 def methods(fig):
     fig.add(sp.DotTable(["m1"], [col()]))
 
@@ -711,6 +711,12 @@ def test_figure_set_registers_orders_and_makes(set_module):
         s.select(["x*"])
     with pytest.raises(sp.BuildError, match="registered twice"):
         s.figure("methods")(lambda fig: None)
+    with pytest.raises(sp.BuildError, match="'renamed' and 'methods' would both be saved as 02_methods.png"):
+        s.figure("renamed", file="02_methods")(lambda fig: None)
+    with pytest.raises(sp.BuildError, match="'02_methods' and 'methods' would both"):
+        s.figure("02_methods")(lambda fig: None)  # an id that is another figure's file name
+    with pytest.raises(sp.BuildError, match="without folder or .png"):
+        s.figure("x", file="post/x.png")
     s.figure("other")(lambda fig: sp.Figure("elsewhere", fig.vocab))
     with pytest.raises(sp.BuildError, match="returned"):
         s.make("other")
@@ -725,9 +731,12 @@ def test_build_goes_on_past_a_failing_figure_and_writes_the_index(set_module, ca
     index = json.loads((out / "_meta" / "index.json").read_text())
     assert [f["id"] for f in index["figures"]] == ["broken", "methods", "crash"]
     m = next(f for f in index["figures"] if f["id"] == "methods")
-    assert m["ok"] and m["png"] == {"post": "post/methods.png", "readme": "readme/methods.png"}
+    assert m["ok"] and m["png"] == {"post": "post/02_methods.png", "readme": "readme/02_methods.png"}
+    assert m["file"] == "02_methods" and next(f for f in index["figures"] if f["id"] == "broken")["file"] == "broken"
     assert m["title"] == "Beta is above chance" and m["problems"] == {"post": [], "readme": []}
-    assert (out / "readme" / "methods.png").exists() and not (out / "post" / "broken.png").exists()
+    assert (out / "readme" / "02_methods.png").exists() and not (out / "post" / "broken.png").exists()
+    side = json.loads((out / "readme" / "02_methods.styles.json").read_text())
+    assert side["figure"] == "methods"  # the file is a name; the figure keeps its id
     problems = json.loads((out / "_meta" / "problems.json").read_text())
     assert {p["code"] for p in problems["broken"]["post"]} >= {"SP401", "SP203"}
     assert problems["methods"] == {"post": [], "readme": []}

@@ -126,7 +126,7 @@ Name a project's figures once, and build them all (or some) with one command:
 ```python
 WRITEUP = sp.FigureSet("writeup", vocab, out="figures/writeup", targets=("post", "readme"))
 
-@WRITEUP.figure("fig01_main_split", order=1, title="…one claim…", caption="…what was done…")
+@WRITEUP.figure("fig01_main_split", order=1, title="…one claim…", caption="…what was done…", file="01_main_split")
 def fig01(fig: sp.Figure) -> None:
     fig.add(sp.DotTable(rows, [col]))
 ```
@@ -136,7 +136,10 @@ styles-plot build figures.py:WRITEUP --jobs 8           # every figure, all its 
 styles-plot build figures.py:WRITEUP --only "fig01*"    # the edit loop
 ```
 
-Captions kept in a file of their own are passed to `@WRITEUP.figure(..., caption=...)`. A figure that fails (a strict
+Each figure is saved as `figures/writeup/<target>/<file>.png`; `file` defaults to the id, and a project that numbers
+its files in reading order gives it (two figures with one file name are an error). The figure keeps its id in the
+sidecar, the registry and the problems; `index.json` lists both. Captions kept in a file of their own are passed to
+`@WRITEUP.figure(..., caption=...)`. A figure that fails (a strict
 refusal, or the builder's own error) does not stop the others; `figures/writeup/_meta/index.json` lists every figure
 with its PNGs, problems and waivers, and `styles-plot todo figures/writeup` what is left to fix. There is no cache: a
 build always draws from the data.
@@ -144,7 +147,8 @@ build always draws from the data.
 ## 5. Check and review
 
 Every problem names what is at fault and, where it can, how to fix it: `print(problem)` ends with `→ <fix>` (an `xlim`
-upper limit, a panel width, the `[terms]` line to add, the registry row to fill in). `styles-plot check DIR --json`
+upper limit, a column's `weight` or `width`, the `[terms]` line to add, the registry row to fill in). A fix names only
+changes that clear the problem; a waiver (below) is never one of them. `styles-plot check DIR --json`
 prints one JSON object per problem for tools. To see them, `sp.debug(fig, "post")` writes `_debug/<id>.post.png` with
 each problem boxed in red; it is never published.
 

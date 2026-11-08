@@ -37,6 +37,7 @@ class _Entry:
     title: str
     caption: str
     targets: tuple[str, ...] | None
+    file: str
     figure: dict = field(default_factory=dict)  # more Figure(...) keywords: subtitle, read, numbers, waive...
 
 
@@ -46,7 +47,7 @@ class FigureSet:
 
         WRITEUP = sp.FigureSet("writeup", vocab, out="figures/writeup", targets=("post", "readme"))
 
-        @WRITEUP.figure("fig01_main_split", order=1, title="…", caption="…")
+        @WRITEUP.figure("fig01_main_split", order=1, title="…", caption="…", file="01_main_split")
         def fig01(fig: sp.Figure) -> None:
             fig.add(table)
     """
@@ -61,14 +62,23 @@ class FigureSet:
         self._source = _caller_file()
 
     def figure(self, id: str, order: float | None = None, title: str = "", caption: str = "",
-               targets: Iterable[str] | None = None, **figure) -> Callable:  # fmt: skip
+               targets: Iterable[str] | None = None, file: str | None = None, **figure) -> Callable:  # fmt: skip
         """Register a builder: it receives `Figure(id, vocab, title=, caption=, **figure)` and adds blocks to it (or
-        returns a Figure of the same id, built its own way). `targets` overrides the set's."""
+        returns a Figure of the same id, built its own way). `targets` overrides the set's. `file` is the PNG's name
+        without `.png` (default: the id), for a project that numbers its files; the figure keeps its id everywhere
+        else (sidecar, problems, registry)."""
+        file = id if file is None else file
+        if not file or any(ch in file for ch in "/\\") or file.endswith(".png"):
+            raise BuildError(f"figure set {self.name!r}: file {file!r} of {id!r} is a name without folder or .png")
 
         def register(make: Callable) -> Callable:
             if id in self._entries:
                 raise BuildError(f"figure set {self.name!r}: figure {id!r} is registered twice")
-            self._entries[id] = _Entry(id, make, order, title, caption, tuple(targets) if targets else None, figure)
+            same = next((e.id for e in self._entries.values() if e.file == file), None)
+            if same is not None:
+                raise BuildError(f"figure set {self.name!r}: {id!r} and {same!r} would both be saved as {file}.png")
+            self._entries[id] = _Entry(id, make, order, title, caption, tuple(targets) if targets else None, file,
+                                       figure)  # fmt: skip
             return make
 
         return register
@@ -164,13 +174,14 @@ def _build_one(fs: FigureSet, id: str, want, mode: str, out: Path) -> dict:
     from styles_plot._save import StyleError, bundle
 
     targets = tuple(t for t in fs.targets_of(id) if want is None or t in want)
-    rec = {"id": id, "targets": list(targets), "ok": True, "error": "", "png": {}, "problems": {}, "waived": {},
-           "title": "", "caption": "", "order": fs._entries[id].order}  # fmt: skip
+    entry = fs._entries[id]
+    rec = {"id": id, "file": entry.file, "targets": list(targets), "ok": True, "error": "", "png": {}, "problems": {},
+           "waived": {}, "title": "", "caption": "", "order": entry.order}  # fmt: skip
     try:
         fig = fs.make(id)
         rec["title"], rec["caption"] = fig.title, fig.caption
         if targets:
-            reports = bundle(fig, out, targets, mode, record=False)
+            reports = bundle(fig, out, targets, mode, record=False, file=entry.file)
             for t, r in reports.items():
                 rec["png"][t] = str(r.path.relative_to(out))
                 rec["problems"][t] = [p.as_dict() for p in r.problems]
@@ -247,8 +258,8 @@ def _write_index(out: Path, fs: FigureSet, results: list[dict]) -> Path:
         except (json.JSONDecodeError, KeyError, TypeError):
             old = {}
     for r in results:
-        old[r["id"]] = {k: r[k] for k in ("id", "order", "title", "caption", "targets", "png", "problems", "waived",
-                                          "ok", "error")}  # fmt: skip
+        old[r["id"]] = {k: r[k] for k in ("id", "file", "order", "title", "caption", "targets", "png", "problems",
+                                          "waived", "ok", "error")}  # fmt: skip
     rank = {i: n for n, i in enumerate(fs.ids())}
     figures = sorted(old.values(), key=lambda f: (rank.get(f["id"], len(rank)), f["id"]))
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -191,8 +191,10 @@ def save_bundle(fig: Figure, out_dir: str | Path, targets: Iterable[str] = ("pos
     return bundle(fig, out_dir, targets, mode)
 
 
-def bundle(fig: Figure, out_dir, targets, mode: str, record: bool = True) -> dict[str, SaveReport]:
-    """save_bundle; `record=False` leaves problems.json to the caller (a parallel build writes it once)."""
+def bundle(fig: Figure, out_dir, targets, mode: str, record: bool = True, file: str | None = None
+           ) -> dict[str, SaveReport]:  # fmt: skip
+    """save_bundle; `record=False` leaves problems.json to the caller (a parallel build writes it once); `file` names
+    the PNGs (default: the figure's id)."""
     _mode(mode)
     out_dir = Path(out_dir)
     prepared = {t: _prepare(fig, t) for t in targets}
@@ -206,7 +208,7 @@ def bundle(fig: Figure, out_dir, targets, mode: str, record: bool = True) -> dic
     reports: dict[str, SaveReport] = {}
     try:
         for t, (mpl, ps, wv) in prepared.items():
-            reports[t] = _write(mpl, ps, wv, out_dir / t / f"{fig.id}.png", mode, out_dir / t)
+            reports[t] = _write(mpl, ps, wv, out_dir / t / f"{file or fig.id}.png", mode, out_dir / t)
     except StyleError as e:  # the saved PNG failed its check
         if record:
             failed = next(t for t in prepared if t not in reports)

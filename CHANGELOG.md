@@ -20,6 +20,9 @@ is an error at once.
   lines (then it gives the range, e.g. `weight 1.27–1.29`, or leaves the width part out), and for a value label with no
   gap it is the width at which a gap opens (the label keeps its size as the panel grows). *Migration:* none; a weight
   copied from a 0.2.0 SP613 fix may be one step short: use the new one.
+- **`file=` in a figure set.** `@SET.figure(id, file="01_main_split")` saves `<out>/<target>/01_main_split.png`; the
+  default is the id. Two figures with one file name are a `BuildError` when the second is registered. The figure keeps
+  its id in the sidecar, the registry and `problems.json`; `index.json` gains `file`. *Migration:* none.
 
 ## 0.2.0
 
