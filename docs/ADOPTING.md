@@ -55,6 +55,17 @@ fig04,keep.q9,fixed_in_advance,descriptive,,a description under a fixed label,RE
 
 `timing` decides hollow vs filled; `claim` decides the grey tag; `claim_reason` must be one of `[terms].not_claimed`.
 
+A cell drawn in several figures (a write-up figure and its README copy) needs one row with figure `*`:
+
+```
+figure,cell,timing,claim,claim_reason,reason,source
+*,layer.q9,post_hoc,claimed,,layer picked after the sweep,notes/plan.md
+fig07,layer.q9,post_hoc,not_claimed,shared with the logit lens,,
+```
+
+A figure's own row may change only `claim` and `claim_reason` (how that text uses the number); a different `timing`
+is an error naming both lines, since when an analysis was fixed does not depend on the picture.
+
 ## 4. Port a script
 
 Keep the data loading. Replace the drawing with a declaration, then save:

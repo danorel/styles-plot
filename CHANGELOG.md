@@ -36,6 +36,12 @@ project may change (nothing is required unless it says so).
   "all estimates post hoc" shortcut (its cells are unknown before it draws). The tick labels under a log-scale x axis
   sit at their ticks (no built-in block draws one, so no figure changes).
   *Migration:* nothing to change. `sp.Plan`'s fields are now `(height, draw, encodings)`; it was internal before.
+- **C1 Status belongs to the measurement.** A registry row with figure `*` gives a cell's status in every figure. A
+  row for an exact (figure, cell) overrides `claim` and `claim_reason` only; a different `timing` is a
+  `RegistryError` naming both lines. `Registry.get`, the status checks, SP904 and the sidecar use the resolved status.
+  Two `*` rows for one cell are duplicates.
+  *Migration:* nothing to change. To drop repeated rows, keep one `*` row per cell and only the figure rows that
+  change its claim.
 
 ## 0.1.15
 

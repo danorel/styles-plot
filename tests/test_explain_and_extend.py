@@ -283,3 +283,43 @@ def test_a_dry_run_leaves_no_trace(vocab):
     from styles_plot._render import info
 
     assert info(mpl).numbers == (("score.acc", "80"),)  # the dry run's printed numbers are not logged
+
+
+# ---- C1 --------------------------------------------------------------------------------------------------------------
+HEAD = "figure,cell,timing,claim,claim_reason,reason,source\n"
+
+
+def test_star_rows_hold_in_every_figure_and_figures_override_the_claim(tmp_path):
+    p = tmp_path / "status.csv"
+    p.write_text(HEAD + "*,acc.m1,post_hoc,claimed,,run after the data,notes\n"
+                 "fig02,acc.m1,post_hoc,not_claimed,shared with a baseline,,\n")  # fmt: skip
+    reg = sp.load_registry(p)
+    assert reg.get("fig01", "acc.m1").timing == "post_hoc" and reg.get("fig01", "acc.m1").claim == "claimed"
+    assert reg.get("fig02", "acc.m1").claim == "not_claimed"
+    assert reg.get("fig01", "acc.m2") is None
+
+
+def test_a_figure_row_may_not_change_the_timing(tmp_path):
+    p = tmp_path / "status.csv"
+    p.write_text(HEAD + "*,acc.m1,post_hoc,claimed,,,\nfig02,acc.m1,fixed_in_advance,claimed,,,\n")
+    with pytest.raises(sp.RegistryError, match=r"status.csv:3: cell 'acc.m1' is fixed_in_advance .* line 2"):
+        sp.load_registry(p)
+    p.write_text(HEAD + "*,acc.m1,post_hoc,claimed,,,\n*,acc.m1,post_hoc,claimed,,,\n")
+    with pytest.raises(sp.RegistryError, match="duplicate row"):
+        sp.load_registry(p)
+
+
+def test_star_rows_draw_and_check_like_figure_rows(tmp_path, vocab, vocab_dir, capsys):
+    reg = vocab_dir / "status.csv"
+    reg.write_text(HEAD + "*,acc.m1,post_hoc,claimed,,,\n*,acc.m2,fixed_in_advance,claimed,,,\n")
+    v = sp.load(vocab_dir / "plotstyle.toml")
+    col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100),
+                       [sp.Series("second", {m: sp.Est(60 + 10 * i, cell=f"acc.{m}") for i, m in enumerate(["m1", "m2"])})])
+    for fid in ("anyfig", "other"):
+        r = sp.save(sp.Figure(fid, v).add(sp.DotTable(["m1", "m2"], [col])), tmp_path / f"{fid}.png", "post")
+        assert json.loads(r.sidecar.read_text())["cells"]["acc.m1"]["timing"] == "post_hoc"  # hollow, from the * row
+    assert main(["check", str(tmp_path), "--vocab", str(vocab_dir / "plotstyle.toml")]) == 0
+    reg.write_text(HEAD + "*,acc.m1,fixed_in_advance,claimed,,,\n*,acc.m2,fixed_in_advance,claimed,,,\n")
+    capsys.readouterr()
+    assert main(["check", str(tmp_path), "--vocab", str(vocab_dir / "plotstyle.toml")]) == 1
+    assert capsys.readouterr().out.count("SP904 cell 'acc.m1' changed") == 2

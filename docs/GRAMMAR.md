@@ -56,6 +56,7 @@ source`), and every data mark carries its cell id.
   estimate of a figure is post hoc, hollow marks would tell nothing apart: the marks are drawn filled and the key says
   once "all estimates post hoc" (and a sweep line's panel tag drops "post hoc").
 - **claim** decides the grey tag in the cell: none for a claimed cell, "descriptive", or "not claimed: <reason>".
+- A row for figure `*` holds in every figure; a figure's own row may change the claim, never the timing.
 - A **missing cell** says why in grey words from the vocabulary's list ("no run", "no interval"…).
 
 ## C. Marks
