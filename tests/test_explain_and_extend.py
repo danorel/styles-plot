@@ -120,7 +120,9 @@ def test_waiver_lets_a_looked_at_placement_through(tmp_path, vocab, capsys):
         assert r.problems == [] and r.waived == [{"code": "SP601", "subject": "0.97", "reason": w.reason}]
         assert json.loads(r.sidecar.read_text())["waived"] == r.waived
     assert main(["check", str(tmp_path / "post")]) == 0
-    assert capsys.readouterr().out.strip().endswith("0 problem(s), 1 waived")
+    out = capsys.readouterr().out
+    assert "methods.png: 1 waived (SP601)" in out  # per figure
+    assert out.strip().endswith("0 problem(s), 1 waived")  # and in the summary
 
 
 def test_only_text_placement_can_be_waived():
