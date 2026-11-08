@@ -21,7 +21,12 @@ def sweep(v: sp.Vocab) -> sp.Figure:
         points.append(sp.Point(row, "second", 11, cell=f"pick.{row}", key=f"rank.l11.{row}", label=True))
     s = sp.Sweep(["c1", "c2"], "layer", "rank", lines, kind="checkpoints", header="rank", points=points,
                  rules=[sp.Rule(11, "layer 11")], xticks=[0, 5, 10, 15, 20])  # fmt: skip
-    return sp.Figure("sweep", v, subtitle="synthetic data").add(s)
+    return sp.Figure(
+        "sweep", v, subtitle="synthetic data",
+        title="The target word's rank falls with depth on both checkpoints",
+        caption="Synthetic data. Each panel is a checkpoint; the line is the median rank over prompts and the shading "
+                "its interquartile range. Layer 11 was picked from this sweep, so its dot is hollow.",
+    ).add(s)  # fmt: skip
 
 
 FIGURES = (sweep,)

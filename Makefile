@@ -1,4 +1,4 @@
-.PHONY: install test lint check gallery gallery-check sheet release-check autonomy autonomy-status autonomy-off test-autonomy help
+.PHONY: install test lint check gallery gallery-check readme-images readme readme-check sheet release-check autonomy autonomy-status autonomy-off test-autonomy help
 
 PY ?= .venv/bin/python
 
@@ -20,7 +20,18 @@ gallery:            ## every example for every target into gallery/ (strict), wi
 gallery-check: gallery  ## build the gallery, then check it as CI does
 	for t in post slide readme; do .venv/bin/styles-plot check gallery/$$t --vocab examples/plotstyle.toml || exit 1; done
 
-check: lint test gallery-check  ## everything CI checks
+readme-images:      ## the four README images into examples/figures/readme/ (sidecars in examples/figures/_meta/), committed
+	$(PY) examples/build_gallery.py --out examples/figures --targets readme --only dot_table key sweep methods --no-sheets --sidecar-dir _meta
+
+readme:             ## the README's generated blocks (the StyleError of examples/strict/refused.py, the starter builder)
+	$(PY) docs/readme_blocks.py
+
+readme-check: readme  ## README blocks up to date, images' meaning unchanged, links resolve, images pass check
+	git diff --exit-code README.md
+	$(PY) docs/readme_blocks.py --check
+	.venv/bin/styles-plot check examples/figures --vocab examples/plotstyle.toml
+
+check: lint test gallery-check readme-check  ## everything CI checks
 
 # Claude Code autonomy window (.claude/autonomy/, stdlib only): no permission prompts for a while (e.g. overnight); the
 # old limits come back by themselves at the deadline. git push / reset --hard / clean / rm -rf stay denied.

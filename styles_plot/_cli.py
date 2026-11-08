@@ -5,6 +5,7 @@
     styles-plot sheet <dir> [--width 720] [-o DIR] [--order FILE]      contact sheets, colour and gray
     styles-plot key --vocab plotstyle.toml [-o key.png] [--target post] the project's key figure
     styles-plot palette [--vocab plotstyle.toml]                       colour-vision table of the slots
+    styles-plot init [DIR] [--name NAME] [--force]                     a starter vocabulary, registry and figure
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from importlib.resources import files
 from pathlib import Path
 
 from styles_plot._palette import Palette
@@ -149,6 +151,37 @@ def _palette(args) -> int:
     return 0
 
 
+INIT_FILES = ("plotstyle.toml", "status.csv", "first_figure.py")
+_INIT_NAME = 'name = "my project"'
+NEXT_STEPS = """next:
+  1. python first_figure.py
+  2. open figures/readme/first_figure.png
+  3. rename the roles, units and entities in plotstyle.toml
+  4. replace the synthetic data with yours and register each cell in status.csv
+  5. styles-plot check figures/post --vocab plotstyle.toml"""
+
+
+def _init(args) -> int:
+    root = Path(args.dir)
+    existing = [root / f for f in INIT_FILES if (root / f).exists()]
+    if existing and not args.force:
+        print("styles-plot init: these exist, nothing written (--force overwrites):", file=sys.stderr)
+        for p in existing:
+            print(f"  {p}", file=sys.stderr)
+        return 2
+    name = args.name or root.resolve().name or "my project"
+    root.mkdir(parents=True, exist_ok=True)
+    templates = files("styles_plot") / "data" / "init"
+    for f in INIT_FILES:
+        text = (templates / f).read_text(encoding="utf-8")
+        if f == "plotstyle.toml":
+            text = text.replace(_INIT_NAME, f"name = {json.dumps(name, ensure_ascii=False)}", 1)
+        (root / f).write_text(text, encoding="utf-8")
+        print(f"wrote {root / f}")
+    print(NEXT_STEPS if root.resolve() == Path.cwd().resolve() else f"cd {root}\n{NEXT_STEPS}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="styles-plot", description="One figure grammar shared across projects.")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -168,9 +201,13 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("--target", default="post")
     p = sub.add_parser("palette", help="colour-vision table of the palette's slots")
     p.add_argument("--vocab")
+    i = sub.add_parser("init", help="write a starter plotstyle.toml, status.csv and first_figure.py")
+    i.add_argument("dir", nargs="?", default=".")
+    i.add_argument("--name", help="the project's name (default: the folder's name)")
+    i.add_argument("--force", action="store_true", help="overwrite the three files if they exist")
     args = ap.parse_args(argv)
     try:
-        return {"check": _check, "sheet": _sheet, "key": _key, "palette": _palette}[args.cmd](args)
+        return {"check": _check, "sheet": _sheet, "key": _key, "palette": _palette, "init": _init}[args.cmd](args)
     except VocabError as e:
         print(f"styles-plot: {e}", file=sys.stderr)
         return 2

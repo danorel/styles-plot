@@ -1,0 +1,328 @@
+{
+ "styles_plot": "0.1.14",
+ "vocab": {
+  "project": "styles-plot examples",
+  "sha256": "7bb13f3e25396147dfafebe666fc9187b6e0025213375f454e6a8887eb706e21"
+ },
+ "registry": {
+  "path": "status.csv",
+  "sha256": "686a65930a4fae73d5ae858492f20e309f0d33e97e012c677c86a5499d83c02e"
+ },
+ "figure": "dot_table",
+ "target": "readme",
+ "mode": "strict",
+ "publishable": true,
+ "text_only": false,
+ "png": {
+  "pixels_sha256": "18a344fc4005d6c95ca55f0959d5880ee3f67a8dc408b74116a978b0d84d8df0",
+  "dpi": 160
+ },
+ "roles": [
+  "first",
+  "second"
+ ],
+ "controls": [],
+ "cells": {
+  "band.m1": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "band.m2": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "band.m3": {
+   "timing": "post_hoc",
+   "claim": "not_claimed"
+  },
+  "band.m4": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "band.m5": {
+   "timing": "post_hoc",
+   "claim": "not_claimed"
+  },
+  "layer.m1": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "layer.m2": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "layer.m3": {
+   "timing": "fixed_in_advance",
+   "claim": "claimed"
+  },
+  "layer.m4": {
+   "timing": "post_hoc",
+   "claim": "claimed"
+  },
+  "layer.m5": {
+   "timing": "fixed_in_advance",
+   "claim": "descriptive"
+  }
+ },
+ "marks": [
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "band.m1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "band.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "band.m3",
+   "timing": "post_hoc",
+   "claim": "not_claimed",
+   "hollow": true
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m3",
+   "timing": "post_hoc",
+   "claim": "not_claimed",
+   "hollow": true
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "band.m4",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m4",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "band.m5",
+   "timing": "post_hoc",
+   "claim": "not_claimed",
+   "hollow": true
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m5",
+   "timing": "post_hoc",
+   "claim": "not_claimed",
+   "hollow": true
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m3",
+   "timing": "post_hoc",
+   "claim": "not_claimed",
+   "hollow": true
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m4",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "band.m5",
+   "timing": "post_hoc",
+   "claim": "not_claimed",
+   "hollow": true
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "layer.m1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "layer.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "layer.m3",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m3",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "layer.m4",
+   "timing": "post_hoc",
+   "claim": "claimed",
+   "hollow": true
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m4",
+   "timing": "post_hoc",
+   "claim": "claimed",
+   "hollow": true
+  },
+  {
+   "kind": "dot",
+   "role": "second",
+   "cell": "layer.m5",
+   "timing": "fixed_in_advance",
+   "claim": "descriptive",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m5",
+   "timing": "fixed_in_advance",
+   "claim": "descriptive",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m1",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m2",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m3",
+   "timing": "fixed_in_advance",
+   "claim": "claimed",
+   "hollow": false
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m4",
+   "timing": "post_hoc",
+   "claim": "claimed",
+   "hollow": true
+  },
+  {
+   "kind": "dot",
+   "role": "first",
+   "cell": "layer.m5",
+   "timing": "fixed_in_advance",
+   "claim": "descriptive",
+   "hollow": false
+  }
+ ],
+ "key": [
+  "grey band: within 0.10 of a random direction",
+  "grey tick: the largest control of the same size",
+  "whiskers: 95% interval",
+  "○ post hoc"
+ ],
+ "numbers": {
+  "gap.band.m1": "37.0",
+  "gap.band.m2": "44.4",
+  "gap.band.m3": "46.8",
+  "gap.band.m4": "48.8",
+  "gap.band.m5": "58.4",
+  "gap.layer.m1": "0.43",
+  "gap.layer.m2": "0.48",
+  "gap.layer.m3": "0.53",
+  "gap.layer.m4": "0.58",
+  "gap.layer.m5": "0.63"
+ },
+ "problems": []
+}

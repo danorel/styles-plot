@@ -95,7 +95,12 @@ def methods(v: sp.Vocab) -> sp.Figure:
     )  # fmt: skip
     counts = sp.TextColumn("answers", "prompts", {m: sp.Count(30 + i, 40, cell=f"acc.{m}", key=f"n.{m}")
                                                    for i, m in enumerate(MODELS)})  # fmt: skip
-    return sp.Figure("methods", v, subtitle="synthetic data").add(sp.DotTable(MODELS, [col, counts]))
+    return sp.Figure(
+        "methods", v, subtitle="synthetic data",
+        title="Beta on Model 5 is the most accurate; the grey baselines sit nearer chance",
+        caption="Synthetic data. Each row is a model; grey dots are baselines trained on shuffled labels, the coloured "
+                "dot is beta. Whiskers are ± 1 SEM (bootstrap); the right column counts correct answers of 40 prompts.",
+    ).add(sp.DotTable(MODELS, [col, counts]))  # fmt: skip
 
 
 FIGURES = (dot_table, methods)

@@ -1,0 +1,4 @@
+figure,cell,timing,claim,claim_reason,reason,source
+first_figure,acc.m1,fixed_in_advance,claimed,,example: fixed before the run,synthetic
+first_figure,acc.m2,fixed_in_advance,claimed,,example: fixed before the run,synthetic
+first_figure,acc.m3,post_hoc,claimed,,example: run after the data,synthetic
