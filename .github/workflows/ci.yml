@@ -65,7 +65,7 @@ jobs:
       - name: the README's images mean what they meant, and its links resolve
         run: uv run --no-sync python docs/readme_blocks.py --check
       - name: the README's images pass check
-        run: uv run --no-sync styles-plot check examples/figures --vocab examples/plotstyle.toml
+        run: uv run --no-sync styles-plot check examples/figures/readme --vocab examples/plotstyle.toml
 
   wheel:
     runs-on: ubuntu-latest

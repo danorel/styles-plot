@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -24,6 +25,15 @@ def test_init_then_first_figure_passes_strict(tmp_path, capsys):
         assert (tmp_path / "figures" / t / "_meta" / "first_figure.styles.json").exists()
     assert main(["check", str(tmp_path / "figures" / "post"), "--vocab", str(tmp_path / "plotstyle.toml")]) == 0
     assert sp.load(tmp_path / "plotstyle.toml").project == "demo"
+    capsys.readouterr()
+    # the parent of post/ and readme/: both sidecars are found (figures/<target>/_meta/), so both figures are checked
+    assert main(["check", str(tmp_path / "figures"), "--vocab", str(tmp_path / "plotstyle.toml")]) == 0
+    assert capsys.readouterr().out.strip() == "styles-plot check: 2 figure(s), 0 problem(s)"
+    # the numbers agree: accuracy is k/n of the printed counts
+    meta = json.loads((tmp_path / "figures" / "post" / "_meta" / "first_figure.styles.json").read_text())
+    for m in ("m1", "m2", "m3"):
+        k, n = map(int, meta["numbers"][f"n.{m}"].split(" of "))
+        assert meta["numbers"][f"acc.{m}"] == f"{100 * k / n:.0f}"
 
 
 def test_init_refuses_to_overwrite(tmp_path, capsys):
@@ -50,7 +60,8 @@ def test_templates_load_and_name_no_project(tmp_path):
     for f, text in _templates().items():
         (tmp_path / f).write_text(text)
     v = sp.load(tmp_path / "plotstyle.toml")
-    assert set(v.roles) == {"method", "variant"} and v.controls == ("shuffled labels",)
+    assert set(v.roles) == {"method"} and v.controls == ("shuffled labels",)  # only what the starter draws
+    assert "# [roles.variant]" in _templates()["plotstyle.toml"]  # a second role, shown commented out
     assert [e.name for e in v.entities("models")] == ["Model 1", "Model 2", "Model 3"]
     reg = sp.load_registry(tmp_path / "status.csv")
     assert reg.get("first_figure", "acc.m3").timing == "post_hoc"

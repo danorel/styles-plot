@@ -58,6 +58,23 @@ def sidecar_path(png: str | Path, root: str | Path | None = None, sidecar_dir: s
     return root / sidecar_dir / rel.with_name(rel.stem + SIDECAR_SUFFIX)
 
 
+def find_sidecar(png: Path, top: Path, sidecar_dirs=("_meta",)) -> Path | None:
+    """A saved PNG's sidecar, wherever `save` may have put it: beside the PNG, else under <folder>/<sidecar_dir>/ of
+    the PNG's own folder and of each folder above it, up to `top` (the folder being checked). The first hit wins."""
+    png, top = Path(png), Path(top)
+    beside = sidecar_path(png)
+    if beside.exists():
+        return beside
+    folder = png.parent
+    while True:
+        for d in sidecar_dirs:
+            if d and (side := sidecar_path(png, folder, d)).exists():
+                return side
+        if folder == top or top not in folder.parents:
+            return None
+        folder = folder.parent
+
+
 def check_figure(fig: Figure, target: str) -> list[Problem]:
     """Render a figure for a target and return every problem, writing nothing."""
     return _checks.run(fig.render(target))

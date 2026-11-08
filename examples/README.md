@@ -8,4 +8,4 @@ Synthetic data only; every figure is labelled "synthetic data".
 | [blocks/](blocks/) | one module per figure type: `dot_table`, `sweep`, `distribution`, `stack`, `scatter`, `schematic`, `card`; each lists its builders in `FIGURES` |
 | [strict/](strict/) | `refused.py`: a figure strict mode refuses (its error is shown in the main README) |
 | [build_gallery.py](build_gallery.py) | builds every example for every target (`make gallery`) and the README images (`make readme-images`) |
-| [figures/](figures/) | the README images, committed: PNGs in `readme/`, sidecars in `_meta/readme/` |
+| [figures/](figures/) | the README images, committed: PNGs in `readme/`, sidecars in `readme/_meta/` |

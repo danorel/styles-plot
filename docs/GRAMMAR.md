@@ -151,6 +151,7 @@ example row from the data read aloud. Its marks' phrases are the key, so no key 
 | SP700–SP704 | colour-vision floors; direct labels |
 | SP801–SP804 | the saved PNG: width, proportions, background, hues on the palette |
 | SP901–SP904 | `styles-plot check`: unknown target, stale sidecar, unpublished target, registry changed since drawing |
+| SP906 | `styles-plot check`: a PNG without a sidecar, so only its pixels are checked (a warning until 0.3) |
 
 Strict mode (the default) refuses to write a figure with any problem. Compat mode writes it, warns, and records the
 problems in its sidecar, for migrating old scripts.
