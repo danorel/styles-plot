@@ -625,3 +625,87 @@ def test_vocab_lint_reports_near_duplicates(vocab_dir, capsys):
     toml.write_text(toml.read_text().replace('"answers",', '"answers", "Answers",'))
     assert main(["vocab", "lint", "--vocab", str(toml)]) == 0  # a report: nothing fails
     assert "'Answers' / 'answers': differ only by case" in capsys.readouterr().out
+
+
+# ---- C6 --------------------------------------------------------------------------------------------------------------
+SET_MODULE = """
+from pathlib import Path
+
+import styles_plot as sp
+
+HERE = Path(__file__).resolve().parent
+V = sp.load(HERE / "plotstyle.toml")
+SET = sp.FigureSet("demo", V, out=HERE / "out", targets=("post", "readme"))
+
+
+def col(header="accuracy"):
+    return sp.DotColumn(header, "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(61, cell="acc.m1")})])
+
+
+@SET.figure("methods", order=2, title="Beta is above chance", caption="Synthetic data.")
+def methods(fig):
+    fig.add(sp.DotTable(["m1"], [col()]))
+
+
+@SET.figure("broken", order=1, targets=("post",))
+def broken(fig):
+    fig.add(sp.DotTable(["m1"], [col("not a word")]))
+
+
+@SET.figure("crash")
+def crash(fig):
+    raise RuntimeError("the data file is missing")
+"""
+
+
+@pytest.fixture
+def set_module(vocab_dir):
+    path = vocab_dir / "figures.py"
+    path.write_text(SET_MODULE)
+    return path
+
+
+def test_figure_set_registers_orders_and_makes(set_module):
+    from styles_plot._build import load_set
+
+    s = load_set(f"{set_module}:SET")
+    assert s.ids() == ["broken", "methods", "crash"]  # by order, then as registered
+    fig = s.make("methods")
+    assert fig.id == "methods" and fig.title == "Beta is above chance" and fig.caption == "Synthetic data."
+    assert s.targets_of("broken") == ("post",) and s.targets_of("methods") == ("post", "readme")
+    assert s.select(["meth*", "nothing"]) == ["methods"]
+    with pytest.raises(sp.BuildError, match="no figure matches"):
+        s.select(["x*"])
+    with pytest.raises(sp.BuildError, match="registered twice"):
+        s.figure("methods")(lambda fig: None)
+    s.figure("other")(lambda fig: sp.Figure("elsewhere", fig.vocab))
+    with pytest.raises(sp.BuildError, match="returned"):
+        s.make("other")
+
+
+@pytest.mark.parametrize("jobs", [1, 2])
+def test_build_goes_on_past_a_failing_figure_and_writes_the_index(set_module, capsys, jobs):
+    out = set_module.parent / "out"
+    assert main(["build", f"{set_module}:SET", "--jobs", str(jobs)]) == 1
+    printed = capsys.readouterr().out
+    assert "ok    methods" in printed and "FAIL  broken" in printed and "RuntimeError: the data file is missing" in printed
+    index = json.loads((out / "_meta" / "index.json").read_text())
+    assert [f["id"] for f in index["figures"]] == ["broken", "methods", "crash"]
+    m = next(f for f in index["figures"] if f["id"] == "methods")
+    assert m["ok"] and m["png"] == {"post": "post/methods.png", "readme": "readme/methods.png"}
+    assert m["title"] == "Beta is above chance" and m["problems"] == {"post": [], "readme": []}
+    assert (out / "readme" / "methods.png").exists() and not (out / "post" / "broken.png").exists()
+    problems = json.loads((out / "_meta" / "problems.json").read_text())
+    assert {p["code"] for p in problems["broken"]["post"]} >= {"SP401", "SP203"}
+    assert problems["methods"] == {"post": [], "readme": []}
+
+
+def test_build_only_updates_its_figures_in_the_index(set_module, capsys):
+    out = set_module.parent / "out"
+    main(["build", f"{set_module}:SET"])
+    before = json.loads((out / "_meta" / "index.json").read_text())
+    assert main(["build", f"{set_module}:SET", "--only", "meth*", "--target", "post"]) == 0
+    after = json.loads((out / "_meta" / "index.json").read_text())
+    assert [f["id"] for f in after["figures"]] == [f["id"] for f in before["figures"]]
+    assert next(f for f in after["figures"] if f["id"] == "methods")["targets"] == ["post"]
+    assert main(["build", f"{set_module}:NOPE"]) == 2

@@ -77,6 +77,18 @@ project may change (nothing is required unless it says so).
   only by case, a plural -s, a hyphen, or two letters in a word of six or more (a report: it never fails).
   *Migration:* nothing to change. A strict refusal now leaves `_meta/problems.json` in the output folder; ignore it
   in git (`problems.json`) if you like.
+- **C6 Figure sets and a build command.** `sp.FigureSet(name, vocab, out, targets=("post",), mode="strict")` and
+  `@SET.figure(id, order=None, title="", caption="", targets=None, **figure)`: the builder receives a ready
+  `Figure` (or returns one of the same id). `SET.build(only=, targets=, jobs=, mode=, out=) -> sp.BuildReport` and
+  `styles-plot build module:SET` (or `path/to/file.py:SET`) `[--only GLOB ...] [--target T ...] [--jobs N]
+  [--mode M]`: each figure all its targets or nothing; with `--jobs N` worker processes (`spawn`) import the set's
+  module themselves and get figure ids; one failing figure (a refusal or a builder's exception) does not stop the
+  others; exit 1 if any failed. `<out>/_meta/index.json` lists id, order, title, caption, targets, PNG paths,
+  problems, waivers, ok and error (a build with `--only` updates its figures and keeps the others). No cache.
+  The gallery builds through a set (`examples/gallery.py`; `build_gallery.py` adds the contact sheets), and the
+  `init` starter is a set of one figure.
+  *Migration:* nothing to change. To adopt: move each builder into a function decorated with `@SET.figure`, pass
+  titles and captions there, and run `styles-plot build`.
 
 ## 0.1.15
 

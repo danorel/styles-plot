@@ -8,6 +8,7 @@
     styles-plot init [DIR] [--name NAME] [--force]                     a starter vocabulary, registry and figure
     styles-plot todo <out> [--vocab plotstyle.toml] [--write-vocab [FILE]]  what the last saves left to fix
     styles-plot vocab lint --vocab plotstyle.toml                      near-duplicate canonical terms
+    styles-plot build module:SET [--only GLOB] [--target T] [--jobs N] [--mode M]   save a figure set
 """
 
 from __future__ import annotations
@@ -261,6 +262,28 @@ def _vocab(args) -> int:
     return 0
 
 
+def _build(args) -> int:
+    from styles_plot._build import load_set
+    from styles_plot._render import BuildError
+
+    try:
+        fs = load_set(args.set)
+        report = fs.build(only=args.only, targets=args.target, jobs=args.jobs, mode=args.mode)
+    except BuildError as e:
+        print(f"styles-plot build: {e}", file=sys.stderr)
+        return 2
+    for f in report.figures:
+        if f["ok"]:
+            warned = sum(len(ps) for ps in f["problems"].values())
+            print(f"ok    {f['id']}" + (f"  ({warned} problem(s) recorded)" if warned else ""))
+        else:
+            print(f"FAIL  {f['id']}\n" + "\n".join(f"      {line}" for line in f["error"].splitlines()))
+    n, bad = len(report.figures), len(report.failed)
+    print(f"styles-plot build: {n} figure(s), {bad} failed, {report.seconds:.1f} s at --jobs {args.jobs}; "
+          f"index: {report.out / '_meta' / 'index.json'}")  # fmt: skip
+    return 1 if bad else 0
+
+
 INIT_FILES = ("plotstyle.toml", "status.csv", "first_figure.py")
 _INIT_NAME = 'name = "my project"'
 NEXT_STEPS = """next:
@@ -320,6 +343,12 @@ def main(argv: list[str] | None = None) -> int:
     vsub = vc.add_subparsers(dest="vocab_cmd", required=True)
     lint = vsub.add_parser("lint", help="near-duplicate canonical terms (a report)")
     lint.add_argument("--vocab", required=True)
+    b = sub.add_parser("build", help="save a FigureSet's figures and write its index")
+    b.add_argument("set", help="module:NAME or path/to/file.py:NAME")
+    b.add_argument("--only", nargs="+", metavar="GLOB", help="figure ids matching any of these patterns")
+    b.add_argument("--target", nargs="+", help="only these targets")
+    b.add_argument("--jobs", type=int, default=1, help="worker processes (default 1)")
+    b.add_argument("--mode", choices=("strict", "compat"), help="override the set's mode")
     i = sub.add_parser("init", help="write a starter plotstyle.toml, status.csv and first_figure.py")
     i.add_argument("dir", nargs="?", default=".")
     i.add_argument("--name", help="the project's name (default: the folder's name)")
@@ -327,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     try:
         return {"check": _check, "sheet": _sheet, "key": _key, "palette": _palette, "init": _init,
-                "todo": _todo, "vocab": _vocab}[args.cmd](args)
+                "todo": _todo, "vocab": _vocab, "build": _build}[args.cmd](args)
     except VocabError as e:
         print(f"styles-plot: {e}", file=sys.stderr)
         return 2

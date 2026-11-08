@@ -21,7 +21,7 @@ def rb():
 def test_blocks_are_the_real_error_and_the_init_template(rb):
     b = rb.blocks()
     assert "SP401 header 'recall'" in b["refused"] and "SP203 cell 'acc.m2'" in b["refused"]
-    assert 'sp.Figure("first_figure"' in b["first-figure"]
+    assert '@FIGURES.figure("first_figure"' in b["first-figure"]
     text = "a\n<!-- refused:start -->\nold\n<!-- refused:end -->\nb\n<!-- first-figure:start -->\n<!-- first-figure:end -->\n"
     out = rb.fill(text, b)
     assert "old" not in out and b["refused"] in out and b["first-figure"] in out

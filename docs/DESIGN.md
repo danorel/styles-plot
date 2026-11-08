@@ -99,7 +99,10 @@ canonical terms (case, plural -s, hyphen/space, edit distance ≤ 2 on words of 
 `styles-plot build module:SET [--only GLOB] [--target T] [--jobs N] [--mode M]`: a `ProcessPoolExecutor` with the
 `spawn` context; each worker imports the module and builds the ids it is given (nothing pickled but ids and problem
 dicts); each figure is all its targets or nothing; `<out>/_meta/index.json` lists id, order, title, caption, targets,
-PNG paths, problems, waivers; a failing figure does not stop the others; exit 1 if any failed. No cache.
+PNG paths, problems, waivers; a failing figure does not stop the others; exit 1 if any failed. No cache. Built: a builder may also
+return a Figure of the same id (projects with whole-figure functions register them as they are); `**figure` passes
+the other Figure keywords (subtitle, read, waive); `jobs=1` builds in the calling process; the parent alone writes
+`index.json` and `problems.json`, so workers never race on them.
 
 **C7.** `Figure._repr_png_()` (notebook target) and `fig.preview(target="post") -> Preview` with `_repr_html_` (the PNG,
 with the A2 overlay when there are problems, and the problem list). Nothing is written to disk.

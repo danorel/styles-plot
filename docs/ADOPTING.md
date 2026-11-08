@@ -110,6 +110,28 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
   them, then drop `compat`.
 - `fig.render("notebook")` gives a matplotlib figure for a quick look; a notebook PNG is never publishable.
 
+## A figure set
+
+Name a project's figures once, and build them all (or some) with one command:
+
+```python
+WRITEUP = sp.FigureSet("writeup", vocab, out="figures/writeup", targets=("post", "readme"))
+
+@WRITEUP.figure("fig01_main_split", order=1, title="…one claim…", caption="…what was done…")
+def fig01(fig: sp.Figure) -> None:
+    fig.add(sp.DotTable(rows, [col]))
+```
+
+```
+styles-plot build figures.py:WRITEUP --jobs 8           # every figure, all its targets or nothing
+styles-plot build figures.py:WRITEUP --only "fig01*"    # the edit loop
+```
+
+Captions kept in a file of their own are passed to `@WRITEUP.figure(..., caption=...)`. A figure that fails (a strict
+refusal, or the builder's own error) does not stop the others; `figures/writeup/_meta/index.json` lists every figure
+with its PNGs, problems and waivers, and `styles-plot todo figures/writeup` what is left to fix. There is no cache: a
+build always draws from the data.
+
 ## 5. Check and review
 
 Every problem names what is at fault and, where it can, how to fix it: `print(problem)` ends with `→ <fix>` (an `xlim`

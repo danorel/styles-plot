@@ -312,7 +312,7 @@ def test_whole_line_status_is_a_panel_tag(vocab_dir):
 
 
 def test_key_figure_with_example_row(vocab):
-    gal = example("build_gallery")
+    gal = example("gallery")
     mpl, problems = run(gal.key(vocab))
     assert problems == []
     kinds = {tags(a).get("kind") for a in mpl.findobj(lambda a: bool(tags(a)))}

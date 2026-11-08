@@ -51,8 +51,7 @@ def fill(text: str, parts: dict[str, str]) -> str:
 
 def build_images(out: Path) -> int:
     gallery = _module(ROOT / "examples" / "build_gallery.py")
-    return gallery.main(["--out", str(out), "--targets", "readme", "--only", *README_FIGURES, "--no-sheets",
-                         "--sidecar-dir", "_meta"])  # fmt: skip
+    return gallery.main(["--out", str(out), "--targets", "readme", "--only", *README_FIGURES, "--no-sheets"])
 
 
 def _meaning(path: Path) -> dict:
@@ -65,7 +64,7 @@ def check_images() -> list[str]:
         if build_images(Path(tmp)) != 0:
             return ["the README images do not build strict"]
         for name in README_FIGURES:
-            rel = Path("readme") / "_meta" / f"{name}.styles.json"
+            rel = Path("readme") / f"{name}.styles.json"
             committed, fresh = IMAGES / rel, Path(tmp) / rel
             if not committed.exists():
                 errors.append(f"examples/figures/{rel} is missing: run make readme-images")
