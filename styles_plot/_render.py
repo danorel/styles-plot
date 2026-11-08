@@ -428,6 +428,22 @@ class Figure:
         reg = self.registry
         return None if reg is None else reg.get(self.id, cell)
 
+    def preview(self, target: str = "post"):
+        """This figure as `target` would publish it, checked: shows the PNG (problems boxed in red) and the problem
+        list in a notebook. Writes nothing."""
+        from styles_plot._save import preview
+
+        return preview(self, target)
+
+    def _repr_png_(self) -> bytes:
+        """A notebook shows a Figure as its notebook render (never publishable; `preview` checks a real target)."""
+        import io
+
+        mpl = self.render("notebook")
+        buf = io.BytesIO()
+        mpl.savefig(buf, format="png", dpi=mpl.dpi, facecolor=self.vocab.palette.chrome["background"])
+        return buf.getvalue()
+
     def render(self, target: str = "notebook") -> MplFigure:
         """Lay out and draw for a target. The returned matplotlib figure carries a RenderInfo for the checks."""
         try:

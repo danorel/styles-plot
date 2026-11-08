@@ -709,3 +709,28 @@ def test_build_only_updates_its_figures_in_the_index(set_module, capsys):
     assert [f["id"] for f in after["figures"]] == [f["id"] for f in before["figures"]]
     assert next(f for f in after["figures"] if f["id"] == "methods")["targets"] == ["post"]
     assert main(["build", f"{set_module}:NOPE"]) == 2
+
+
+# ---- C7 --------------------------------------------------------------------------------------------------------------
+def test_notebook_loop_returns_pictures_and_writes_nothing(tmp_path, vocab, monkeypatch):
+    import numpy as np
+    from PIL import Image
+
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    before = sorted(tmp_path.rglob("*"))
+    clean = sp.Figure("stack", vocab).add(*example("stack").stack(vocab).blocks)
+    png = clean._repr_png_()
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
+    p = clean.preview("post")
+    assert p.problems == [] and p._repr_png_()[:4] == b"\x89PNG" and "no problems" in p._repr_html_()
+    bad = tight(vocab).preview("readme")
+    assert [q.code for q in bad.problems] == ["SP601"] and "Preview('methods', 'readme', 1 problem(s))" == repr(bad)
+    html = bad._repr_html_()
+    assert html.startswith('<img src="data:image/png;base64,') and "<code>SP601</code>" in html and "xlim upper" in html
+    import io
+
+    a = np.asarray(Image.open(io.BytesIO(bad.png)).convert("RGB")).astype(int)
+    assert ((a[..., 0] > 190) & (a[..., 1] < 80) & (a[..., 2] < 80)).sum() > 50  # the problem is boxed in red
+    assert sorted(tmp_path.rglob("*")) == before  # nothing written

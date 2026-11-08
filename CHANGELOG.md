@@ -89,6 +89,10 @@ project may change (nothing is required unless it says so).
   `init` starter is a set of one figure.
   *Migration:* nothing to change. To adopt: move each builder into a function decorated with `@SET.figure`, pass
   titles and captions there, and run `styles-plot build`.
+- **C7 Notebook loop.** A `Figure` shows itself in a notebook (`_repr_png_`, the notebook target). `fig.preview(
+  target="post") -> sp.Preview` renders that target, runs the checks, and shows the PNG with each problem boxed in red
+  (as `sp.debug` draws it) and the problem list with fixes (`_repr_html_`). Neither writes a file.
+  *Migration:* nothing to change.
 
 ## 0.1.15
 

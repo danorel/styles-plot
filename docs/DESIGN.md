@@ -105,7 +105,7 @@ the other Figure keywords (subtitle, read, waive); `jobs=1` builds in the callin
 `index.json` and `problems.json`, so workers never race on them.
 
 **C7.** `Figure._repr_png_()` (notebook target) and `fig.preview(target="post") -> Preview` with `_repr_html_` (the PNG,
-with the A2 overlay when there are problems, and the problem list). Nothing is written to disk.
+with the A2 overlay when there are problems, and the problem list). Nothing is written to disk. Built as proposed; `sp.Preview` also has `_repr_png_`.
 
 ## E. Release discipline
 

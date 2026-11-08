@@ -50,7 +50,17 @@ from styles_plot._build import BuildReport, FigureSet
 from styles_plot._custom import BlockContext, Canvas, Custom, Panel
 from styles_plot._render import BuildError, Figure, Plan, Waive
 from styles_plot._sheet import contact_sheets
-from styles_plot._save import Problem, SaveReport, StyleError, StyleWarning, check_figure, debug, save, save_bundle
+from styles_plot._save import (
+    Preview,
+    Problem,
+    SaveReport,
+    StyleError,
+    StyleWarning,
+    check_figure,
+    debug,
+    save,
+    save_bundle,
+)
 from styles_plot._theme import MarkStyle, Phrases, Sizes, Theme
 from styles_plot._vocab import Entity, Format, Role, Unit, Vocab, VocabError, from_dict, load, loads
 
@@ -127,6 +137,7 @@ __all__ = [
     "save_bundle",
     "check_figure",
     "debug",
+    "Preview",
     "SaveReport",
     "Problem",
     "StyleError",

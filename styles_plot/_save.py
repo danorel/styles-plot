@@ -86,15 +86,23 @@ def debug(fig: Figure, target: str = "post", out: str | Path = ".") -> list[Prob
     """Render a figure for a target, run every check, and write <out>/_debug/<id>.<target>.png: the figure with each
     problem's subject boxed in red, its obstacle boxed in dashed red, and the code beside it. Never publishable: no
     sidecar, and `styles-plot check` and `sheet` skip _debug/. Returns the problems."""
-    from matplotlib.patches import Rectangle
-
     mpl = fig.render(target)
     problems = _checks.run(mpl)  # waived problems are not drawn
-    w, h = mpl.get_size_inches()
-    # the overlay is a last subfigure over the whole figure: matplotlib 3.8 draws subfigures after the figure's own
-    # artists whatever their zorder, so anything added to the figure itself would sit under the sections
-    from matplotlib.gridspec import GridSpec
+    overlay(mpl, problems)
+    path = Path(out) / DEBUG_DIR / f"{fig.id}.{target}.png"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    mpl.savefig(path, dpi=info(mpl).theme.dpi, facecolor=info(mpl).vocab.palette.chrome["background"])
+    return problems
 
+
+def overlay(mpl, problems: list[Problem]) -> None:
+    """Box each problem's subject in red and its obstacle in dashed red, with the code beside it."""
+    from matplotlib.gridspec import GridSpec
+    from matplotlib.patches import Rectangle
+
+    w, h = mpl.get_size_inches()
+    # a last subfigure over the whole figure: matplotlib 3.8 draws subfigures after the figure's own artists whatever
+    # their zorder, so anything added to the figure itself would sit under the sections
     top = mpl.add_subfigure(GridSpec(1, 1, figure=mpl)[0], zorder=1000)
     top.set_facecolor("none")
     ov = top.add_axes((0, 0, 1, 1))
@@ -110,10 +118,47 @@ def debug(fig: Figure, target: str = "post", out: str | Path = ".") -> list[Prob
             ov.add_patch(Rectangle((x0, y0), x1 - x0, y1 - y0, fill=False, edgecolor=DEBUG_RED, lw=1.4, ls=style))
         if p.bbox_in:
             ov.text(p.bbox_in[2] + 0.02, p.bbox_in[3], p.code, color=DEBUG_RED, fontsize=8, va="bottom")
-    path = Path(out) / DEBUG_DIR / f"{fig.id}.{target}.png"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    mpl.savefig(path, dpi=info(mpl).theme.dpi, facecolor=info(mpl).vocab.palette.chrome["background"])
-    return problems
+
+
+@dataclass
+class Preview:
+    """A figure as a target would publish it, for a notebook: the PNG (with each problem boxed in red, as `debug`
+    draws it) and the problems. Shows itself in Jupyter; writes nothing."""
+
+    figure: str
+    target: str
+    png: bytes
+    problems: list[Problem] = field(default_factory=list)
+
+    def _repr_png_(self) -> bytes:
+        return self.png
+
+    def _repr_html_(self) -> str:
+        import base64
+        import html
+
+        img = f'<img src="data:image/png;base64,{base64.b64encode(self.png).decode()}" style="max-width:100%">'
+        if not self.problems:
+            return f"{img}<p>{html.escape(self.figure)} [{html.escape(self.target)}]: no problems</p>"
+        items = "".join(f"<li><code>{html.escape(p.code)}</code> {html.escape(p.message)}"
+                        + (f" → {html.escape(p.fix)}" if p.fix else "") + "</li>" for p in self.problems)  # fmt: skip
+        return f"{img}<p>{len(self.problems)} problem(s):</p><ul>{items}</ul>"
+
+    def __repr__(self) -> str:
+        return f"Preview({self.figure!r}, {self.target!r}, {len(self.problems)} problem(s))"
+
+
+def preview(fig: Figure, target: str = "post") -> Preview:
+    """Render for a target, run every check, and return the picture (problems boxed in red) and the problems."""
+    import io
+
+    mpl = fig.render(target)
+    problems = _checks.run(mpl)
+    if problems:
+        overlay(mpl, problems)
+    buf = io.BytesIO()
+    mpl.savefig(buf, format="png", dpi=info(mpl).theme.dpi, facecolor=info(mpl).vocab.palette.chrome["background"])
+    return Preview(fig.id, target, buf.getvalue(), problems)
 
 
 def check_figure(fig: Figure, target: str) -> list[Problem]:

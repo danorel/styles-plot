@@ -108,7 +108,8 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
 - A lane named by its condition rather than its role: `sp.Series("recall", cells, word="knock-out")`.
 - Start a migration with `mode="compat"`: it writes the figure, warns, and records each problem in the sidecar. Fix
   them, then drop `compat`.
-- `fig.render("notebook")` gives a matplotlib figure for a quick look; a notebook PNG is never publishable.
+- In a notebook a `Figure` shows itself (the notebook target, never publishable); `fig.preview("post")` shows the
+  post PNG with every problem boxed in red and listed with its fix. Neither writes a file.
 
 ## A figure set
 
