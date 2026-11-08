@@ -16,7 +16,7 @@ import styles_plot as sp
 
 ROWS = (  # (header, unit, xlim, xticks, chance)
     ("accuracy", "accuracy", (40, 100), (50, 75, 100), 50),
-    ("gap", "gap", (-10, 60), (0, 25, 50), None),
+    ("gap", "lift", (-10, 60), (0, 25, 50), None),  # beta − its shuffled-label baseline
     ("rank", "rank", (10, 10000), None, None),
 )
 

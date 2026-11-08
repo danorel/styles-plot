@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "styles-plot"
-version = "0.2.0"
+version = "0.2.1"
 description = "One figure grammar shared across research projects: colour by role, marks that carry meaning, keys built from what was drawn, and checks that refuse a figure that breaks the rules."
 readme = "README.md"
 license = "MIT"

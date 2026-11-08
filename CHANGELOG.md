@@ -6,6 +6,29 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
+## 0.2.1
+
+- **A value label on a tie goes right.** A label takes the free side nearest its dot, and the right side on a tie; the
+  tie was compared exactly, so with symmetric whiskers, or a dot without an interval, float noise (~1e-14 pt) could
+  put the label on the left. Sides within half a point of each other are now a tie. *Pixels:* such labels move to
+  the right of their dot; in the gallery, "0.53" and "0.58" in `dot_table` and "64" in `methods` (readme).
+- **A fix names only what clears the problem.** "or waive it" is gone from the SP601/SP606 fixes: a waiver is a
+  person's choice with a reason (ADOPTING.md), not a fix. The width part of a fix (SP601, SP606, SP609, SP610, SP613)
+  is the column's own setting: `weight` for a panel that shares the free width, `width` for a fixed one, never "a
+  panel ≥ x in wide" (a project block's own panel keeps that). The number is now exact: it accounts for the other
+  panels shrinking (the 0.2.0 SP613 weight was a little low), stops where a neighbour's header would wrap past its
+  lines (then it gives the range, e.g. `weight 1.27–1.29`, or leaves the width part out), and for a value label with no
+  gap it is the width at which a gap opens (the label keeps its size as the panel grows). *Migration:* none; a weight
+  copied from a 0.2.0 SP613 fix may be one step short: use the new one.
+- **`file=` in a figure set.** `@SET.figure(id, file="01_main_split")` saves `<out>/<target>/01_main_split.png`; the
+  default is the id. Two figures with one file name are a `BuildError` when the second is registered. The figure keeps
+  its id in the sidecar, the registry and `problems.json`; `index.json` gains `file`. *Migration:* none.
+- **The dot-table example follows E1.** Its two gap columns drew the difference alpha − beta in alpha's colour, with
+  "alpha" above them. They are now drawn in a neutral role (slot slate) with the header "gap: alpha − beta" as its
+  word, the way GRAMMAR E1 says; the key figure's example row does the same. The examples' words say alpha and beta
+  throughout (the title, the gap axis titles), and the scorecard example's gap, which is beta − its shuffled-label
+  baseline, gets a unit of its own instead of the alpha − beta one. *Pixels:* `dot_table`, `key` and `custom`.
+
 ## 0.2.0
 
 Every change is backward compatible: a 0.1.14 builder runs unchanged and draws the same pixels. Each item says what a

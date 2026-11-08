@@ -2,7 +2,7 @@
  "styles_plot": "0.1.14",
  "vocab": {
   "project": "styles-plot examples",
-  "sha256": "7bb13f3e25396147dfafebe666fc9187b6e0025213375f454e6a8887eb706e21"
+  "sha256": "d1dfed9d8b5aaaf5928bbd291f7ef16e3847f41f11f0f0986bc8f352731a9b2d"
  },
  "registry": {
   "path": "status.csv",
@@ -14,7 +14,7 @@
  "publishable": true,
  "text_only": false,
  "png": {
-  "pixels_sha256": "5fe147135208e5f6f1bc0b5383f529b2885ccd50316f15a08920b4ebf82e1fa0",
+  "pixels_sha256": "8508ee9b98108d30171a40f9df7af3f39ce155ca0f1852cda506da73c48b534b",
   "dpi": 160
  },
  "roles": [

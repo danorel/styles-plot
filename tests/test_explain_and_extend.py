@@ -20,13 +20,19 @@ def run(fig, target="post"):
     return mpl, _checks.run(mpl)
 
 
-def tight(v, upper=1.0, waive=()):
-    """A labelled value with no room right of it, its connector and a near control blocking the left: SP601 on "0.97"."""
+def tight(v, upper=1.0, waive=(), shared=False, value=0.97, **size):
+    """A labelled value with no room right of it, its connector and a near control blocking the left: SP601 on "0.97".
+    `shared`: the panel shares the free width with a second one (`weight=`), else it is 1.2 in wide (`width=`)."""
+    size = size or ({} if shared else {"width": 1.2})
     col = sp.DotColumn("score", "score", (0.0, upper), (0, 0.5, 1), [
         sp.Series("control", {"m1": sp.Est(0.03, cell="acc.m1")}, control="shuffled labels"),
-        sp.Series("second", {"m1": sp.Est(0.97, cell="acc.m1", key="v", label=True)})],
-        connect=("control", "second"), width=1.2)  # fmt: skip
-    return sp.Figure("methods", v, waive=waive).add(sp.DotTable(["m1"], [col]))
+        sp.Series("second", {"m1": sp.Est(value, cell="acc.m1", key="v", label=True)})],
+        connect=("control", "second"), **size)  # fmt: skip
+    cols = [col]
+    if shared:  # a wide neighbour leaves the score panel too little room
+        cols.append(sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100),
+                                 [sp.Series("second", {"m1": sp.Est(61, cell="acc.m1")})], weight=6))  # fmt: skip
+    return sp.Figure("methods", v, waive=waive).add(sp.DotTable(["m1"], cols))
 
 
 # ---- A1 --------------------------------------------------------------------------------------------------------------
@@ -38,6 +44,33 @@ def test_sp601_explains_itself_and_its_fix_works(vocab):
     upper = float(re.search(r"xlim upper ≥ ([\d.]+)", p.fix).group(1))
     assert upper > 1.0
     assert [q for q in run(tight(vocab, upper))[1] if q.code in ("SP601", "SP606")] == []
+
+
+def test_widen_never_takes_more_than_the_neighbours_can_give():
+    from styles_plot._grid import widen
+
+    shared = {"weight": 1.0, "free_weight": 4.0, "free_in": 5.455}
+    assert widen({**shared, "max_in": 3.0}, 1.6) == "weight ≥ 1.3"  # room to spare: the round number
+    # a neighbour's header allows only 1.643 in: 1.3 would take too much, so the fix is the range that fits
+    assert widen({**shared, "max_in": 1.643}, 1.614) == "weight 1.27–1.29"
+    assert widen({**shared, "max_in": 1.5}, 1.6) is None  # no weight does it: the fix says what does
+    assert widen({"fixed": True, "max_in": 9.0}, 2.0) == "width ≥ 2.00 in"
+    assert widen({"fixed": True, "max_in": 2.1}, 2.0) == "width 2.00–2.10 in"
+    assert widen({"fixed": True, "max_in": 1.9}, 2.0) is None
+
+
+@pytest.mark.parametrize(("shared", "setting"), [(False, "width"), (True, "weight")])
+def test_a_placement_fix_names_the_columns_own_setting(vocab, shared, setting):
+    # a fix names only changes that clear the problem: the column's width or weight, never inches it cannot set,
+    # never a waiver (that is a human's choice, with a reason)
+    p = next(p for p in run(tight(vocab, shared=shared, value=0.8))[1] if p.code in ("SP601", "SP606"))
+    assert "waive" not in p.fix and "a panel" not in p.fix
+    value = float(re.search(rf"{setting} ≥ ([\d.]+)", p.fix).group(1))
+    fixed = tight(vocab, shared=shared, value=0.8, **{setting: value})
+    assert [q for q in run(fixed)[1] if q.code in ("SP601", "SP606")] == []
+    # at 0.97 of (0, 1) no width the table has gives the label room: the fix says only what does
+    p = next(p for p in run(tight(vocab, shared=shared))[1] if p.code in ("SP601", "SP606"))
+    assert setting not in p.fix and p.fix.startswith("xlim upper ≥")
 
 
 def test_fixes_for_words_registry_and_line_words(vocab):
@@ -75,7 +108,8 @@ def test_fix_text_for_overlap_words_missing_and_line_words(vocab, vocab_dir):
         sp.Series("first", {"m1": sp.Est(50, cell="acc.m1")}, word="a linear probe of the same signal"),
         sp.Series("second", {"m1": sp.Est(60, cell="acc.m1")}, word="anything measured under a swap")], width=1.2)  # fmt: skip
     p = next(p for p in run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [words])))[1] if p.code == "SP609")
-    assert "in wide" in p.fix and "lanes" in p.fix
+    need = float(re.search(r"need ([\d.]+) in", p.message).group(1))  # font metrics differ a little by platform
+    assert re.match(rf"width (≥ )?{need:.2f}", p.fix) and "lanes" in p.fix
     toml = vocab_dir / "plotstyle.toml"
     toml.write_text(toml.read_text().replace('missing = ["no run", "no interval", "below gate"]',
                                              'missing = ["no run", "no interval", "below gate", "no comparable run at all"]'))  # fmt: skip
@@ -83,7 +117,7 @@ def test_fix_text_for_overlap_words_missing_and_line_words(vocab, vocab_dir):
     miss = sp.DotColumn("accuracy", "accuracy", (-20, 100), (0, 50, 100),
                         [sp.Series("second", {"m1": sp.Missing("no comparable run at all")})], width=0.9)  # fmt: skip
     p = next(p for p in run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [miss])))[1] if p.code == "SP610")
-    assert "wider" in p.fix
+    assert re.search(r"^width ≥ [\d.]+ in, or shorter missing words$", p.fix), p.fix
     toml.write_text(toml.read_text().replace('"chance", "layer 11",', '"chance", "layer 11", "one", "two", "three", "four", "five",'))
     v = sp.load(toml)
     xs = list(range(25))
@@ -642,7 +676,7 @@ def col(header="accuracy"):
     return sp.DotColumn(header, "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(61, cell="acc.m1")})])
 
 
-@SET.figure("methods", order=2, title="Beta is above chance", caption="Synthetic data.")
+@SET.figure("methods", order=2, title="Beta is above chance", caption="Synthetic data.", file="02_methods")
 def methods(fig):
     fig.add(sp.DotTable(["m1"], [col()]))
 
@@ -678,6 +712,12 @@ def test_figure_set_registers_orders_and_makes(set_module):
         s.select(["x*"])
     with pytest.raises(sp.BuildError, match="registered twice"):
         s.figure("methods")(lambda fig: None)
+    with pytest.raises(sp.BuildError, match="'renamed' and 'methods' would both be saved as 02_methods.png"):
+        s.figure("renamed", file="02_methods")(lambda fig: None)
+    with pytest.raises(sp.BuildError, match="'02_methods' and 'methods' would both"):
+        s.figure("02_methods")(lambda fig: None)  # an id that is another figure's file name
+    with pytest.raises(sp.BuildError, match="without folder or .png"):
+        s.figure("x", file="post/x.png")
     s.figure("other")(lambda fig: sp.Figure("elsewhere", fig.vocab))
     with pytest.raises(sp.BuildError, match="returned"):
         s.make("other")
@@ -692,9 +732,12 @@ def test_build_goes_on_past_a_failing_figure_and_writes_the_index(set_module, ca
     index = json.loads((out / "_meta" / "index.json").read_text())
     assert [f["id"] for f in index["figures"]] == ["broken", "methods", "crash"]
     m = next(f for f in index["figures"] if f["id"] == "methods")
-    assert m["ok"] and m["png"] == {"post": "post/methods.png", "readme": "readme/methods.png"}
+    assert m["ok"] and m["png"] == {"post": "post/02_methods.png", "readme": "readme/02_methods.png"}
+    assert m["file"] == "02_methods" and next(f for f in index["figures"] if f["id"] == "broken")["file"] == "broken"
     assert m["title"] == "Beta is above chance" and m["problems"] == {"post": [], "readme": []}
-    assert (out / "readme" / "methods.png").exists() and not (out / "post" / "broken.png").exists()
+    assert (out / "readme" / "02_methods.png").exists() and not (out / "post" / "broken.png").exists()
+    side = json.loads((out / "readme" / "02_methods.styles.json").read_text())
+    assert side["figure"] == "methods"  # the file is a name; the figure keeps its id
     problems = json.loads((out / "_meta" / "problems.json").read_text())
     assert {p["code"] for p in problems["broken"]["post"]} >= {"SP401", "SP203"}
     assert problems["methods"] == {"post": [], "readme": []}

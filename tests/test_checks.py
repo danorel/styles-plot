@@ -275,7 +275,7 @@ def test_png_checks(tmp_path, vocab):
 # ---- key figure, cue words, one-line colour words, slide size, line status -------------------------------------------
 def test_cue_word_larger(vocab_dir):
     p = vocab_dir / "plotstyle.toml"
-    p.write_text(p.read_text().replace('title = "gap: A − B (points)"\nquantity = "gap"', 'title = "gap: A − B (points)"\nquantity = "gap"\ncue_word = "larger"'))
+    p.write_text(p.read_text().replace('title = "gap: alpha − beta (points)"\nquantity = "gap"', 'title = "gap: alpha − beta (points)"\nquantity = "gap"\ncue_word = "larger"'))
     v = sp.load(p)
     assert v.cue("gap") == "→ larger gap"
     mpl, problems = run(example("dot_table").dot_table(v))
@@ -549,15 +549,19 @@ def test_one_estimate_per_colour_per_line(vocab):
     assert run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [a, b])))[1] == []  # across columns: allowed
 
 
-def test_header_that_is_the_role_word(vocab_dir):
+@pytest.mark.parametrize("word", [None, "gap: alpha − beta"])  # the role's own word, or the series' word
+def test_header_that_is_the_role_word(vocab_dir, word):
     p = vocab_dir / "plotstyle.toml"
-    p.write_text(p.read_text() + '\n[roles.diff]\nslot = "slate"\nword = "gap"\nmeaning = "a quantity of no role"\n')
+    header = word or "gap"
+    if word is None:
+        p.write_text(p.read_text().replace('word = "neutral"', 'word = "gap"'))
     v = sp.load(p)
-    col = sp.DotColumn("gap", "gap", (-4, 98), (0, 30, 60), [sp.Series("diff", {"m1": sp.Est(40, cell="acc.m1")})])
+    col = sp.DotColumn(header, "gap", (-4, 98), (0, 30, 60),
+                       [sp.Series("neutral", {"m1": sp.Est(40, cell="acc.m1")}, word=word)])  # fmt: skip
     mpl, problems = run(sp.Figure("methods", v).add(sp.DotTable(["m1"], [col])))
     assert problems == [], [str(p) for p in problems]
     words = [t for t in mpl.findobj(lambda a: tags(a).get("kind") == "role_word")]
-    assert len(words) == 1 and words[0].get_text() == "gap" and words[0].get_color() == v.role("diff").hex
+    assert len(words) == 1 and words[0].get_text() == header and words[0].get_color() == v.role("neutral").hex
 
 
 def test_stack_with_a_text_column(vocab):
@@ -598,6 +602,39 @@ def test_left_fallback_starts_at_its_own_dot(vocab):
     r = mpl.canvas.get_renderer()
     ctrl_x = dots["control"].get_transform().transform([[40, dots["control"].get_ydata()[0]]])[0][0]
     assert label.get_window_extent(r).x0 > ctrl_x  # between the control and its own dot, not left of everything
+
+
+def _label_side(vocab, est) -> str:
+    col = sp.DotColumn("gap", "gap_share", (-0.1, 1.1), (0, 0.5, 1), [sp.Series("first", {"m1": est})])
+    mpl, problems = run(sp.Figure("dot_table", vocab).add(sp.DotTable(["m1"], [col])))
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]
+    label = next(t for t in mpl.findobj(lambda a: tags(a).get("kind") == "value"))
+    dot = next(d for d in mpl.findobj(lambda a: tags(a).get("kind") == "dot"))
+    r = mpl.canvas.get_renderer()
+    dot_x = dot.get_transform().transform([[est.value, dot.get_ydata()[0]]])[0][0]
+    return "right" if label.get_window_extent(r).x0 > dot_x else "left"
+
+
+@pytest.mark.parametrize("shorter", [0.0, 1e-9])  # a left whisker shorter by float noise is still a tie
+def test_a_label_between_symmetric_whiskers_goes_right(vocab, shorter):
+    est = sp.Est(0.53, 0.46 + shorter, 0.60, cell="layer.m1", key="v", label=True)
+    assert _label_side(vocab, est) == "right"
+
+
+@pytest.mark.parametrize("target", ["post", "readme"])
+def test_tied_labels_in_the_dot_table_example_go_right(vocab, target):
+    # its gaps are differences of sums, so the two sides of "0.53" (whiskers) and "0.58" (no interval) differed by
+    # ~1e-14 pt, and that noise put both labels on the left
+    mpl = example("dot_table").dot_table(vocab).render(target)
+    r = mpl.canvas.get_renderer()
+    dots = [d.get_transform().transform([[d.get_xdata()[0], d.get_ydata()[0]]])[0]
+            for d in mpl.findobj(lambda a: tags(a).get("kind") == "dot")]  # fmt: skip
+    labels = [t for t in mpl.findobj(lambda a: tags(a).get("kind") == "value") if t.get_text() in ("0.53", "0.58")]
+    assert len(labels) == 2
+    for t in labels:
+        bb = t.get_window_extent(r)
+        x, _y = min(dots, key=lambda d: abs(d[1] - (bb.y0 + bb.y1) / 2) + abs(d[0] - bb.x0))
+        assert bb.x0 > x, t.get_text()
 
 
 def test_tag_and_note_on_one_row_and_tags_under_their_lane(vocab_dir):

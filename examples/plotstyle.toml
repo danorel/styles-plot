@@ -23,6 +23,11 @@ slot = "amber"
 word = "swap"
 meaning = "anything measured under a swap"
 
+[roles.neutral]
+slot = "slate"
+word = "neutral"
+meaning = "a quantity of no role, such as a difference"
+
 [controls]
 names = ["a random direction", "shuffled labels"]
 
@@ -41,7 +46,7 @@ quantity = "accuracy drop"
 format = "points"
 
 [units.gap]
-title = "gap: A − B (points)"
+title = "gap: alpha − beta (points)"
 quantity = "gap"
 format = "points"
 
@@ -51,9 +56,14 @@ quantity = "switches blocked"
 format = "share"
 
 [units.gap_share]
-title = "gap: A − B (share of switches)"
+title = "gap: alpha − beta (share of switches)"
 quantity = "gap"
 format = "share"
+
+[units.lift]
+title = "beta − shuffled labels (points)"
+quantity = "gap"
+format = "points"
 
 [units.accuracy]
 title = "accuracy (%)"
@@ -90,7 +100,7 @@ format = "share"
 canonical = [
     "synthetic data",
     "Test A · synthetic", "Test B · synthetic",
-    "accuracy drop", "gap", "switches blocked", "accuracy", "rank", "projection score", "answers",
+    "accuracy drop", "gap", "gap: alpha − beta", "switches blocked", "accuracy", "rank", "projection score", "answers",
     "set one", "set two",
     "correct", "wrong", "no answer",
     "UMAP", "PCA", "first layer", "last layer",

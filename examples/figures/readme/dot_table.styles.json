@@ -2,7 +2,7 @@
  "styles_plot": "0.1.14",
  "vocab": {
   "project": "styles-plot examples",
-  "sha256": "7bb13f3e25396147dfafebe666fc9187b6e0025213375f454e6a8887eb706e21"
+  "sha256": "d1dfed9d8b5aaaf5928bbd291f7ef16e3847f41f11f0f0986bc8f352731a9b2d"
  },
  "registry": {
   "path": "status.csv",
@@ -14,11 +14,12 @@
  "publishable": true,
  "text_only": false,
  "png": {
-  "pixels_sha256": "18a344fc4005d6c95ca55f0959d5880ee3f67a8dc408b74116a978b0d84d8df0",
+  "pixels_sha256": "d33b4a387d02614e17e17761e52cf0023c514982f66888934a815c66b067e642",
   "dpi": 160
  },
  "roles": [
   "first",
+  "neutral",
   "second"
  ],
  "controls": [],
@@ -147,7 +148,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "band.m1",
    "timing": "fixed_in_advance",
    "claim": "claimed",
@@ -155,7 +156,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "band.m2",
    "timing": "fixed_in_advance",
    "claim": "claimed",
@@ -163,7 +164,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "band.m3",
    "timing": "post_hoc",
    "claim": "not_claimed",
@@ -171,7 +172,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "band.m4",
    "timing": "fixed_in_advance",
    "claim": "claimed",
@@ -179,7 +180,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "band.m5",
    "timing": "post_hoc",
    "claim": "not_claimed",
@@ -267,7 +268,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "layer.m1",
    "timing": "fixed_in_advance",
    "claim": "claimed",
@@ -275,7 +276,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "layer.m2",
    "timing": "fixed_in_advance",
    "claim": "claimed",
@@ -283,7 +284,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "layer.m3",
    "timing": "fixed_in_advance",
    "claim": "claimed",
@@ -291,7 +292,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "layer.m4",
    "timing": "post_hoc",
    "claim": "claimed",
@@ -299,7 +300,7 @@
   },
   {
    "kind": "dot",
-   "role": "first",
+   "role": "neutral",
    "cell": "layer.m5",
    "timing": "fixed_in_advance",
    "claim": "descriptive",

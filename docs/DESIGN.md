@@ -19,7 +19,11 @@ brief asks (B1); they may change in a minor release.
 both boxes in pixels; for an obstacle inside a dot-table or sweep panel it maps them through that panel's
 `transData.inverted()` and proposes the smallest change that clears it: crossing the right/left spine → `xlim upper ≥ v`
 (lower ≤ v), or the `weight` (C4) that gives the label room; touching a mark or a vertical line → move the range by the
-overlap, or waive (A3). SP401 → the exact TOML line under `[terms]`; SP203 → `fig,cell,<timing>,<claim>,,,` (never a
+overlap. Built (0.2.1): a fix names only changes that clear the problem, never a waiver (a waiver is a person's choice,
+with a reason: ADOPTING.md). A width is given as the column's own setting: `width` for a fixed panel, `weight` for a
+shared one, and only up to what the neighbours can give (their headers within their lines, `MIN_PANEL`); a value label
+that found no gap records the narrowest panel that has one (a gap's data span grows with the panel, the label and the
+marks' pads do not). SP401 → the exact TOML line under `[terms]`; SP203 → `fig,cell,<timing>,<claim>,,,` (never a
 filled-in status); SP609/SP613 → the width needed and "shorten the header, or move the qualifier into the unit title".
 `styles-plot check --json`: one object per problem (`dataclasses.asdict`).
 

@@ -65,7 +65,7 @@ def test_save_and_sidecar(tmp_path, vocab):
     assert side["figure"] == "dot_table" and side["target"] == "post" and side["publishable"]
     assert side["cells"]["band.m3"] == {"timing": "post_hoc", "claim": "not_claimed"}
     assert "○ post hoc" in side["key"] and "gap.band.m1" in side["numbers"]
-    assert side["roles"] == ["first", "second"]
+    assert side["roles"] == ["first", "neutral", "second"]  # the gaps are differences: the neutral role (E1)
 
 
 def test_bundle_is_all_or_nothing(tmp_path, vocab):
