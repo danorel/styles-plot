@@ -1,4 +1,4 @@
-"""0.2: problems that explain themselves (A1), debug pictures (A2), waivers (A3), public blocks (B1) and the rest."""
+"""Problems that explain themselves (A1), debug pictures (A2), waivers (A3), public blocks (B1) and the rest."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ import styles_plot as sp
 from styles_plot import _checks
 from styles_plot._cli import main
 
-from .conftest import example
 
 
 def run(fig, target="post"):

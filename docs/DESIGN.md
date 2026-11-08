@@ -3,9 +3,9 @@
 The living design document: how the library is built and why. The rules a figure follows are in
 [GRAMMAR.md](GRAMMAR.md), their use in [ADOPTING.md](ADOPTING.md), each release's changes in
 [../CHANGELOG.md](../CHANGELOG.md). The stage-1 design of 0.1 (the audit of the first two projects, the draft
-vocabularies, the decisions of 7 Nov) is kept as history in [archive/DESIGN-0.1.md](archive/DESIGN-0.1.md).
+vocabularies, the decisions of 7 Nov) is kept as history in [archive/DESIGN-stage-1.md](archive/DESIGN-stage-1.md).
 
-# 0.2 (proposed)
+# Proposed changes
 
 Status: for review, no code yet. Base: `main` at 0.1.14 (`c65a96e`). Every 0.1.14 call keeps working and draws the same
 pixels; no meaning check (SP1xx–SP5xx, SP7xx, SP8xx) is relaxed. New public names are marked *experimental* where the

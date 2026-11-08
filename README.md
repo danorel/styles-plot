@@ -30,7 +30,7 @@ styles-plot palette --vocab plotstyle.toml               # colour-vision distanc
 
 - [docs/GRAMMAR.md](docs/GRAMMAR.md): the rules and the checks.
 - [docs/ADOPTING.md](docs/ADOPTING.md): writing a vocabulary, porting a script.
-- [docs/DESIGN.md](docs/DESIGN.md): the design and its decisions ([the 0.1 stage-1 design](docs/archive/DESIGN-0.1.md), archived).
+- [docs/DESIGN.md](docs/DESIGN.md): the design and its decisions ([the stage-1 design](docs/archive/DESIGN-stage-1.md), archived).
 - Gallery: `python examples/build_gallery.py` builds every example for every target into `gallery/` (not committed); CI builds and checks it and uploads it as the `gallery` artifact.
 
 Install from a tag (no PyPI): `styles-plot @ git+https://github.com/danorel/styles-plot@v0.1.14`; add the `[check]`
