@@ -396,3 +396,65 @@ def test_bound_table_draws_as_the_written_out_one(vocab):
     long.render("post").savefig(a, format="png")
     short.render("post").savefig(b, format="png")
     assert a.getvalue() == b.getvalue()
+
+
+# ---- C3 --------------------------------------------------------------------------------------------------------------
+def _panel_range(fig, target="post"):
+    from styles_plot._tags import tags
+
+    ax = next(a for a in fig.render(target).axes if tags(a).get("kind") == "panel")
+    return tuple(round(x, 6) for x in ax.get_xlim()), [round(t, 6) for t in ax.get_xticks()]
+
+
+def _acc_fig(v, **col):
+    s = sp.Series("second", {"m1": sp.Est(61, 58, 64, cell="acc.m1"), "m2": sp.Est(72, 69, 75, cell="acc.m2")})
+    return sp.Figure("methods", v).add(sp.DotTable(["m1", "m2"], [sp.DotColumn("accuracy", "accuracy", series=[s],
+                                                                                **col)]))  # fmt: skip
+
+
+def test_range_from_the_column_then_the_unit_then_the_data(vocab, vocab_dir):
+    assert _panel_range(_acc_fig(vocab, xlim=(40, 100), xticks=(50, 100))) == ((40, 100), [50, 100])
+    toml = vocab_dir / "plotstyle.toml"
+    toml.write_text(toml.read_text().replace('title = "accuracy (%)"', 'title = "accuracy (%)"\nlim = [30, 100]\n'
+                                                                     'ticks = [50, 75, 100]'))  # fmt: skip
+    v = sp.load(toml)
+    assert _panel_range(_acc_fig(v)) == ((30, 100), [50, 75, 100])  # the unit's
+    (lo, hi), ticks = _panel_range(_acc_fig(v, xlim=(40, 90)))  # the column's xlim; ticks inside it
+    assert (lo, hi) == (40, 90) and ticks and all(40 < t < 90 for t in ticks)
+    (lo, hi), ticks = _panel_range(_acc_fig(vocab))  # from the data: 58..75 padded, ticks inside
+    assert lo < 58 and hi > 75 and all(lo < t < hi for t in ticks) and len(ticks) >= 2
+    assert _checks.run(_acc_fig(vocab).render("post")) == []
+
+
+def test_a_computed_range_leaves_room_for_the_rightmost_label(vocab):
+    s = sp.Series("second", {"m1": sp.Est(0.97, cell="acc.m1", key="v", label=True), "m2": sp.Est(0.2, cell="acc.m2")})
+    col = sp.DotColumn("score", "score", series=[s], width=1.2)
+    mpl = sp.Figure("methods", vocab).add(sp.DotTable(["m1", "m2"], [col])).render("post")
+    assert [p.code for p in _checks.run(mpl)] == []
+
+
+def test_every_example_table_passes_without_its_ranges(vocab):
+    import dataclasses
+
+    def strip(c):
+        if isinstance(c, sp.ColumnGroup):
+            return dataclasses.replace(c, columns=[strip(x) for x in c.columns])
+        return dataclasses.replace(c, xlim=None, xticks=None) if isinstance(c, sp.DotColumn) else c
+
+    for build in example("dot_table").FIGURES:
+        fig = build(vocab)
+        fig.blocks = [dataclasses.replace(b, columns=[strip(c) for c in b.columns]) for b in fig.blocks]
+        for target in ("post", "slide", "readme"):
+            assert _checks.run(fig.render(target)) == [], (fig.id, target)
+
+
+def test_unit_ranges_are_validated_and_an_empty_column_refused(vocab, vocab_dir):
+    toml = vocab_dir / "plotstyle.toml"
+    base = toml.read_text()
+    for bad, match in (("lim = [100, 30]", "lo < hi"), ("lim = [30, 100]\nticks = [10]", "outside lim"),
+                       ('ticks = ["a"]', "list of numbers")):  # fmt: skip
+        toml.write_text(base.replace('title = "accuracy (%)"', f'title = "accuracy (%)"\n{bad}'))
+        with pytest.raises(sp.VocabError, match=match):
+            sp.load(toml)
+    with pytest.raises(sp.BuildError, match="has no series"):
+        sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [sp.DotColumn("accuracy", "accuracy")])).render("post")

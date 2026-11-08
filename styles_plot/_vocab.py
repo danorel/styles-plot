@@ -86,6 +86,8 @@ class Unit:
     scale: str = "linear"
     cue: bool = True
     cue_word: str = "more"  # "→ more gap" or "→ larger gap"
+    lim: tuple[float, float] | None = None  # the axis range a dot-table panel on this unit takes by default
+    ticks: tuple[float, ...] | None = None  # its ticks by default
 
 
 @dataclass(frozen=True)
@@ -377,8 +379,25 @@ def _units(doc: dict, formats: dict[str, Format], cue_words: tuple[str, ...], wh
         word = u.get("cue_word", cue_words[0])
         if word not in cue_words:
             raise VocabError(f"{w}: cue_word {word!r} is not one of {', '.join(cue_words)}")
-        out[name] = Unit(name, title, quantity, fmt, scale, cue, word)
+        lim, ticks = u.get("lim"), u.get("ticks")
+        if lim is not None:
+            if not (isinstance(lim, list) and len(lim) == 2 and all(_num(x) for x in lim) and lim[0] < lim[1]):
+                raise VocabError(f"{w}: lim = [lo, hi] with lo < hi, got {lim!r}")
+            if scale == "log" and lim[0] <= 0:
+                raise VocabError(f"{w}: a log-scale lim starts above 0")
+            lim = (float(lim[0]), float(lim[1]))
+        if ticks is not None:
+            if not (isinstance(ticks, list) and ticks and all(_num(x) for x in ticks)):
+                raise VocabError(f"{w}: ticks = [a list of numbers], got {ticks!r}")
+            if lim is not None and not all(lim[0] <= t <= lim[1] for t in ticks):
+                raise VocabError(f"{w}: ticks {ticks} fall outside lim {list(lim)}")
+            ticks = tuple(float(t) for t in ticks)
+        out[name] = Unit(name, title, quantity, fmt, scale, cue, word, lim, ticks)
     return out
+
+
+def _num(x) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
 
 
 def _banned(items: list, where: str) -> tuple[Banned, ...]:

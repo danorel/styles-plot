@@ -29,7 +29,7 @@ Everything that names a concept of your project, and every style choice you chan
 | `[key]` | `tick`, `band`: what the grey tick and the grey band mean | if you draw them |
 | `[intervals]` | `<kind> = "<phrase>"`: what a whisker or shading means ("95% interval" is built in as `ci95`) | for other kinds |
 | `[formats.<name>]` | `decimals`, `suffix`, `style`; defaults: accuracy 0, points 1, share 2, ratio 2, z 0, count "k of n" | to override |
-| `[units.<name>]` | `title` (axis title with the unit), `quantity` (for the cue), `format`, `scale`, `cue` | for every axis |
+| `[units.<name>]` | `title` (axis title with the unit), `quantity` (for the cue), `format`, `scale`, `cue`; `lim`, `ticks` (a dot-table panel's default range) | for every axis |
 | `[terms]` | `canonical` words, `templates` (`{num}`, `{entity}`, `{count}`), `missing` words, `not_claimed` reasons, `[[terms.banned]]` | yes |
 | `[[entities.<kind>]]` | ordered rows: `key`, `name`, optional `id` | for every row kind |
 | `[registry]` | `path` to the status CSV, relative to the toml | for publishable figures |
@@ -97,6 +97,8 @@ sp.save_bundle(fig, "figures", targets=("post", "slide", "readme"))
   `sp.Series("method", lambda m: (avg[m], lo[m], hi[m]), cell="direct.{row}", key="direct.{row}.avg", label=True)`.
   Templates: `{row}` (the entity key), `{id}` (its `id`, else the key), `{lane}`, `{role}`. The same works for
   `TextColumn` cells and a stack's `Segment` shares.
+- `xlim` and `xticks` are optional: a column without them takes its unit's `lim`/`ticks`, else a range computed from
+  its data that leaves room for the value labels.
 - A rule label with a number is a template: `sp.Rule(15, "bar fixed in advance: {}", unit="points", key="bar")`.
   The key figure's sentence likewise: `sp.key_figure(v, example=..., read_aloud="… drops {a} points …",
   numbers={"a": (value, "points", "ko.q27.drop")})`.

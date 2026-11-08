@@ -77,7 +77,9 @@ hand-made labelled `Est` carries its own `key` (a template fills only what an `E
 **C3.** `DotColumn(header, unit, xlim=None, xticks=None, series=(), ...)`: positional calls keep working; empty `series`
 is a `BuildError` at plan time. Resolution: the column's own value → `[units.<name>] lim = [lo, hi]`, `ticks = [...]` →
 computed from values, intervals, grey ticks, band and rules with `_grid.padded`/`_grid.ticks`, widened on the right so
-the outermost value label clears the spine (the label width is known once the column width is).
+the outermost value label clears the spine (the label width is known once the column width is). Built with two changes: the ends snap out to a quarter of a tick step (not to a tick),
+and computed ticks stay a quarter step inside the ends, as many as the panel's width holds: a tick label on a panel's
+edge met the next panel's in the examples.
 
 **C4.** `DotColumn(weight=1.0)`; `width=` and a non-default `weight` together raise `BuildError`.
 `Theme.max_header_lines = 2`; a longer header is **SP613** (with the weight that would fit it), a warning in 0.2 (E1).

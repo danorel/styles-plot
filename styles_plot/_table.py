@@ -6,6 +6,7 @@ stop at that line so no tag crosses one.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 
 from matplotlib.patches import Rectangle
@@ -110,6 +111,9 @@ def plan(t: DotTable, ctx: Ctx, width: float, label_w: float) -> Plan:
             lay.groups.append(c.group)
     _text_cells(lay, ctx)
     _widths(lay, ctx, label_w)
+    for c in lay.cols:
+        if c.is_panel:
+            c.spec = _ranges(c.spec, c.w, t, ctx)
     enc = _statuses(lay, ctx)
     _vertical(lay, ctx)
     return Plan(lay.height, lambda cv: _draw(cv, ctx, lay), enc)
@@ -126,7 +130,9 @@ def _validate(t: DotTable, ctx: Ctx) -> None:
         if ctx.unit(c.unit).scale == "log":
             raise BuildError(f"{ctx.figure_id}: column {c.header!r}: a dot-table panel is linear; unit {c.unit!r} is "
                              "log scale. Use a Sweep for a log axis, or a unit of the log values")  # fmt: skip
-        if c.xlim[1] <= c.xlim[0]:
+        if not c.series:
+            raise BuildError(f"{ctx.figure_id}: column {c.header!r} has no series")
+        if c.xlim is not None and c.xlim[1] <= c.xlim[0]:
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} has xlim {c.xlim}")
         for s in c.series:
             ctx.role_hex(s.role)
@@ -203,6 +209,92 @@ def _widths(lay: _Layout, ctx: Ctx, label_w: float) -> None:
         x += c.w + th.pad
         if c.is_panel:
             c.pid, pid = pid, pid + 1
+
+
+def _ranges(spec: DotColumn, w: float, t: DotTable, ctx: Ctx) -> DotColumn:
+    """The column's xlim and xticks: its own, else its unit's, else computed from what it draws."""
+    if spec.xlim is not None and spec.xticks is not None:
+        return spec
+    unit = ctx.unit(spec.unit)
+    xlim, xticks = spec.xlim or unit.lim, spec.xticks
+    if xlim is None:
+        xlim = _computed(spec, w, t, ctx)
+    if xticks is None:
+        own = [v for v in unit.ticks if xlim[0] <= v <= xlim[1]] if unit.ticks and spec.xlim is None else None
+        xticks = own or _interior_ticks(xlim, w, ctx)
+    return dataclasses.replace(spec, xlim=tuple(xlim), xticks=tuple(xticks))
+
+
+def _interior_ticks(xlim, w: float, ctx: Ctx) -> list[float]:
+    """Round ticks inside the range, none within a quarter step of its ends (a label there would meet the next
+    panel's), as many as the panel's width holds with their labels apart."""
+    import math
+
+    from matplotlib.ticker import MaxNLocator
+
+    lo, hi = xlim
+    best: list[float] = []
+    for n in (4, 3, 2, 1):
+        vals = MaxNLocator(n, steps=[1, 2, 2.5, 5, 10]).tick_values(lo, hi)
+        step = float(vals[1] - vals[0])
+        first = math.ceil((lo + step / 4) / step) * step
+        tv = [round(first + i * step, 12) for i in range(int((hi - step / 4 - first) / step + 1e-9) + 1)]
+        tv = [0.0 if abs(x) < 1e-12 else x for x in tv]
+        if not tv:
+            continue
+        widest = max(ctx.measure(ctx.tick(x), ctx.sizes.tick)[0] for x in tv)
+        if len(tv) == 1 or step / (hi - lo) * w >= widest + 0.15:
+            return tv
+        best = best or tv[:1]
+    return best or [round((lo + hi) / 2, 12)]
+
+
+def _data_span(spec: DotColumn, t: DotTable) -> tuple[list[float], list[tuple[float, Est]]]:
+    """Every x the column draws, and its labelled estimates (with the x their label starts from)."""
+    keys = [(r, ln.key) for r in t.rows for ln in t.lanes] if t.lanes else list(t.rows)
+    xs, labelled = [], []
+    for s in spec.series:
+        for k in keys:
+            v = s.cells.get(k)
+            if isinstance(v, Est):
+                xs += [v.value] + ([v.lo, v.hi] if v.lo is not None else [])
+                if v.label:
+                    labelled.append((v.hi if v.hi is not None else v.value, v))
+    xs += list(spec.ticks.values()) + [r.x for r in spec.rules] + (list(spec.band) if spec.band else [])
+    return xs, labelled
+
+
+def _step(lo: float, hi: float) -> float:
+    from matplotlib.ticker import MaxNLocator
+
+    vals = MaxNLocator(3, steps=[1, 2, 2.5, 5, 10]).tick_values(lo, hi)
+    return float(vals[1] - vals[0])
+
+
+def _computed(spec: DotColumn, w: float, t: DotTable, ctx: Ctx) -> tuple[float, float]:
+    """A range from the data: padded by at least 0.4 of a tick step, its ends snapped out to a quarter step (panels on
+    similar data share a range), widened until the rightmost value label fits right of its mark."""
+    import math
+
+    xs, labelled = _data_span(spec, t)
+    if not xs:
+        raise BuildError(f"{ctx.figure_id}: column {spec.header!r} draws nothing to range its axis on; give xlim")
+    dlo, dhi = min(xs), max(xs)
+    step = _step(dlo, dhi) if dhi > dlo else (abs(dhi) or 1.0)
+    pad = max(0.05 * (dhi - dlo), 0.4 * step)
+    q = step / 4
+    lo, hi = math.floor((dlo - pad) / q) * q, math.ceil((dhi + pad) / q) * q
+    for _ in range(4):  # widen until the rightmost label fits right of its mark, inside the panel's right pad
+        need = hi
+        for right, v in labelled:
+            text = ctx.vocab.format(v.value, spec.unit)
+            k = ctx.measure(text, ctx.sizes.value)[0] + (ctx.marks.dot_size / 2 + 6) * PT - 0.7 * ctx.theme.pad
+            if k > 0:
+                need = max(need, right + k * (hi - lo) / w)
+        if need <= hi + 1e-9:
+            break
+        hi = math.ceil(need / q) * q
+    return lo, hi
 
 
 def _cells(col: DotColumn, row: str):

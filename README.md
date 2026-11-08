@@ -67,7 +67,7 @@ def wilson(k):
 # a series is a function of the row; cell and key are templates filled per row ({row}, {id}, {lane}, {role})
 method = sp.Series("method", lambda m: wilson(ours[m]), cell="acc.{row}", key="acc.{row}", label=True)
 control = sp.Series("control", lambda m: wilson(base[m]), control="shuffled labels", cell="acc.{row}")
-col = sp.DotColumn("accuracy", "accuracy", (30, 100), (50, 75, 100), [control, method], rules=[sp.Rule(50, "chance")])
+col = sp.DotColumn("accuracy", "accuracy", series=[control, method], rules=[sp.Rule(50, "chance")])  # range: [units]
 counts = sp.TextColumn("answers", "prompts", lambda m: sp.Count(ours[m], N), cell="acc.{row}", key="n.{row}")
 
 fig = sp.Figure("first_figure", v, subtitle="synthetic data",

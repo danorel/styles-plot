@@ -89,11 +89,15 @@ class Series:
 
 @dataclass(frozen=True)
 class DotColumn:
+    """One panel of a dot table. `xlim` and `xticks` come, in this order, from the column, from the unit's `lim` and
+    `ticks` in the vocabulary, or from the data (values, intervals, grey ticks, band, rules), padded, snapped to the
+    ticks' step, and widened so the rightmost value label clears the right spine."""
+
     header: str
     unit: str
-    xlim: tuple[float, float]
-    xticks: Sequence[float]
-    series: Sequence[Series]
+    xlim: tuple[float, float] | None = None
+    xticks: Sequence[float] | None = None
+    series: Sequence[Series] = ()
     connect: tuple[str, str] | None = None  # two series' roles joined by a grey connector in each row
     ticks: Mapping[Hashable, float] = field(default_factory=dict)  # grey tick per row (or (row, lane))
     band: tuple[float, float] | None = None  # the grey band

@@ -50,6 +50,14 @@ project may change (nothing is required unless it says so).
   `{lane}`, `{role}`) for values that do not set their own; `label` and `interval` apply to values read from numbers,
   tuples and mappings. `examples/blocks/dot_table.py` and the `init` starter use it; their pixels are unchanged.
   *Migration:* nothing to change. An `Est(..., label=True)` still needs its own `key` (it is checked when made).
+- **C3 Axis ranges belong to the unit.** `DotColumn(header, unit, xlim=None, xticks=None, series=())`: positional
+  calls keep working; a column with no series is a `BuildError`. The range comes from the column, else from
+  `[units.<name>] lim = [lo, hi]` and `ticks = [...]` (new, validated), else from the data (values, intervals, grey
+  ticks, band, rules): padded by at least 0.4 of a tick step, ends snapped out to a quarter step, widened until the
+  rightmost value label clears the spine. Ticks a project does not give are round values inside the range, never at
+  its ends (a label there meets the next panel's), as many as the panel's width holds.
+  *Migration:* nothing to change. To drop a range repeated in every builder, put it under its unit and remove
+  `xlim`/`xticks` from the columns.
 
 ## 0.1.15
 
