@@ -82,6 +82,11 @@ source`), and every data mark carries its cell id.
 - **Entities are rows**, in the vocabulary's order; **conditions are columns**. A second condition of the same row is a
   lane (a sub-row), named in grey words under the row's name or by its colour word above the table. Small multiples
   stack in entity order with a shared x axis.
+- **Rows that share a verdict or a family are a row group**: one bold grey header line (a vocabulary term) above the
+  group's consecutive rows; the rows keep one height and the panels' lines break between groups. A group is words in
+  the label column, never a shade.
+- A value label takes the free gap nearest its dot; a panel may ask for its labels on the right (`labels="right"`),
+  and then a label goes left only where a line or the panel's edge leaves no room on the right.
 - Two quantities on different scales are two panels with their own axis titles, never a twin axis.
 - One colour means one estimate per line: a second estimate of the same role in a row gets its own column, header and
   axis, never a second dot of that colour in the same column.
@@ -100,7 +105,8 @@ source`), and every data mark carries its cell id.
    `grey: <controls>` · `grey tick: <definition>` · `○ post hoc` · `whiskers: <interval>` · `shading: <interval>` ·
    `line: median` · `grey band: <definition>`. The interval phrase comes from the vocabulary ("95% interval",
    "± 1 SEM (bootstrap)", "interquartile range"); a figure drawing two kinds names both.
-3. The key is built from what was drawn: nothing drawn is unnamed, nothing named is undrawn. No legend boxes.
+3. The key is built from what was drawn: nothing drawn is unnamed, nothing named is undrawn. No legend boxes. A
+   figure may set its key one item per line (`key_layout="column"`), with air above it; the order stays.
 
 ## F. Words
 
