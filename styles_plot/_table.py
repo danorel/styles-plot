@@ -27,7 +27,7 @@ TIE_PT = 0.5  # a value label's two sides nearer than this (points) are a tie, a
 
 def _group_h(ctx: Ctx) -> float:
     """Inches of a row group's header line: one bold grey line with air above it."""
-    return line_h(ctx.sizes.tag) + 0.12
+    return line_h(ctx.sizes.tag) + 0.08
 
 
 @dataclass
@@ -607,8 +607,10 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
 
     for top, h, label in lay.row_heads:  # a group's header sits low in its line, near the rows it names
         cv.text(0.08, top + h * 0.6, label, kind="row_group", size=sz.tag, weight="bold", color=muted)
+    grouped = {k for g in lay.table.groups for k in g.rows}  # a group's rows sit indented under its header
     for r in lay.rows:
-        cv.text(0.08, r.mid, r.name, kind="row_label", size=sz.label, weight="bold", color=ink)
+        x = 0.08 + (LANE_INDENT if r.key in grouped else 0.0)
+        cv.text(x, r.mid, r.name, kind="row_label", size=sz.label, weight="bold", color=ink)
         for _k, label, dy in r.lines:
             if label:
                 cv.text(0.08 + LANE_INDENT, r.top + dy, label, kind="lane_label", size=sz.tag, color=muted)
@@ -886,13 +888,13 @@ def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines
             elif g1 <= val.value:  # left of the dot
                 cands.append((val.value - g1, 1, g1 - wd))
         best = None
-        if c.spec.labels == "right":  # the free gap right of the dot; the one left of it only when that is too narrow
-            free = gaps()
-            r_gap = min((g for g in free if g[0] >= val.value), default=None)
-            l_gap = max((g for g in free if g[1] <= val.value), default=None, key=lambda g: g[1])
-            if r_gap is not None and r_gap[1] - r_gap[0] >= wd:
+        if c.spec.labels == "right":  # the nearest gap right of the dot that holds it (past a line if need be); the
+            # nearest on the left only when the right side has none (the panel's edge)
+            r_gap = min((g for g in gaps() if g[0] >= val.value and g[1] - g[0] >= wd), default=None)
+            l_gap = max((g for g in gaps() if g[1] <= val.value and g[1] - g[0] >= wd), default=None, key=lambda g: g[1])
+            if r_gap is not None:
                 best = (r_gap[0] - val.value, 0, r_gap[0])
-            elif l_gap is not None and l_gap[1] - l_gap[0] >= wd:
+            elif l_gap is not None:
                 best = (val.value - l_gap[1], 1, l_gap[1] - wd)
         if cands and best is None:  # sides within half a point of each other are a tie, and a tie goes right: float
             # noise never decides

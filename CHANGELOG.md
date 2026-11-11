@@ -12,14 +12,15 @@ Additions only: a builder that uses none of them draws the same pixels (the gall
 unchanged).
 
 - **Row groups.** `sp.RowGroup(label, rows)` and `DotTable(..., groups=[...])`: consecutive rows under one bold grey
-  header line in the label column (a verdict such as "passes the bar", a model family). Rows keep one height, unlike a
-  `row_sub` under one row of each group; the panels' lines break at each header, so the groups read as blocks. The
-  label is a vocabulary term (SP401) and widens the label column like any row label. A group whose rows are not
+  header line in the label column (a verdict such as "passes the bar", a model family), its rows' names indented under
+  it (by a lane's indent). Rows keep one height, unlike a `row_sub` under one row of each group; the panels' lines
+  break at each header, so the groups read as blocks. The label is a vocabulary term (SP401) and widens the label
+  column like any row label. A group whose rows are not
   consecutive rows of the table in its order, name a row not in the table, share a row with another group, or are
   empty is a `BuildError`. *Migration:* none.
-- **Value labels on the right.** `DotColumn(..., labels="right")`: each value label takes the free gap right of its
-  dot, and the free gap left of it only when the right one is too narrow (a rule, a whisker or the panel's edge in the
-  way); with neither, the usual nearest-gap rule. The default `"nearest"` is unchanged. Any other value is a
+- **Value labels on the right.** `DotColumn(..., labels="right")`: each value label takes the nearest free gap right
+  of its dot that holds it, past a rule if one is in the way, and the nearest on the left only when the right side has
+  none (the panel's edge); with neither, the usual rule. The default `"nearest"` is unchanged. Any other value is a
   `BuildError`. *Migration:* none.
 - **A key in a column.** `Figure(..., key_layout="column")`: the key's items one per line, in the grammar's order,
   with 0.15 in of air above; `"flow"` (the default) fills lines left to right as before. *Migration:* none.

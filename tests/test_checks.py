@@ -895,6 +895,7 @@ def test_row_groups_put_a_header_above_each_group_and_keep_rows_one_height(vocab
     # display y grows upwards: each header sits above its group's first row and below the previous group's rows
     assert heads["set one"].y0 > rows["Model 1"].y1
     assert rows["Model 2"].y0 > heads["set two"].y1 > heads["set two"].y0 > rows["Model 3"].y1
+    assert rows["Model 1"].x0 > heads["set one"].x0 + 10  # a group's rows are indented under its header
     dots = sorted(float(d.get_ydata()[0]) for d in _texts(mpl, "dot"))
     plain = sorted(float(d.get_ydata()[0]) for d in _texts(run(simple(vocab))[0], "dot"))
     assert dots[1] - dots[0] == pytest.approx(plain[1] - plain[0])  # rows inside a group keep their height
@@ -917,9 +918,9 @@ def test_a_row_group_label_is_a_vocabulary_term(vocab):
     assert "SP401" in codes(run(sp.Figure("methods", vocab).add(t))[1])
 
 
-def _side(vocab, labels, rules=()):
-    """The side of one value label whose nearest free gap is on the left (a rule close on its right)."""
-    est = sp.Est(0.30, 0.26, 0.34, cell="layer.m1", key="v", label=True)
+def _side(vocab, labels, rules=(), value=0.30):
+    """The side of one value label (whiskers 0.04 either side of its dot)."""
+    est = sp.Est(value, value - 0.04, value + 0.04, cell="layer.m1", key="v", label=True)
     col = sp.DotColumn("gap", "gap_share", (-0.1, 1.1), (0, 0.5, 1), [sp.Series("first", {"m1": est})],
                        rules=rules, labels=labels)  # fmt: skip
     mpl, problems = run(sp.Figure("dot_table", vocab).add(sp.DotTable(["m1"], [col])))
@@ -932,10 +933,10 @@ def _side(vocab, labels, rules=()):
 
 
 def test_labels_right_keeps_a_label_right_of_its_dot_where_nearest_would_not(vocab):
-    far = [sp.Rule(0.6, "chance")]  # the gap right of the dot is wide, but the left one starts nearer
-    assert _side(vocab, "right", far) == "right"
-    shut = [sp.Rule(0.38, "chance")]  # a rule right after the whisker: no room on the right, so left
-    assert _side(vocab, "right", shut) == "left"
+    close = [sp.Rule(0.38, "chance")]  # a rule right after the whisker: nearest puts the label left of the dot
+    assert _side(vocab, "nearest", close) == "left"
+    assert _side(vocab, "right", close) == "right"  # right, past the line
+    assert _side(vocab, "right", value=1.04) == "left"  # the panel's edge leaves no room on the right
 
 
 def test_labels_takes_nearest_or_right_only(vocab):

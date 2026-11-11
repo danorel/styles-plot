@@ -373,7 +373,9 @@ def _label_width(ctx: Ctx, block) -> float:
     if not rows or not hasattr(block, "kind"):  # entity rows only (a card's rows are readers, not entities)
         return 0.0
     kind = block.kind
-    widths = [ctx.measure(ctx.entity_name(kind, r), ctx.sizes.label, "bold")[0] for r in rows]
+    grouped = {k for g in getattr(block, "groups", ()) for k in g.rows}  # indented under their group's header
+    widths = [(LANE_INDENT if r in grouped else 0.0) + ctx.measure(ctx.entity_name(kind, r), ctx.sizes.label, "bold")[0]
+              for r in rows]  # fmt: skip
     widths += [ctx.measure(s, ctx.sizes.tag)[0] for s in getattr(block, "row_sub", {}).values()]
     widths += [LANE_INDENT + ctx.measure(ln.label, ctx.sizes.tag)[0] for ln in getattr(block, "lanes", ()) if ln.label]
     widths += [ctx.measure(g.label, ctx.sizes.tag, "bold")[0] for g in getattr(block, "groups", ())]
