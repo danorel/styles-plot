@@ -28,7 +28,7 @@ Grey is a control and nothing else; a chance line; counts print as "k of n".
 ## Quick start
 
 ```
-pip install "styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.3"
+pip install "styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.4"
 styles-plot init                 # plotstyle.toml, status.csv, first_figure.py
 python first_figure.py           # figures/post/first_figure.png, figures/readme/first_figure.png (strict)
 styles-plot check figures/post --vocab plotstyle.toml
@@ -149,6 +149,6 @@ styles-plot build figures.py:FIGURES --jobs 8           # a figure set: every fi
 - [docs/DESIGN.md](docs/DESIGN.md): the design and its decisions ([the stage-1 design](docs/archive/DESIGN-stage-1.md), archived).
 - [CHANGELOG.md](CHANGELOG.md): each release, with migration notes.
 
-Install from a tag (no PyPI): `styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.3`; add the `[check]`
+Install from a tag (no PyPI): `styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.4`; add the `[check]`
 extra only for custom palette hexes. Python ≥ 3.10, matplotlib ≥ 3.8, numpy ≥ 1.26. The public API is
 `styles_plot.__all__`; modules starting with `_` are internal. MIT licence ([LICENSE](LICENSE)).
