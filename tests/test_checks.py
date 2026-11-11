@@ -959,3 +959,16 @@ def test_key_layout_column_puts_each_item_on_its_own_line(vocab):
     with pytest.raises(sp.BuildError, match="key_layout"):
         sp.Figure("dot_table", vocab, key_layout="grid")
 
+
+@pytest.mark.parametrize("seed", range(30))
+def test_a_scatter_word_never_sits_on_a_point_in_a_crowded_panel(vocab, seed):
+    # 0.2.4: the placer kept less white around a point than the layout check (SP601) and measured the word shorter than
+    # it is drawn, so in a crowded panel it took spots the check refuses; a cloud spanning the panel now also tries a
+    # lattice of spots across it
+    rng = np.random.default_rng(seed)
+    first = rng.normal(0, 1, (120, 2)) * [1.5, 1.0]
+    grey = rng.normal(0, 1, (300, 2))
+    panel = sp.ScatterPanel([sp.Cloud("a random direction", "control", grey, cell="pca.random"),
+                             sp.Cloud("method B", "second", first, cell="pca.method")], embedding="PCA")  # fmt: skip
+    _mpl, problems = run(sp.Figure("scatter", vocab).add(sp.Scatter([panel], panel_h=3.0)))
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]

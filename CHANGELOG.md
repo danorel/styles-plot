@@ -6,6 +6,16 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
+## 0.2.4
+
+- **A scatter's word never sits on a point.** The placer kept 0.04 in of white around a point where the layout check
+  (SP601) keeps 4 pt, and measured a word shorter than the line it is drawn on, so in a crowded panel it took spots the
+  check then refused (a strict save failed). It now keeps the check's white (`MARK_CLEAR`, and `LINE_CLEAR` from the
+  axis lines) and boxes a word by its full line. When no spot beside the cloud is free (a cloud spread over the whole
+  panel), it tries a 12 x 12 lattice of spots across the panel and takes the free one nearest the cloud. *Pixels:* a
+  scatter's words sit about half a line lower (`scatter` in the gallery: "beta" 12 px lower at post); a word that
+  sat on a point moves to free space. *Migration:* none.
+
 ## 0.2.3
 
 Additions only: a builder that uses none of them draws the same pixels (the gallery and the README images are

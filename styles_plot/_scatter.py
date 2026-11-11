@@ -16,6 +16,9 @@ from styles_plot._text import line_h
 
 GAP = 0.45  # inches between panels
 LABEL_PAD = 0.06  # inches between a cloud and its word
+MARK_CLEAR = 4.0  # points of white between a point and a word: _checks/_layout.MARK_CLEAR
+LINE_CLEAR = 1.5  # points of white between a line and a word: _checks/_layout.LINE_CLEAR
+GRID = 12  # the fallback search: a GRID x GRID lattice of spots across the panel
 
 
 def plan(sc: Scatter, ctx: Ctx, width: float, label_w: float) -> Plan:
@@ -134,7 +137,8 @@ def _cloud(ax, ctx: Ctx, c) -> list:
 
 
 def _direct_labels(cv, ax, ctx: Ctx, p, labels, x0, top, pw, side, xlim, ylim, pts) -> None:
-    """Each word next to its points, at the first candidate spot that covers no point and stays in the panel."""
+    """Each word next to its points, at the first candidate spot that covers no point and stays in the panel; when every
+    spot beside the cloud covers a point, the free spot of a lattice across the panel nearest the cloud's centre."""
     sz = ctx.sizes
 
     def to_in(xy):
@@ -148,10 +152,13 @@ def _direct_labels(cv, ax, ctx: Ctx, p, labels, x0, top, pw, side, xlim, ylim, p
             t = np.linspace(0, 1, 12)[:, None]
             dense += [a + t * (b - a) for a, b in zip(xy[:-1], xy[1:])]
     px, py = to_in(np.concatenate(dense))
-    rad = (ctx.marks.point_size**0.5) / 2 / 72 + 0.04
+    rad = ((ctx.marks.point_size**0.5) / 2 + MARK_CLEAR) / 72  # the layout check's clearance (SP601), so a spot it
+    # takes as free the check does too
     taken: list[tuple[float, float, float, float]] = []
     for word, col, xy, meta, weight in labels:
-        w, h = ctx.measure(word, sz.role_word if weight == "bold" else sz.tag, weight)
+        size = sz.role_word if weight == "bold" else sz.tag
+        w, h = ctx.measure(word, size, weight)
+        h = max(h, line_h(size))  # the drawn box spans the font's full line (ascent and descent), as the check sees it
         cx, cy = to_in(xy)
         bx0, bx1, by0, by1 = cx.min(), cx.max(), cy.min(), cy.max()
         mx, my = (bx0 + bx1) / 2, (by0 + by1) / 2
@@ -163,12 +170,18 @@ def _direct_labels(cv, ax, ctx: Ctx, p, labels, x0, top, pw, side, xlim, ylim, p
 
         def cost(pos, w=w, h=h):
             lx, ly = pos
-            outside = not (x0 <= lx and lx + w <= x0 + pw and top <= ly and ly + h <= top + side)
+            e = LINE_CLEAR / 72  # the check's white between a word and the axis lines
+            outside = not (x0 + e <= lx and lx + w <= x0 + pw - e and top + e <= ly and ly + h <= top + side - e)
             covered = int(np.sum((px > lx - rad) & (px < lx + w + rad) & (py > ly - rad) & (py < ly + h + rad)))
             overlap = any(lx < b and a < lx + w and ly < dd and c < ly + h for a, b, c, dd in taken)
             return (outside, overlap, covered)
 
         best = min(candidates, key=cost)
+        if any(cost(best)):  # no free spot beside the cloud inside the panel: the free lattice spot nearest the cloud
+            e = LINE_CLEAR / 72 + 1e-6  # inside the margin the outside test keeps from the axis lines
+            grid = [(x0 + e + i * (pw - w - 2 * e) / GRID, top + e + j * (side - h - 2 * e) / GRID)
+                    for i in range(GRID + 1) for j in range(GRID + 1)]  # fmt: skip
+            best = min(candidates + grid, key=lambda pos: (*cost(pos), (pos[0] + w / 2 - mx) ** 2 + (pos[1] + h / 2 - my) ** 2))
         taken.append((best[0], best[0] + w, best[1], best[1] + h))
         cv.text(best[0], best[1] + h / 2, word, size=sz.role_word if weight == "bold" else sz.tag, color=col,
                 weight=weight, **meta)  # fmt: skip
