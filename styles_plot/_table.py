@@ -25,6 +25,11 @@ MIN_PANEL = 0.7  # inches: the narrowest a shared panel may get
 TIE_PT = 0.5  # a value label's two sides nearer than this (points) are a tie, and it goes right
 
 
+def _group_h(ctx: Ctx) -> float:
+    """Inches of a row group's header line: one bold grey line with air above it."""
+    return line_h(ctx.sizes.tag) + 0.08
+
+
 @dataclass
 class _Col:
     spec: DotColumn | TextColumn | Gutter
@@ -98,6 +103,7 @@ class _Layout:
     height: float = 0.0
     slack: float = 0.0  # inches the columns leave free (only when every panel has a fixed width)
     header_min: dict = field(default_factory=dict)  # id(free panel) -> the narrowest width that keeps its header within
+    row_heads: list = field(default_factory=list)  # (top, height, label) of each row group's header line
 
 
 # ---- plan ------------------------------------------------------------------------------------------------------------
@@ -125,6 +131,20 @@ def plan(t: DotTable, ctx: Ctx, width: float, label_w: float) -> Plan:
 
 
 def _validate(t: DotTable, ctx: Ctx) -> None:
+    rows, seen = list(t.rows), set()
+    for g in t.groups:
+        if not g.rows:
+            raise BuildError(f"{ctx.figure_id}: row group {g.label!r} has no rows")
+        missing = [r for r in g.rows if r not in rows]
+        if missing:
+            raise BuildError(f"{ctx.figure_id}: row group {g.label!r} names rows not in the table: {missing}")
+        i = rows.index(g.rows[0])
+        if list(g.rows) != rows[i:i + len(g.rows)]:
+            raise BuildError(f"{ctx.figure_id}: row group {g.label!r}: its rows {list(g.rows)} must be consecutive rows "
+                             "of the table, in its order")  # fmt: skip
+        if seen & set(g.rows):
+            raise BuildError(f"{ctx.figure_id}: row group {g.label!r} shares rows with another group")
+        seen |= set(g.rows)
     for c, _g in t.flat_columns():
         if isinstance(c, (DotColumn, TextColumn)):
             ctx.unit(c.unit)
@@ -142,6 +162,8 @@ def _validate(t: DotTable, ctx: Ctx) -> None:
         if c.width is not None and c.weight != 1.0:
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} sets both width= (inches) and weight= (a share of "
                              "the free width); keep one")  # fmt: skip
+        if c.labels not in ("nearest", "right"):
+            raise BuildError(f"{ctx.figure_id}: column {c.header!r} has labels={c.labels!r}; use 'nearest' or 'right'")
         if c.xlim is not None and c.xlim[1] <= c.xlim[0]:
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} has xlim {c.xlim}")
         for s in c.series:
@@ -502,7 +524,12 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
     lay.head = TOP + lay.note_h + lay.group_h + header_h
     lay.strip_h = levels * line_h(sz.role_word) + 0.1
     y = lay.head + lay.strip_h
+    heads = {g.rows[0]: g.label for g in lay.table.groups}
+    lay.row_heads = []  # (top, height, label): a row group's header line, above its first row
     for r in lay.rows:
+        if r.key in heads:
+            lay.row_heads.append((y, _group_h(ctx), heads[r.key]))
+            y += _group_h(ctx)
         r.top = y
         y += r.h
     lay.body_end = y
@@ -578,8 +605,12 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
             for a, b in spans:
                 cv.rect(a, r.top, b - a, r.h, ctx.chrome("zebra"), kind="zebra")
 
+    for top, h, label in lay.row_heads:  # a group's header sits low in its line, near the rows it names
+        cv.text(0.08, top + h * 0.6, label, kind="row_group", size=sz.tag, weight="bold", color=muted)
+    grouped = {k for g in lay.table.groups for k in g.rows}  # a group's rows sit indented under its header
     for r in lay.rows:
-        cv.text(0.08, r.mid, r.name, kind="row_label", size=sz.label, weight="bold", color=ink)
+        x = 0.08 + (LANE_INDENT if r.key in grouped else 0.0)
+        cv.text(x, r.mid, r.name, kind="row_label", size=sz.label, weight="bold", color=ink)
         for _k, label, dy in r.lines:
             if label:
                 cv.text(0.08 + LANE_INDENT, r.top + dy, label, kind="lane_label", size=sz.tag, color=muted)
@@ -679,6 +710,7 @@ def _panel(cv: Canvas, ctx: Ctx, lay: _Layout, c: _Col) -> None:
     # vertical lines stop at a row's second line where a tag spans this panel
     cuts = [(r.top + dy - lay.head, r.top + dy + h - lay.head) for r in lay.rows for dy, h, items in r.bands
             if _band_in(items, c, ctx)]  # fmt: skip
+    cuts += [(top - lay.head, top + h - lay.head) for top, h, _label in lay.row_heads]  # lines break between groups
     b0, b1 = lay.strip_h, total
     for tv in spec.xticks:
         for a, b in _segments(b0, b1, cuts):
@@ -856,7 +888,16 @@ def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines
             elif g1 <= val.value:  # left of the dot
                 cands.append((val.value - g1, 1, g1 - wd))
         best = None
-        if cands:  # sides within half a point of each other are a tie, and a tie goes right: float noise never decides
+        if c.spec.labels == "right":  # the nearest gap right of the dot that holds it (past a line if need be); the
+            # nearest on the left only when the right side has none (the panel's edge)
+            r_gap = min((g for g in gaps() if g[0] >= val.value and g[1] - g[0] >= wd), default=None)
+            l_gap = max((g for g in gaps() if g[1] <= val.value and g[1] - g[0] >= wd), default=None, key=lambda g: g[1])
+            if r_gap is not None:
+                best = (r_gap[0] - val.value, 0, r_gap[0])
+            elif l_gap is not None:
+                best = (val.value - l_gap[1], 1, l_gap[1] - wd)
+        if cands and best is None:  # sides within half a point of each other are a tie, and a tie goes right: float
+            # noise never decides
             near = min(d for d, _s, _x in cands) + TIE_PT * PT * per
             best = min((c for c in cands if c[0] <= near), key=lambda c: (c[1], c[0]))
         if best is None:  # no room at this width: the width that has room, for the check's fix
@@ -866,3 +907,4 @@ def _value_labels(cv: Canvas, ctx: Ctx, c: _Col, y: float, labels, spans, vlines
         x0 = best[2] if best is not None else min(val.value + (ctx.marks.dot_size / 2 + 5) * PT * per, right_end - wd)
         blocked.append((x0, x0 + wd))
         cv.text(c.x + c.dx(x0), y, text, size=ctx.sizes.value, color=col, **meta)
+

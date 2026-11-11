@@ -105,6 +105,7 @@ class DotColumn:
     width: float | None = None  # inches; None shares the remaining width
     band_name: str = ""  # which [key.bands] definition the band has; "" = [key].band
     weight: float = 1.0  # this panel's share of the free width (panels without `width`), relative to the others
+    labels: str = "nearest"  # value labels: "nearest" free gap, or "right" (the gap right of the dot, else left)
 
 
 @dataclass(frozen=True)
@@ -142,6 +143,15 @@ class Lane:
 
 
 @dataclass(frozen=True)
+class RowGroup:
+    """Consecutive rows of a dot table under one grey header line (a verdict, a family): the rows stay one height
+    and the group reads as a block."""
+
+    label: str  # a vocabulary term
+    rows: Sequence[str]
+
+
+@dataclass(frozen=True)
 class DotTable:
     rows: Sequence[str]
     columns: Sequence[DotColumn | TextColumn | Gutter | ColumnGroup]
@@ -149,6 +159,7 @@ class DotTable:
     row_sub: Mapping[str, str] = field(default_factory=dict)  # a grey second line under a row label
     lanes: Sequence[Lane] = ()  # sub-rows of every row
     note: str = ""  # one grey line above the table (a vocabulary term or template)
+    groups: Sequence[RowGroup] = ()  # runs of consecutive rows, each under a header line
 
     def flat_columns(self) -> list[tuple[DotColumn | TextColumn | Gutter, ColumnGroup | None]]:
         out = []

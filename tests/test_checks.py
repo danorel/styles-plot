@@ -875,3 +875,87 @@ def test_stack_segment_zero_in_every_row_is_not_named(vocab):
     assert problems == [], [str(p) for p in problems]
     names = {t.get_text() for t in mpl.findobj(lambda a: tags(a).get("kind") in ("role_word", "segment_name"))}
     assert names == {"correct", "no answer"}
+
+
+# ---- 0.2.3: row groups, labels on the right, a key in a column -------------------------------------------------------
+def _texts(mpl, kind):
+    return [t for t in mpl.findobj(lambda a: tags(a).get("kind") == kind)]
+
+
+def test_row_groups_put_a_header_above_each_group_and_keep_rows_one_height(vocab):
+    groups = [sp.RowGroup("set one", ["m1", "m2"]), sp.RowGroup("set two", ["m3"])]
+    fig = simple(vocab)
+    t = dataclasses.replace(fig.blocks[0], groups=groups)
+    mpl, problems = run(sp.Figure("methods", vocab).add(t))
+    assert problems == [], [str(p) for p in problems]
+    r = mpl.canvas.get_renderer()
+    heads = {h.get_text(): h.get_window_extent(r) for h in _texts(mpl, "row_group")}
+    rows = {n.get_text(): n.get_window_extent(r) for n in _texts(mpl, "row_label")}
+    assert list(heads) == ["set one", "set two"]
+    # display y grows upwards: each header sits above its group's first row and below the previous group's rows
+    assert heads["set one"].y0 > rows["Model 1"].y1
+    assert rows["Model 2"].y0 > heads["set two"].y1 > heads["set two"].y0 > rows["Model 3"].y1
+    assert rows["Model 1"].x0 > heads["set one"].x0 + 10  # a group's rows are indented under its header
+    dots = sorted(float(d.get_ydata()[0]) for d in _texts(mpl, "dot"))
+    plain = sorted(float(d.get_ydata()[0]) for d in _texts(run(simple(vocab))[0], "dot"))
+    assert dots[1] - dots[0] == pytest.approx(plain[1] - plain[0])  # rows inside a group keep their height
+
+
+@pytest.mark.parametrize("groups, words", [
+    ([sp.RowGroup("set one", ["m1", "m3"])], "consecutive"),
+    ([sp.RowGroup("set one", ["m4"])], "not in the table"),
+    ([sp.RowGroup("set one", ["m1"]), sp.RowGroup("set two", ["m1", "m2"])], "shares rows"),
+    ([sp.RowGroup("set one", [])], "no rows"),
+])  # fmt: skip
+def test_row_groups_refuse_rows_out_of_order_unknown_or_shared(vocab, groups, words):
+    t = dataclasses.replace(simple(vocab).blocks[0], groups=groups)
+    with pytest.raises(sp.BuildError, match=words):
+        sp.Figure("methods", vocab).add(t).render("post")
+
+
+def test_a_row_group_label_is_a_vocabulary_term(vocab):
+    t = dataclasses.replace(simple(vocab).blocks[0], groups=[sp.RowGroup("passes the bar", ["m1"])])
+    assert "SP401" in codes(run(sp.Figure("methods", vocab).add(t))[1])
+
+
+def _side(vocab, labels, rules=(), value=0.30):
+    """The side of one value label (whiskers 0.04 either side of its dot)."""
+    est = sp.Est(value, value - 0.04, value + 0.04, cell="layer.m1", key="v", label=True)
+    col = sp.DotColumn("gap", "gap_share", (-0.1, 1.1), (0, 0.5, 1), [sp.Series("first", {"m1": est})],
+                       rules=rules, labels=labels)  # fmt: skip
+    mpl, problems = run(sp.Figure("dot_table", vocab).add(sp.DotTable(["m1"], [col])))
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]
+    label = _texts(mpl, "value")[0]
+    dot = _texts(mpl, "dot")[0]
+    r = mpl.canvas.get_renderer()
+    dot_x = dot.get_transform().transform([[est.value, dot.get_ydata()[0]]])[0][0]
+    return "right" if label.get_window_extent(r).x0 > dot_x else "left"
+
+
+def test_labels_right_keeps_a_label_right_of_its_dot_where_nearest_would_not(vocab):
+    close = [sp.Rule(0.38, "chance")]  # a rule right after the whisker: nearest puts the label left of the dot
+    assert _side(vocab, "nearest", close) == "left"
+    assert _side(vocab, "right", close) == "right"  # right, past the line
+    assert _side(vocab, "right", value=1.04) == "left"  # the panel's edge leaves no room on the right
+
+
+def test_labels_takes_nearest_or_right_only(vocab):
+    col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [sp.Series("second", {"m1": sp.Est(60)})],
+                       labels="left")  # fmt: skip
+    with pytest.raises(sp.BuildError, match="labels='left'"):
+        sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [col])).render("post")
+
+
+def test_key_layout_column_puts_each_item_on_its_own_line(vocab):
+    t = example("dot_table").dot_table(vocab).blocks[0]
+    flow = sp.Figure("dot_table", vocab).add(t)
+    col = sp.Figure("dot_table", vocab, key_layout="column").add(t)
+    (m_flow, p_flow), (m_col, p_col) = run(flow), run(col)
+    assert p_col == [] or codes(p_col) == codes(p_flow)
+    r = m_col.canvas.get_renderer()
+    ys = [round(k.get_window_extent(r).y0, 1) for k in _texts(m_col, "key")]
+    assert len(ys) > 1 and len(set(ys)) == len(ys)  # one item per line
+    assert m_col.get_size_inches()[1] >= m_flow.get_size_inches()[1]
+    with pytest.raises(sp.BuildError, match="key_layout"):
+        sp.Figure("dot_table", vocab, key_layout="grid")
+

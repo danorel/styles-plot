@@ -242,6 +242,9 @@ def info(fig) -> RenderInfo:
 
 
 # ---- the key ---------------------------------------------------------------------------------------------------------
+KEY_AIR = 0.15  # inches above a key laid out one item per line
+
+
 def key_items(ctx: Ctx, enc: set) -> list[tuple[str, str, str, tuple]]:
     """(mark, mark colour, phrase, encoding) for each drawn encoding, in the grammar's fixed order: controls, tick,
     post hoc, whiskers and shading per interval kind, median, band."""
@@ -291,10 +294,10 @@ def _key_lines(ctx: Ctx, items, width: float) -> list[list[tuple]]:
     return lines
 
 
-def _draw_key(cv: Canvas, lines, controls: tuple[str, ...]) -> None:
+def _draw_key(cv: Canvas, lines, controls: tuple[str, ...], air: float = 0.0) -> None:
     ctx, size = cv.ctx, cv.ctx.sizes.key
     for i, line in enumerate(lines):
-        x, y = MARGIN, 0.1 + (i + 0.5) * line_h(size)
+        x, y = MARGIN, air + 0.1 + (i + 0.5) * line_h(size)
         for mark, col, phrase, enc in line:
             meta = {"encoding": enc, "controls": controls} if enc == ("control",) else {"encoding": enc}
             if mark:
@@ -365,14 +368,17 @@ def _all_post_hoc(fig, registry, blocks) -> bool:
 
 
 def _label_width(ctx: Ctx, block) -> float:
-    """The row-label column every block shares: the widest entity name or row sub-line."""
+    """The row-label column every block shares: the widest entity name, row sub-line, lane or row-group label."""
     rows = getattr(block, "rows", None)
     if not rows or not hasattr(block, "kind"):  # entity rows only (a card's rows are readers, not entities)
         return 0.0
     kind = block.kind
-    widths = [ctx.measure(ctx.entity_name(kind, r), ctx.sizes.label, "bold")[0] for r in rows]
+    grouped = {k for g in getattr(block, "groups", ()) for k in g.rows}  # indented under their group's header
+    widths = [(LANE_INDENT if r in grouped else 0.0) + ctx.measure(ctx.entity_name(kind, r), ctx.sizes.label, "bold")[0]
+              for r in rows]  # fmt: skip
     widths += [ctx.measure(s, ctx.sizes.tag)[0] for s in getattr(block, "row_sub", {}).values()]
     widths += [LANE_INDENT + ctx.measure(ln.label, ctx.sizes.tag)[0] for ln in getattr(block, "lanes", ()) if ln.label]
+    widths += [ctx.measure(g.label, ctx.sizes.tag, "bold")[0] for g in getattr(block, "groups", ())]
     return max(widths) + 0.25
 
 
@@ -383,11 +389,15 @@ class Figure:
     blocks ("synthetic data"); `read` is one sentence under the blocks that walks through one value, its numbers given
     as `numbers={name: (value, unit, data key)}` and printed in the unit's format. `direct_labels` exempts a figure of
     schematics and cards from the colour-vision floors; every coloured element then needs its word right next to it.
-    `waive` lists `Waive`s: layout problems a person has looked at and accepted."""
+    `waive` lists `Waive`s: layout problems a person has looked at and accepted. `key_layout` "flow" fills the key's
+    lines left to right; "column" puts each item on its own line, with air above the key."""
 
     def __init__(self, id: str, vocab: Vocab, *, title: str = "", caption: str = "", subtitle: str = "",
                  direct_labels: bool = False, registry: R.Registry | None = None, read: str = "",
-                 numbers: dict | None = None, waive=()):  # fmt: skip
+                 numbers: dict | None = None, waive=(), key_layout: str = "flow"):  # fmt: skip
+        if key_layout not in ("flow", "column"):
+            raise BuildError(f"key_layout={key_layout!r}: use 'flow' or 'column'")
+        self.key_layout = key_layout
         if not id or "/" in id:
             raise BuildError(f"bad figure id {id!r}")
         self.waive = tuple(waive)
@@ -467,7 +477,9 @@ class Figure:
             blocks.append(ReadAloud(self.read, tuple((k, *v) for k, v in self.read_numbers.items())))
         plans = [_planner(b)(b, ctx, W, label_w) for b in blocks]
         enc = frozenset().union(*(p.encodings for p in plans)) | ({("all_post_hoc",)} if ctx.all_post_hoc else set())
-        k_lines = _key_lines(ctx, key_items(ctx, set(enc)), inner)
+        items = key_items(ctx, set(enc))
+        k_lines = [[it] for it in items] if self.key_layout == "column" else _key_lines(ctx, items, inner)
+        k_air = KEY_AIR if self.key_layout == "column" and k_lines else 0.0
         controls = tuple(sorted(e[1] for e in enc if e[0] == "control"))
 
         sections: list[tuple[float, Callable]] = []
@@ -478,8 +490,8 @@ class Figure:
             sections.append(_lines_section(ctx, self.subtitle, inner, ctx.sizes.tag, "subtitle", "normal", muted))
         sections += [(p.height, p.draw) for p in plans]
         if not self._key_figure:
-            key_h = len(k_lines) * line_h(ctx.sizes.key) + (0.2 if k_lines else 0.05)
-            sections.append((key_h, lambda cv: _draw_key(cv, k_lines, controls)))
+            key_h = k_air + len(k_lines) * line_h(ctx.sizes.key) + (0.2 if k_lines else 0.05)
+            sections.append((key_h, lambda cv: _draw_key(cv, k_lines, controls, k_air)))
         if theme.caption and self.caption:
             sections.append(_lines_section(ctx, self.caption, inner, theme.caption_size, "caption", "normal", muted))
 

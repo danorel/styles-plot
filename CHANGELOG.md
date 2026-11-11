@@ -6,6 +6,25 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
+## 0.2.3
+
+Additions only: a builder that uses none of them draws the same pixels (the gallery and the README images are
+unchanged).
+
+- **Row groups.** `sp.RowGroup(label, rows)` and `DotTable(..., groups=[...])`: consecutive rows under one bold grey
+  header line in the label column (a verdict such as "passes the bar", a model family), its rows' names indented under
+  it (by a lane's indent). Rows keep one height, unlike a `row_sub` under one row of each group; the panels' lines
+  break at each header, so the groups read as blocks. The label is a vocabulary term (SP401) and widens the label
+  column like any row label. A group whose rows are not
+  consecutive rows of the table in its order, name a row not in the table, share a row with another group, or are
+  empty is a `BuildError`. *Migration:* none.
+- **Value labels on the right.** `DotColumn(..., labels="right")`: each value label takes the nearest free gap right
+  of its dot that holds it, past a rule if one is in the way, and the nearest on the left only when the right side has
+  none (the panel's edge); with neither, the usual rule. The default `"nearest"` is unchanged. Any other value is a
+  `BuildError`. *Migration:* none.
+- **A key in a column.** `Figure(..., key_layout="column")`: the key's items one per line, in the grammar's order,
+  with 0.15 in of air above; `"flow"` (the default) fills lines left to right as before. *Migration:* none.
+
 ## 0.2.2
 
 - **A sidecar records its vocabulary's meaning, and `check` says when it changed.** The sidecar's vocabulary hash is
