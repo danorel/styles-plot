@@ -6,6 +6,14 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
+## 0.2.6
+
+- **Several parts of no role, told apart.** A stack with two or more `other` segments draws them in their own greys,
+  in order (`OTHER_SHADES`: the palette's other, then #a3a3a3, #7a7a7a), and each of their names leads with a swatch (■)
+  in its part's grey, so a name and its part match; the word itself stays the readable muted grey. The colour check
+  accepts these greys for parts and swatches of no role. A stack with one `other` part draws the same pixels.
+  *Migration:* none.
+
 ## 0.2.5
 
 - **A stack segment's note.** `Segment(..., note="...")`: grey words (a vocabulary term) under the segment's name above

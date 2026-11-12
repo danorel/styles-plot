@@ -13,8 +13,11 @@ from styles_plot._tags import DATA_KINDS, tags
 
 # role-tagged artists whose colour is the role's
 _ROLE_KINDS = DATA_KINDS | {"whisker", "shading", "tick", "median", "role_word", "value", "key_mark", "schematic_word",
-                            "box", "arrow", "swatch", "card_text", "word"}  # fmt: skip
+                            "box", "arrow", "swatch", "card_text", "word", "segment_swatch"}  # fmt: skip
 _NAMING_KINDS = {"role_word", "schematic_word", "word"}
+
+
+from styles_plot._palette import OTHER_SHADES  # noqa: E402
 
 
 def check(cx: CheckCtx) -> list[Problem]:
@@ -35,6 +38,8 @@ def check(cx: CheckCtx) -> list[Problem]:
         if role is not None and t.get("kind") in _ROLE_KINDS:
             want = pal.control if role == "control" else pal.other if role == "other" else v.roles[role].hex
             ok = {want, bg} if t.get("kind") in DATA_KINDS | {"swatch"} else {want}
+            if role == "other" and t.get("kind") in DATA_KINDS | {"segment_swatch"}:  # a stack's several greys
+                ok |= set(OTHER_SHADES)
             if t.get("kind") == "value" and role == "control":
                 ok = {pal.chrome["muted"]}
             for c in cols - ok:

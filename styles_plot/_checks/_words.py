@@ -21,7 +21,7 @@ _NUMBERISH = re.compile(rf"(?:{NUM}|\[{NUM}, {NUM}\]|{NUM} of {NUM})")
 _UTC = re.compile(r"\b\d{8}T\d{4,6}Z?\b")
 _SNAKE_ID = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
 _PROSE = {"title", "caption"}  # free prose: only banned words and ids are checked
-_FREE = {"tick_label"}  # library-made numbers
+_FREE = {"tick_label", "segment_swatch"}  # library-made numbers and marks
 
 
 def _control_phrase(cx: CheckCtx, s: str) -> bool:

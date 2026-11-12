@@ -1007,3 +1007,18 @@ def test_stack_names_that_cannot_sit_over_narrow_segments_go_in_one_row_in_order
     assert len({round(b.y0) for b in boxes.values()}) == 1
     assert boxes["correct"].x1 < boxes["wrong"].x0 and boxes["wrong"].x1 < boxes["no answer"].x0
 
+
+# ---- 0.2.6: several parts of no role in one stack ---------------------------------------------------------------------
+def test_two_parts_of_no_role_get_two_greys_and_swatches_in_them(vocab):
+    shares = {"m1": (0.3, 0.6), "m2": (0.4, 0.5), "m3": (0.2, 0.7)}
+    segs = []
+    for i, (name, role) in enumerate((("correct", "first"), ("wrong", "other"), ("no answer", "other"))):
+        segs.append(sp.Segment(name, role, {m: sp.Est((c, w, round(1 - c - w, 10))[i], cell=f"{('correct', 'wrong', 'none')[i]}.{m}")
+                                            for m, (c, w) in shares.items()}))  # fmt: skip
+    mpl, problems = run(sp.Figure("stack", vocab, subtitle="synthetic data").add(sp.Stack(list(shares), segs, header="answers")))
+    assert problems == [], [str(p) for p in problems]
+    from matplotlib.colors import to_hex
+    fills = {to_hex(r.get_facecolor()) for r in mpl.findobj(lambda a: tags(a).get("kind") == "segment" and tags(a).get("role") == "other")}
+    swatches = [to_hex(t.get_color()) for t in mpl.findobj(lambda a: tags(a).get("kind") == "segment_swatch")]
+    assert len(fills) == 2 and set(swatches) == fills  # each grey part in its own grey, its swatch in that grey
+

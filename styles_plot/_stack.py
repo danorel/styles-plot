@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from matplotlib.patches import Rectangle
 
+from styles_plot._palette import OTHER_SHADES
 from styles_plot._grid import STRIP_GAP, claim_tags, draw_tags, draw_x_bottom, place_on_levels, x_bottom_height
 from styles_plot._model import Est, Stack
 from styles_plot._render import BuildError, Canvas, Ctx, Plan
@@ -13,6 +14,9 @@ from styles_plot._tags import tag
 from styles_plot._text import line_h
 
 RIGHT = 0.3  # room for the last tick label
+
+
+SWATCH = "■ "  # leads the name of a part of no role when the stack has several, in the part's own grey
 
 
 def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
@@ -55,6 +59,11 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
     for seg in shown:
         if any(ctx.status(v.cell).hollow for v in seg.shares.values()):
             enc.add(("post_hoc",))
+    # two or more parts of no role: each its own grey, its name led by a swatch of that grey (one such part: as before)
+    others = [seg for seg in shown if seg.role == "other"]
+    shade = {id(seg): (OTHER_SHADES[i % len(OTHER_SHADES)] if len(others) > 1 else ctx.role_hex("other"))
+             for i, seg in enumerate(others)}  # fmt: skip
+    swatch = {id(seg): shade[id(seg)] for seg in others} if len(others) > 1 else {}
     # segment names over the first row's segments
     first, left, items = s.rows[0], 0.0, []
     muted = ctx.chrome("muted")
@@ -62,8 +71,10 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
         v = seg.shares[first].value
         colr, meta = ((muted, {"kind": "segment_name"}) if seg.role == "other"
                       else (ctx.role_hex(seg.role), {"kind": "role_word", "role": seg.role}))  # fmt: skip
-        wd = max(ctx.measure(seg.name, sz.role_word, "bold")[0], ctx.measure(seg.note, sz.tag)[0] if seg.note else 0.0)
-        items.append((left * pw, (left + v) * pw, wd, (seg.name, colr, "bold", sz.role_word, meta, seg.note)))  # fmt: skip
+        lead = ctx.measure(SWATCH, sz.role_word, "bold")[0] if id(seg) in swatch else 0.0
+        wd = max(lead + ctx.measure(seg.name, sz.role_word, "bold")[0], ctx.measure(seg.note, sz.tag)[0] if seg.note else 0.0)
+        items.append((left * pw, (left + v) * pw, wd, (seg.name, colr, "bold", sz.role_word, meta, seg.note,
+                                                    swatch.get(id(seg)))))  # fmt: skip
         left += v
     strip, levels = _place_names(items, pw)
     level_h = line_h(sz.role_word) + (line_h(sz.tag) if any(seg.note for seg in shown) else 0.0)  # a name, its note
@@ -88,8 +99,12 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
         for i, t in enumerate(header):
             cv.text(x0, 0.08 + (i + 0.5) * line_h(sz.header), t, kind="header", size=sz.header, weight="bold",
                     full=s.header)  # fmt: skip
-        for xl, level, (word, colr, weight, size, meta, note) in strip:
+        for xl, level, (word, colr, weight, size, meta, note, sw) in strip:
             yw = body_top - 0.04 - (level + 1) * level_h + line_h(sz.role_word) / 2
+            if sw:  # the swatch: a square in the part's own grey, then the name
+                cv.text(x0 + xl, yw, SWATCH.strip(), kind="segment_swatch", role="other", size=size, color=sw,
+                        weight=weight)  # fmt: skip
+                xl += ctx.measure(SWATCH, size, weight)[0]
             cv.text(x0 + xl, yw, word, size=size, color=colr, weight=weight, **meta)
             if note:
                 cv.text(x0 + xl, yw + (line_h(sz.role_word) + line_h(sz.tag)) / 2, note, kind="segment_note",
@@ -107,7 +122,7 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
             left = 0.0
             for seg in shown:
                 v = seg.shares[r]
-                col = ctx.role_hex(seg.role)
+                col = shade.get(id(seg), ctx.role_hex(seg.role)) if seg.role == "other" else ctx.role_hex(seg.role)
                 st = ctx.status(v.cell)
                 rect = Rectangle((left, yc - bar_h / 2), v.value, bar_h, facecolor=bg if st.hollow else col,
                                  edgecolor=col if st.hollow else bg, lw=1.6 if st.hollow else 0.8, zorder=2)  # fmt: skip
