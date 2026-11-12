@@ -165,6 +165,11 @@ def _validate(t: DotTable, ctx: Ctx) -> None:
         if c.width is not None and c.weight != 1.0:
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} sets both width= (inches) and weight= (a share of "
                              "the free width); keep one")  # fmt: skip
+        if c.word_order not in ("dots", "series"):
+            raise BuildError(f"{ctx.figure_id}: column {c.header!r} has word_order={c.word_order!r}; use 'dots' or 'series'")
+        for s_ in c.series:
+            if s_.mark not in ("dot", "tick"):
+                raise BuildError(f"{ctx.figure_id}: series {s_.role!r} has mark={s_.mark!r}; use 'dot' or 'tick'")
         if c.labels not in ("nearest", "right"):
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} has labels={c.labels!r}; use 'nearest' or 'right'")
         if c.xlim is not None and c.xlim[1] <= c.xlim[0]:
@@ -512,7 +517,17 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
             c.title = ctx.wrap(u.title, c.w + ctx.theme.pad * 0.8, sz.axis) if show else []
             if c.is_panel and u.cue:
                 c.cue = ctx.wrap(v.cue(u.name), c.w + ctx.theme.pad * 0.8, sz.cue)
-    for g in lay.groups:  # small multiples: a group's panels on one unit share one axis title and one cue
+    panels = [c for c in lay.cols if c.is_panel]
+    if lay.table.shared_title and len(panels) > 1 and len({c.spec.unit for c in panels}) == 1:
+        u = v.unit(panels[0].spec.unit)  # one title and one cue across every panel
+        x0, x1 = panels[0].x, panels[-1].x + panels[-1].w
+        panels[0].title_span, panels[0].title_panels = (x0, x1), [c.pid for c in panels]
+        panels[0].title = ctx.wrap(u.title, x1 - x0, sz.axis)
+        panels[0].cue = ctx.wrap(v.cue(u.name), x1 - x0, sz.cue) if u.cue else []
+        for c in panels[1:]:
+            c.title, c.cue = [], []
+    for g in lay.groups if not lay.table.shared_title else ():  # small multiples: a group's panels on one unit share
+        # one axis title and one cue
         members = [c for c in lay.cols if c.group is g and c.is_panel]
         if len(members) > 1 and len({c.spec.unit for c in members}) == 1 and all(c.group is g for c in members):
             u = v.unit(members[0].spec.unit)
@@ -567,7 +582,13 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx, seen_rules: set) -> int:
     need = sum(w for _xc, w, _p in words) + STRIP_GAP * max(len(words) - 1, 0)
     if words and need > c.w + ctx.theme.pad * 0.7:  # one line is the rule: say so instead of overlapping silently
         words = [(xc, w, (*p[:4], {**p[4], "line_full": (round(need, 2), round(c.w, 2)), "sizing": _sizing(c, lay)})) for xc, w, p in words]
-    line = place_in_line(words, c.w)
+    if c.spec.word_order == "series":  # as listed, from the left: the same order on every panel of a figure
+        line, x = [], 0.0
+        for _xc, w, p in words:
+            line.append((x, p))
+            x += w + STRIP_GAP
+    else:
+        line = place_in_line(words, c.w)
     occupied = [(x0, x0 + ctx.measure(p[0], sz.role_word, "bold")[0], 0) for x0, p in line]
     c.strip = [(x0, 0, *p) for x0, p in line]
     levels = 1 if line else 0
@@ -838,6 +859,11 @@ def _dot(ax, ctx: Ctx, s, val: Est, y: float) -> list[float]:
         tag(ax.plot([val.lo, val.hi], [y, y], color=col, lw=mk.whisker_lw, solid_capstyle="butt", zorder=3),
             kind="whisker", interval=val.interval, **meta)  # fmt: skip
         out += [val.lo, val.hi]
+    if getattr(s, "mark", "dot") == "tick":  # a short vertical mark the eye reads through (a reference), in the role's colour
+        tag(ax.plot([val.value], [y], marker="|", ls="none", ms=mk.dot_size * 1.6, color=col,
+                    mew=mk.tick_lw * (0.6 if st.hollow else 1.0), zorder=4), kind="dot", hollow=st.hollow, mark="tick",
+            **meta)  # fmt: skip
+        return out
     tag(ax.plot([val.value], [y], marker=mk.marker, ls="none", ms=mk.dot_size, color=col, mfc=bg if st.hollow else col,
                 mec=col, mew=mk.hollow_edge if st.hollow else 0, zorder=4), kind="dot", hollow=st.hollow, **meta)  # fmt: skip
     return out

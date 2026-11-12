@@ -1045,3 +1045,23 @@ def test_a_column_group_rule_centres_its_header_over_its_columns(vocab):
     hb, rb = head.get_window_extent(r), rule.get_window_extent(r)
     assert abs((hb.x0 + hb.x1) / 2 - (rb.x0 + rb.x1) / 2) < 2 and rb.y1 <= hb.y0 + 1  # centred over it, the rule below
 
+
+def test_a_tick_series_series_word_order_and_a_shared_title(vocab):
+    ref = {m: sp.Est(70.0 + i, cell=f"acc.{m}") for i, m in enumerate(M3)}
+    col = lambda: sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), word_order="series", series=[  # noqa: E731
+        sp.Series("second", ref, mark="tick"),
+        sp.Series("first", {m: sp.Est(50.0 + i, cell=f"acc.{m}") for i, m in enumerate(M3)})])  # fmt: skip
+    t = sp.DotTable(M3, [col(), sp.Gutter(), col()], shared_title=True)
+    mpl, problems = run(sp.Figure("methods", vocab).add(t))
+    assert problems == [], [str(p) for p in problems]
+    r = mpl.canvas.get_renderer()
+    words = [w for w in mpl.findobj(lambda a: tags(a).get("kind") == "role_word")]
+    per_panel = sorted(((round(w.get_window_extent(r).y0), w.get_window_extent(r).x0, w.get_text()) for w in words))
+    first_panel = [t for _y, _x, t in per_panel[:2]]
+    assert first_panel[0] != first_panel[1] and len({tx for _y, _x, tx in per_panel}) == 2
+    xs = sorted((w.get_window_extent(r).x0, w.get_text()) for w in words)
+    assert [tx for _x, tx in xs][:2] == ["beta", "alpha"] or [tx for _x, tx in xs][:2] == ["alpha", "beta"]
+    assert len([a for a in mpl.findobj(lambda a: tags(a).get("kind") == "axis_title")]) == 1  # one title
+    ticks = [a for a in mpl.findobj(lambda a: tags(a).get("mark") == "tick")]
+    assert ticks and all(a.get_marker() == "|" for a in ticks)
+

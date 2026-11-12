@@ -13,7 +13,14 @@ is an error at once.
   moves; none in the gallery.
 - **A column group's rule.** `ColumnGroup(..., rule=True)`: the group's header centred over all its columns with a thin
   line under it across them, and air under the line before the columns' headers, so a header over several panels
-  reads as theirs. The default is unchanged. *Migration:*
+  reads as theirs.
+- **A series drawn as ticks.** `Series(..., mark="tick")`: a short vertical mark in the role's colour instead of a dot,
+  for a reference the eye reads through (a dot of another role landing on it reads as "the same"). SP608 accepts it.
+- **Colour words in a fixed order.** `DotColumn(..., word_order="series")`: the words above the rows in the series'
+  order, from the left, so every panel of a figure names its colours in the same order; the default `"dots"` (the
+  order the dots appear) is unchanged.
+- **One axis title for all panels.** `DotTable(..., shared_title=True)`: when every panel shares a unit, one title
+  and one cue centred across them all (beyond a column group's). Default unchanged. The default is unchanged. *Migration:*
   none.
 
 ## 0.2.6
