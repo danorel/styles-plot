@@ -6,6 +6,17 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
+## 0.2.5
+
+- **A stack segment's note.** `Segment(..., note="...")`: grey words (a vocabulary term) under the segment's name above
+  the bars, saying what the part is ("the item's own locker"). Names and notes are placed together, so a level is a name
+  and its note. *Migration:* none.
+- **Segment names on one level where they fit.** A name (and its note) may sit at its segment's centre, start or end;
+  the stack takes one level if some choice of these fits, names nearest their centres; when none does, the earlier
+  rule (centred, levels) is unchanged; before it, names that fit side by side go in one row in the segments' order,
+  a name centred over its segment when the segment is wide enough for it, else at the segment's start. *Pixels:* none in the gallery; a stack whose names climbed only because a
+  centred name blocked a neighbour now shows them on one line.
+
 ## 0.2.4
 
 - **A scatter's word never sits on a point.** The placer kept 0.04 in of white around a point where the layout check
