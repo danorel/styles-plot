@@ -27,6 +27,8 @@ DEFAULT_ROLE_SLOTS: dict[str, str] = {
 }
 DEFAULT_CONTROL = "#a8a8a8"
 DEFAULT_OTHER = "#d9d9d9"
+# a stack with two or more parts of no role draws them in these greys, in order (the first is DEFAULT_OTHER)
+OTHER_SHADES = (DEFAULT_OTHER, "#a3a3a3", "#7a7a7a")
 DEFAULT_CHROME: dict[str, str] = {
     "text": "#1a1a1a",  # bold ink and ink
     "muted": "#6b6b6b",  # grey text
