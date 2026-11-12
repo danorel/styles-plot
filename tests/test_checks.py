@@ -991,3 +991,19 @@ def test_a_stack_segment_note_sits_under_its_name_and_is_a_vocabulary_term(vocab
     bad = [dataclasses.replace(sg, note="not a term") for sg in st.segments]
     assert "SP401" in codes(run(sp.Figure("stack", vocab).add(dataclasses.replace(st, segments=bad)))[1])
 
+
+def test_stack_names_that_cannot_sit_over_narrow_segments_go_in_one_row_in_order(vocab):
+    # 0.2.5: two narrow segments at the left; their names fit side by side, so one row in the segments' order
+    shares = {"m1": (0.04, 0.05), "m2": (0.05, 0.04), "m3": (0.03, 0.06)}
+    segs = []
+    for i, (name, role, cell) in enumerate((("correct", "first", "correct"), ("wrong", "second", "wrong"),
+                                            ("no answer", "other", "none"))):  # fmt: skip
+        segs.append(sp.Segment(name, role, {m: sp.Est((c, w, round(1 - c - w, 10))[i], cell=f"{cell}.{m}")
+                                            for m, (c, w) in shares.items()}))  # fmt: skip
+    mpl, problems = run(sp.Figure("stack", vocab, subtitle="synthetic data").add(sp.Stack(list(shares), segs, header="answers")))
+    assert problems == [], [str(p) for p in problems]
+    r = mpl.canvas.get_renderer()
+    boxes = {t.get_text(): t.get_window_extent(r) for t in mpl.findobj(lambda a: tags(a).get("kind") in ("role_word", "segment_name"))}
+    assert len({round(b.y0) for b in boxes.values()}) == 1
+    assert boxes["correct"].x1 < boxes["wrong"].x0 and boxes["wrong"].x1 < boxes["no answer"].x0
+

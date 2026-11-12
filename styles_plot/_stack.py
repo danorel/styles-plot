@@ -144,8 +144,8 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
 
 def _place_names(items, pw: float) -> tuple[list, int]:
     """Segment names (with their notes) above the first row. Each may sit at its segment's centre, start or end (inside
-    the bars' width): one level if some choice of these fits (the names nearest their centres), else the earlier rule
-    (each centred over its segment, on the lowest free level). items: (segment start, segment end, width,
+    the bars' width): one level if some choice of these fits (the names nearest their centres); else one row in the
+    segments' order when the names fit side by side; else the earlier rule (each centred, on the lowest free level). items: (segment start, segment end, width,
     payload) in inches."""
     import itertools
 
@@ -161,6 +161,17 @@ def _place_names(items, pw: float) -> tuple[list, int]:
                     best = (cost, combo)
         if best is not None:
             return [(x, 0, it[3]) for x, it in zip(best[1], items, strict=True)], (1 if items else 0)
+    # else, if the names fit side by side, one row in the segments' order: each centred over its segment when that is
+    # wide enough for it, else at its start, pushed right of the name before and pulled back from the right edge
+    if items and sum(w for _a, _b, w, _p in items) + STRIP_GAP * (len(items) - 1) <= pw:
+        xs: list[float] = []
+        for a, b, w, _p in items:  # a name over a segment wide enough for it stays centred there, others at the start
+            want = min((a + b) / 2 - w / 2 if b - a >= w else a, pw - w)
+            xs.append(max(want, xs[-1] + items[len(xs) - 1][2] + STRIP_GAP) if xs else want)
+        for i in range(len(items) - 1, -1, -1):
+            limit = pw if i == len(items) - 1 else xs[i + 1] - STRIP_GAP
+            xs[i] = max(0.0, min(xs[i], limit - items[i][2]))
+        return [(x, 0, it[3]) for x, it in zip(xs, items, strict=True)], 1
     # else the earlier rule, unchanged: each name centred over its segment, on the lowest free level
     return place_on_levels([((a + b) / 2, w, payload) for a, b, w, payload in items], pw)
 

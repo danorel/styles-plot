@@ -13,7 +13,8 @@ is an error at once.
   and its note. *Migration:* none.
 - **Segment names on one level where they fit.** A name (and its note) may sit at its segment's centre, start or end;
   the stack takes one level if some choice of these fits, names nearest their centres; when none does, the earlier
-  rule (centred, levels) is unchanged. *Pixels:* none in the gallery; a stack whose names climbed only because a
+  rule (centred, levels) is unchanged; before it, names that fit side by side go in one row in the segments' order,
+  a name centred over its segment when the segment is wide enough for it, else at the segment's start. *Pixels:* none in the gallery; a stack whose names climbed only because a
   centred name blocked a neighbour now shows them on one line.
 
 ## 0.2.4
