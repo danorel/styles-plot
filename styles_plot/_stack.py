@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from matplotlib.patches import Rectangle
 
-from styles_plot._grid import claim_tags, draw_tags, draw_x_bottom, place_on_levels, x_bottom_height
+from styles_plot._grid import STRIP_GAP, claim_tags, draw_tags, draw_x_bottom, place_on_levels, x_bottom_height
 from styles_plot._model import Est, Stack
 from styles_plot._render import BuildError, Canvas, Ctx, Plan
 from styles_plot._table import text_parts
@@ -62,15 +62,16 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
         v = seg.shares[first].value
         colr, meta = ((muted, {"kind": "segment_name"}) if seg.role == "other"
                       else (ctx.role_hex(seg.role), {"kind": "role_word", "role": seg.role}))  # fmt: skip
-        items.append(((left + v / 2) * pw, ctx.measure(seg.name, sz.role_word, "bold")[0],
-                      (seg.name, colr, "bold", sz.role_word, meta)))  # fmt: skip
+        wd = max(ctx.measure(seg.name, sz.role_word, "bold")[0], ctx.measure(seg.note, sz.tag)[0] if seg.note else 0.0)
+        items.append((left * pw, (left + v) * pw, wd, (seg.name, colr, "bold", sz.role_word, meta, seg.note)))  # fmt: skip
         left += v
-    strip, levels = place_on_levels(items, pw)
+    strip, levels = _place_names(items, pw)
+    level_h = line_h(sz.role_word) + (line_h(sz.tag) if any(seg.note for seg in shown) else 0.0)  # a name, its note
     head = 0.08
     header = ctx.wrap(s.header, pw, sz.header, "bold") if s.header else []
     head += len(header) * line_h(sz.header)
     head_lines = max((len(ctx.wrap(tc.header, w, sz.header, "bold")) for tc, _p, w in cols), default=0)
-    strip_h = max(levels * line_h(sz.role_word), head_lines * line_h(sz.header)) + 0.08
+    strip_h = max(levels * level_h, head_lines * line_h(sz.header)) + 0.08
     body_top = head + strip_h
     row_tags = {r: claim_tags(ctx, [seg.shares[r].cell for seg in shown]) for r in s.rows}
     tops, y = {}, 0.0
@@ -87,9 +88,12 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
         for i, t in enumerate(header):
             cv.text(x0, 0.08 + (i + 0.5) * line_h(sz.header), t, kind="header", size=sz.header, weight="bold",
                     full=s.header)  # fmt: skip
-        for xl, level, (word, colr, weight, size, meta) in strip:
-            cv.text(x0 + xl, body_top - 0.04 - (level + 0.5) * line_h(sz.role_word), word, size=size, color=colr,
-                    weight=weight, **meta)  # fmt: skip
+        for xl, level, (word, colr, weight, size, meta, note) in strip:
+            yw = body_top - 0.04 - (level + 1) * level_h + line_h(sz.role_word) / 2
+            cv.text(x0 + xl, yw, word, size=size, color=colr, weight=weight, **meta)
+            if note:
+                cv.text(x0 + xl, yw + (line_h(sz.role_word) + line_h(sz.tag)) / 2, note, kind="segment_note",
+                        size=sz.tag, color=ctx.chrome("muted"))  # fmt: skip
         ax = cv.axes(x0, body_top, pw, body_h)
         ax.set_xlim(0, 1)
         ax.set_ylim(body_h, 0)
@@ -136,3 +140,28 @@ def plan(s: Stack, ctx: Ctx, width: float, label_w: float) -> Plan:
             cx += w + th.pad
 
     return Plan(height, draw, enc)
+
+
+def _place_names(items, pw: float) -> tuple[list, int]:
+    """Segment names (with their notes) above the first row. Each may sit at its segment's centre, start or end (inside
+    the bars' width): one level if some choice of these fits (the names nearest their centres), else the earlier rule
+    (each centred over its segment, on the lowest free level). items: (segment start, segment end, width,
+    payload) in inches."""
+    import itertools
+
+    items = sorted(items, key=lambda it: (it[0] + it[1]) / 2)
+    spots_of = [[min(max(x, 0.0), max(pw - w, 0.0)) for x in ((a + b) / 2 - w / 2, a, b - w)] for a, b, w, _p in items]
+    if len(items) <= 8:  # one level if any choice of spots fits, the names nearest their segments' centres
+        best = None
+        for combo in itertools.product(*spots_of):
+            spans = sorted((x, x + it[2]) for x, it in zip(combo, items, strict=True))
+            if all(q + STRIP_GAP <= p for (_p0, q), (p, _q1) in zip(spans, spans[1:], strict=False)):
+                cost = sum(abs(x - sp[0]) for x, sp in zip(combo, spots_of, strict=True))
+                if best is None or cost < best[0]:
+                    best = (cost, combo)
+        if best is not None:
+            return [(x, 0, it[3]) for x, it in zip(best[1], items, strict=True)], (1 if items else 0)
+    # else the earlier rule, unchanged: each name centred over its segment, on the lowest free level
+    return place_on_levels([((a + b) / 2, w, payload) for a, b, w, payload in items], pw)
+
+

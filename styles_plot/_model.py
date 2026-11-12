@@ -254,6 +254,7 @@ class Segment:
     _: KW_ONLY
     cell: str | None = None
     key: str | None = None
+    note: str = ""  # grey words under the segment's name above the bars (a vocabulary term): what the part is
 
 
 @dataclass(frozen=True)
