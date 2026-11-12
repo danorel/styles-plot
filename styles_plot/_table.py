@@ -25,6 +25,7 @@ MIN_PANEL = 0.7  # inches: the narrowest a shared panel may get
 TIE_PT = 0.5  # a value label's two sides nearer than this (points) are a tie, and it goes right
 
 
+NOTE_AIR = 0.14  # inches between a table's note and the headers under it
 GROUP_RULE_AIR = 0.1  # inches between a column group's rule and the headers under it
 
 
@@ -496,7 +497,7 @@ def _lanes(r: _Row, ctx: Ctx, row_sub: str) -> float:
 def _vertical(lay: _Layout, ctx: Ctx) -> None:
     """Headers, the strip of role words above the first row, rows, and the bottom (ticks, unit titles, cues)."""
     sz, v = ctx.sizes, ctx.vocab
-    lay.note_h = line_h(sz.tag) + 0.06 if lay.table.note else 0.0
+    lay.note_h = line_h(sz.tag) + 0.06 + NOTE_AIR if lay.table.note else 0.0  # the note, then air before the headers
     lay.group_lines = {}
     for g in lay.groups:
         members = [c for c in lay.cols if c.group is g]
@@ -643,7 +644,7 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
 
 
     if lay.table.note:
-        cv.text(0.08, TOP + lay.note_h / 2, lay.table.note, kind="subtitle", size=sz.tag, color=muted)
+        cv.text(0.08, TOP + (lay.note_h - NOTE_AIR) / 2, lay.table.note, kind="subtitle", size=sz.tag, color=muted)
     top = TOP + lay.note_h
     for g in lay.groups:
         members = [c for c in lay.cols if c.group is g]

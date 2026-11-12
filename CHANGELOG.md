@@ -6,6 +6,12 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
+## 0.2.8
+
+- **Air under a table's note.** The grey note above a dot table (`DotTable(note=...)`) keeps its place and gains
+  0.14 in before the headers under it (`NOTE_AIR`), so it no longer reads as part of the first header. *Pixels:* every
+  dot table with a note grows by 0.14 in (none in the gallery or the README images).
+
 ## 0.2.7
 
 - **A value label keeps clear of its line's missing words.** A missing cell's words ("n/a") are placed before the
