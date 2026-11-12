@@ -8,9 +8,9 @@ with yours. The sections below are the hand-written route and explain every tabl
 
 ```
 # uv / pyproject.toml
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.5
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.6
 # pip / requirements.txt
-styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.5
+styles-plot @ git+https://github.com/danorel/styles-plot@v0.2.6
 ```
 
 While the project and the library change together (a new block, a fix the project needs), install the library
