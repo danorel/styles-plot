@@ -131,6 +131,7 @@ class Gutter:
 class ColumnGroup:
     header: str
     columns: Sequence[DotColumn | TextColumn]
+    rule: bool = False  # the header centred over all the group's columns, a thin line under it, so it reads as theirs
 
 
 @dataclass(frozen=True)
