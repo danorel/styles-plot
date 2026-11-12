@@ -6,6 +6,23 @@ the problem recorded and listed by `check`), then becomes an error in the next m
 `styles_plot/_checks/__init__.py` lists each with its version. A check of a new feature (one an old figure cannot use)
 is an error at once.
 
+## 0.2.7
+
+- **A value label keeps clear of its line's missing words.** A missing cell's words ("n/a") are placed before the
+  line's value labels and now block them, so the two never overlap (SP606). *Pixels:* a label that sat on missing words
+  moves; none in the gallery.
+- **A column group's rule.** `ColumnGroup(..., rule=True)`: the group's header centred over all its columns with a thin
+  line under it across them, and air under the line before the columns' headers, so a header over several panels
+  reads as theirs.
+- **A series drawn as ticks.** `Series(..., mark="tick")`: a short vertical mark in the role's colour instead of a dot,
+  for a reference the eye reads through (a dot of another role landing on it reads as "the same"). SP608 accepts it.
+- **Colour words in a fixed order.** `DotColumn(..., word_order="series")`: the words above the rows in the series'
+  order, from the left, so every panel of a figure names its colours in the same order; the default `"dots"` (the
+  order the dots appear) is unchanged.
+- **One axis title for all panels.** `DotTable(..., shared_title=True)`: when every panel shares a unit, one title
+  and one cue centred across them all (beyond a column group's). Default unchanged. The default is unchanged. *Migration:*
+  none.
+
 ## 0.2.6
 
 - **Several parts of no role, told apart.** A stack with two or more `other` segments draws them in their own greys,

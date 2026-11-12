@@ -25,6 +25,9 @@ MIN_PANEL = 0.7  # inches: the narrowest a shared panel may get
 TIE_PT = 0.5  # a value label's two sides nearer than this (points) are a tie, and it goes right
 
 
+GROUP_RULE_AIR = 0.1  # inches between a column group's rule and the headers under it
+
+
 def _group_h(ctx: Ctx) -> float:
     """Inches of a row group's header line: one bold grey line with air above it."""
     return line_h(ctx.sizes.tag) + 0.08
@@ -162,6 +165,11 @@ def _validate(t: DotTable, ctx: Ctx) -> None:
         if c.width is not None and c.weight != 1.0:
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} sets both width= (inches) and weight= (a share of "
                              "the free width); keep one")  # fmt: skip
+        if c.word_order not in ("dots", "series"):
+            raise BuildError(f"{ctx.figure_id}: column {c.header!r} has word_order={c.word_order!r}; use 'dots' or 'series'")
+        for s_ in c.series:
+            if s_.mark not in ("dot", "tick"):
+                raise BuildError(f"{ctx.figure_id}: series {s_.role!r} has mark={s_.mark!r}; use 'dot' or 'tick'")
         if c.labels not in ("nearest", "right"):
             raise BuildError(f"{ctx.figure_id}: column {c.header!r} has labels={c.labels!r}; use 'nearest' or 'right'")
         if c.xlim is not None and c.xlim[1] <= c.xlim[0]:
@@ -495,6 +503,8 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
         span = members[-1].x + members[-1].w - members[0].x
         lay.group_lines[id(g)] = ctx.wrap(g.header, span, sz.header, "bold")
     lay.group_h = max((len(v) for v in lay.group_lines.values()), default=0) * line_h(sz.header) + (0.06 if lay.groups else 0.0)
+    if any(g.rule for g in lay.groups):  # air between a group's rule and its columns' headers
+        lay.group_h += GROUP_RULE_AIR
     if sum(c.is_panel for c in lay.cols) > 1:  # what each shared panel may give up, for fixes that widen another
         lay.header_min = {id(c): _header_min(c, ctx) for c in lay.cols if c.is_panel and c.spec.width is None}
     for c in lay.cols:
@@ -507,7 +517,17 @@ def _vertical(lay: _Layout, ctx: Ctx) -> None:
             c.title = ctx.wrap(u.title, c.w + ctx.theme.pad * 0.8, sz.axis) if show else []
             if c.is_panel and u.cue:
                 c.cue = ctx.wrap(v.cue(u.name), c.w + ctx.theme.pad * 0.8, sz.cue)
-    for g in lay.groups:  # small multiples: a group's panels on one unit share one axis title and one cue
+    panels = [c for c in lay.cols if c.is_panel]
+    if lay.table.shared_title and len(panels) > 1 and len({c.spec.unit for c in panels}) == 1:
+        u = v.unit(panels[0].spec.unit)  # one title and one cue across every panel
+        x0, x1 = panels[0].x, panels[-1].x + panels[-1].w
+        panels[0].title_span, panels[0].title_panels = (x0, x1), [c.pid for c in panels]
+        panels[0].title = ctx.wrap(u.title, x1 - x0, sz.axis)
+        panels[0].cue = ctx.wrap(v.cue(u.name), x1 - x0, sz.cue) if u.cue else []
+        for c in panels[1:]:
+            c.title, c.cue = [], []
+    for g in lay.groups if not lay.table.shared_title else ():  # small multiples: a group's panels on one unit share
+        # one axis title and one cue
         members = [c for c in lay.cols if c.group is g and c.is_panel]
         if len(members) > 1 and len({c.spec.unit for c in members}) == 1 and all(c.group is g for c in members):
             u = v.unit(members[0].spec.unit)
@@ -562,7 +582,13 @@ def _strip(c: _Col, lay: _Layout, ctx: Ctx, seen_rules: set) -> int:
     need = sum(w for _xc, w, _p in words) + STRIP_GAP * max(len(words) - 1, 0)
     if words and need > c.w + ctx.theme.pad * 0.7:  # one line is the rule: say so instead of overlapping silently
         words = [(xc, w, (*p[:4], {**p[4], "line_full": (round(need, 2), round(c.w, 2)), "sizing": _sizing(c, lay)})) for xc, w, p in words]
-    line = place_in_line(words, c.w)
+    if c.spec.word_order == "series":  # as listed, from the left: the same order on every panel of a figure
+        line, x = [], 0.0
+        for _xc, w, p in words:
+            line.append((x, p))
+            x += w + STRIP_GAP
+    else:
+        line = place_in_line(words, c.w)
     occupied = [(x0, x0 + ctx.measure(p[0], sz.role_word, "bold")[0], 0) for x0, p in line]
     c.strip = [(x0, 0, *p) for x0, p in line]
     levels = 1 if line else 0
@@ -620,10 +646,14 @@ def _draw(cv: Canvas, ctx: Ctx, lay: _Layout) -> None:
         cv.text(0.08, TOP + lay.note_h / 2, lay.table.note, kind="subtitle", size=sz.tag, color=muted)
     top = TOP + lay.note_h
     for g in lay.groups:
-        gx = min(c.x for c in lay.cols if c.group is g)
-        for i, t in enumerate(lay.group_lines[id(g)]):
-            cv.text(gx, top + (i + 0.5) * line_h(sz.header), t, kind="header", size=sz.header, weight="bold",
-                    color=ink, full=g.header)  # fmt: skip
+        members = [c for c in lay.cols if c.group is g]
+        gx, gw = members[0].x, members[-1].x + members[-1].w - members[0].x
+        for i, t in enumerate(lay.group_lines[id(g)]):  # with its rule, the header is centred over the group's columns
+            cv.text(gx + gw / 2 if g.rule else gx, top + (i + 0.5) * line_h(sz.header), t, kind="header",
+                    size=sz.header, weight="bold", color=ink, full=g.header, **({"ha": "center"} if g.rule else {}))  # fmt: skip
+        if g.rule:  # under the header, across every column of the group
+            gy = top + len(lay.group_lines[id(g)]) * line_h(sz.header) + 0.01
+            cv.rect(gx, gy, gw, 0.012, ctx.chrome("faint"), kind="group_rule")
     for c in lay.cols:
         named = {"kind": "role_word", "role": c.header_role, "color": ctx.role_hex(c.header_role)} if c.header_role \
             else {"kind": "header", "color": ink}  # fmt: skip
@@ -768,14 +798,17 @@ def _line(cv: Canvas, ax, ctx: Ctx, c: _Col, key, y_abs: float, head: float, vli
             spans.append((val.lo, val.hi, 0.0))
         if val.label:
             labels.append((val, s.role))
-    for words in missing:  # after the marks: missing words keep clear of them too
-        _missing(cv, ctx, c, y_abs, words, vlines, spans)
+    for words in missing:  # after the marks: missing words keep clear of them too, and the value labels of them
+        x0, w = _missing(cv, ctx, c, y_abs, words, vlines, spans)
+        lo = c.spec.xlim[0]
+        spans.append((lo + x0 * c.per_inch(), lo + (x0 + w) * c.per_inch(), 0.0))
     _value_labels(cv, ctx, c, y_abs, labels, spans, vlines)
 
 
-def _missing(cv: Canvas, ctx: Ctx, c: _Col, y: float, words: str, vlines, spans=()) -> None:
+def _missing(cv: Canvas, ctx: Ctx, c: _Col, y: float, words: str, vlines, spans=()) -> tuple[float, float]:
     """Missing-cell words where they touch no vertical line and no mark of their line: at the panel's left, else
-    right-aligned at its right, else in the first gap wide enough."""
+    right-aligned at its right, else in the first gap wide enough. Returns where they went (inches from the panel's
+    left edge, and their width), so the line's value labels keep clear of them."""
     w = ctx.measure(words, ctx.sizes.tag)[0]
     clear = 4 * PT
     blocked = sorted([(c.dx(v), c.dx(v)) for v in vlines] + [(c.dx(a) - e, c.dx(b) + e) for a, b, e in spans])
@@ -789,6 +822,7 @@ def _missing(cv: Canvas, ctx: Ctx, c: _Col, y: float, words: str, vlines, spans=
         meta = {"no_room": (round(w, 2), round(max(widest, 0.0), 2))}
         best = candidates[0]
     cv.text(c.x + best, y, words, kind="missing", size=ctx.sizes.tag, color=ctx.chrome("muted"), **meta)
+    return best, w
 
 
 def rule_label(ctx: Ctx, rl) -> str:
@@ -825,6 +859,11 @@ def _dot(ax, ctx: Ctx, s, val: Est, y: float) -> list[float]:
         tag(ax.plot([val.lo, val.hi], [y, y], color=col, lw=mk.whisker_lw, solid_capstyle="butt", zorder=3),
             kind="whisker", interval=val.interval, **meta)  # fmt: skip
         out += [val.lo, val.hi]
+    if getattr(s, "mark", "dot") == "tick":  # a short vertical mark the eye reads through (a reference), in the role's colour
+        tag(ax.plot([val.value], [y], marker="|", ls="none", ms=mk.dot_size * 1.6, color=col,
+                    mew=mk.tick_lw * (0.6 if st.hollow else 1.0), zorder=4), kind="dot", hollow=st.hollow, mark="tick",
+            **meta)  # fmt: skip
+        return out
     tag(ax.plot([val.value], [y], marker=mk.marker, ls="none", ms=mk.dot_size, color=col, mfc=bg if st.hollow else col,
                 mec=col, mew=mk.hollow_edge if st.hollow else 0, zorder=4), kind="dot", hollow=st.hollow, **meta)  # fmt: skip
     return out

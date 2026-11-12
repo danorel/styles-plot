@@ -1022,3 +1022,46 @@ def test_two_parts_of_no_role_get_two_greys_and_swatches_in_them(vocab):
     swatches = [to_hex(t.get_color()) for t in mpl.findobj(lambda a: tags(a).get("kind") == "segment_swatch")]
     assert len(fills) == 2 and set(swatches) == fills  # each grey part in its own grey, its swatch in that grey
 
+
+# ---- 0.2.7: value labels clear missing words; a column group's rule --------------------------------------------------
+def test_a_value_label_keeps_clear_of_its_lines_missing_words(vocab):
+    # a dot near the left with its label, and a missing cell on the same line (another series): no overlap (SP606)
+    col = sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), [
+        sp.Series("control", {"m1": sp.Missing("no run")}, control="shuffled labels"),
+        sp.Series("second", {"m1": sp.Est(42, cell="acc.m1", key="v", label=True)})])  # fmt: skip
+    _mpl, problems = run(sp.Figure("methods", vocab).add(sp.DotTable(["m1"], [col])))
+    assert [p for p in problems if p.code in ("SP601", "SP606")] == [], [str(p) for p in problems]
+
+
+def test_a_column_group_rule_centres_its_header_over_its_columns(vocab):
+    t = simple(vocab).blocks[0]
+    col = t.columns[0]
+    grouped = dataclasses.replace(t, columns=[sp.ColumnGroup("set one", [col, col], rule=True)])
+    mpl, problems = run(sp.Figure("methods", vocab).add(grouped))
+    assert problems == [], [str(p) for p in problems]
+    r = mpl.canvas.get_renderer()
+    head = next(x for x in mpl.findobj(lambda a: tags(a).get("kind") == "header" and getattr(a, "get_text", lambda: "")() == "set one"))
+    rule = next(x for x in mpl.findobj(lambda a: tags(a).get("kind") == "group_rule"))
+    hb, rb = head.get_window_extent(r), rule.get_window_extent(r)
+    assert abs((hb.x0 + hb.x1) / 2 - (rb.x0 + rb.x1) / 2) < 2 and rb.y1 <= hb.y0 + 1  # centred over it, the rule below
+
+
+def test_a_tick_series_series_word_order_and_a_shared_title(vocab):
+    ref = {m: sp.Est(70.0 + i, cell=f"acc.{m}") for i, m in enumerate(M3)}
+    col = lambda: sp.DotColumn("accuracy", "accuracy", (40, 100), (50, 100), word_order="series", series=[  # noqa: E731
+        sp.Series("second", ref, mark="tick"),
+        sp.Series("first", {m: sp.Est(50.0 + i, cell=f"acc.{m}") for i, m in enumerate(M3)})])  # fmt: skip
+    t = sp.DotTable(M3, [col(), sp.Gutter(), col()], shared_title=True)
+    mpl, problems = run(sp.Figure("methods", vocab).add(t))
+    assert problems == [], [str(p) for p in problems]
+    r = mpl.canvas.get_renderer()
+    words = [w for w in mpl.findobj(lambda a: tags(a).get("kind") == "role_word")]
+    per_panel = sorted(((round(w.get_window_extent(r).y0), w.get_window_extent(r).x0, w.get_text()) for w in words))
+    first_panel = [t for _y, _x, t in per_panel[:2]]
+    assert first_panel[0] != first_panel[1] and len({tx for _y, _x, tx in per_panel}) == 2
+    xs = sorted((w.get_window_extent(r).x0, w.get_text()) for w in words)
+    assert [tx for _x, tx in xs][:2] == ["beta", "alpha"] or [tx for _x, tx in xs][:2] == ["alpha", "beta"]
+    assert len([a for a in mpl.findobj(lambda a: tags(a).get("kind") == "axis_title")]) == 1  # one title
+    ticks = [a for a in mpl.findobj(lambda a: tags(a).get("mark") == "tick")]
+    assert ticks and all(a.get_marker() == "|" for a in ticks)
+

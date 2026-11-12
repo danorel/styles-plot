@@ -91,7 +91,8 @@ def check(cx: CheckCtx) -> list[Problem]:
                                   fix=f"{wider + ', or ' if wider else ''}shorter missing words"))  # fmt: skip
     marker = cx.vocab.marks.marker
     for a in cx.marks:
-        if isinstance(a, Line2D) and a.get_marker() not in (None, "None", "none", "", " ", marker):
+        if isinstance(a, Line2D) and a.get_marker() not in (None, "None", "none", "", " ", marker) and not (
+                a.get_marker() == "|" and tags(a).get("mark") == "tick"):  # a series drawn as ticks (Series.mark)
             out.append(cx.problem("SP608", f"marker {a.get_marker()!r} (the theme's mark is {marker!r})"))
         if isinstance(a, Patch) and a.get_hatch():
             out.append(cx.problem("SP608", "hatching"))

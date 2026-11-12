@@ -85,6 +85,7 @@ class Series:
     key: str | None = None  # template: "acc.{row}"
     label: bool | None = None
     interval: str | None = None
+    mark: str = "dot"  # "dot", or "tick": a short vertical mark in the role's colour (a reference the eye reads through)
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,7 @@ class DotColumn:
     band_name: str = ""  # which [key.bands] definition the band has; "" = [key].band
     weight: float = 1.0  # this panel's share of the free width (panels without `width`), relative to the others
     labels: str = "nearest"  # value labels: "nearest" free gap, or "right" (the gap right of the dot, else left)
+    word_order: str = "dots"  # colour words above the rows: in the order their dots appear, or "series" (as listed)
 
 
 @dataclass(frozen=True)
@@ -131,6 +133,7 @@ class Gutter:
 class ColumnGroup:
     header: str
     columns: Sequence[DotColumn | TextColumn]
+    rule: bool = False  # the header centred over all the group's columns, a thin line under it, so it reads as theirs
 
 
 @dataclass(frozen=True)
@@ -160,6 +163,7 @@ class DotTable:
     lanes: Sequence[Lane] = ()  # sub-rows of every row
     note: str = ""  # one grey line above the table (a vocabulary term or template)
     groups: Sequence[RowGroup] = ()  # runs of consecutive rows, each under a header line
+    shared_title: bool = False  # all panels on one unit: one axis title and one cue, centred across them
 
     def flat_columns(self) -> list[tuple[DotColumn | TextColumn | Gutter, ColumnGroup | None]]:
         out = []
